@@ -1826,6 +1826,11 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     
     // Data for plotting
     let plotDataHorizontal, plotDataVertical;
+    let isDerivativeMode = false;
+    
+    // For derivative mode, store raw data for proper grid markers
+    let rawDerivHorizontal, rawDerivVertical;
+    let minDerivHorizontal, maxDerivHorizontal, minDerivVertical, maxDerivVertical;
 
     switch(algorithm) {
         case 1: // LPF button
@@ -1850,24 +1855,33 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
             break;
         case 2: // Derivative button
             {
+                isDerivativeMode = true;
+                
                 // Calculate derivatives
-                const derivHorizontal = calculateDerivative(horizontalProfile);
-                const derivVertical = calculateDerivative(verticalProfile);
+                rawDerivHorizontal = calculateDerivative(horizontalProfile);
+                rawDerivVertical = calculateDerivative(verticalProfile);
+                
+                // Find min/max values for proper scaling and grid marking
+                minDerivHorizontal = Math.min(...rawDerivHorizontal);
+                maxDerivHorizontal = Math.max(...rawDerivHorizontal);
+                minDerivVertical = Math.min(...rawDerivVertical);
+                maxDerivVertical = Math.max(...rawDerivVertical);
                 
                 // Find max absolute value for proper normalization (derivative can be positive or negative)
-                const maxAbsHorizontal = Math.max(...derivHorizontal.map(Math.abs));
-                const maxAbsVertical = Math.max(...derivVertical.map(Math.abs));
+                const maxAbsHorizontal = Math.max(Math.abs(minDerivHorizontal), Math.abs(maxDerivHorizontal));
+                const maxAbsVertical = Math.max(Math.abs(minDerivVertical), Math.abs(maxDerivVertical));
                 
-                // Create centered normalized derivative values (map -1...1 to 0...1 for display)
-                plotDataHorizontal = derivHorizontal.map(v => 0.5 + (v / (2 * maxAbsHorizontal + 0.00001)));
-                plotDataVertical = derivVertical.map(v => 0.5 + (v / (2 * maxAbsVertical + 0.00001)));
+                // Create normalized derivative values for display (map -1...1 to 0...1)
+                plotDataHorizontal = rawDerivHorizontal.map(v => 0.5 + (v / (2 * maxAbsHorizontal + 0.00001)));
+                plotDataVertical = rawDerivVertical.map(v => 0.5 + (v / (2 * maxAbsVertical + 0.00001)));
                 
                 // Update analysis pane with derivative information
                 document.getElementById('right-analysis-pane').innerHTML = `
                     <h3>Derivative Results</h3>
                     <div class="analysis-content">
                         <p>First derivative shows rate of change at each point.</p>
-                        <p>Peaks indicate rising edges, valleys indicate falling edges.</p>
+                        <p>Horizontal Derivative: Min=${minDerivHorizontal.toFixed(2)}, Max=${maxDerivHorizontal.toFixed(2)}</p>
+                        <p>Vertical Derivative: Min=${minDerivVertical.toFixed(2)}, Max=${maxDerivVertical.toFixed(2)}</p>
                         <p>Zero-crossings indicate local maxima and minima in the original signal.</p>
                         <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
                     </div>
@@ -1929,11 +1943,26 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     horizCtx.strokeStyle = colors[(algorithm - 1) % colors.length];
     horizCtx.lineWidth = 2;
     
-    for (let i = 0; i < plotDataHorizontal.length; i++) {
-        const y = (i / plotDataHorizontal.length) * horizHeight;
-        const x_value = plotDataHorizontal[i] * horizWidth;
-        horizCtx.moveTo(0, y);
-        horizCtx.lineTo(x_value, y);
+    if (isDerivativeMode) {
+        // For derivative mode, draw a line chart instead of bars
+        for (let i = 0; i < plotDataHorizontal.length; i++) {
+            const y = (i / plotDataHorizontal.length) * horizHeight;
+            const x_value = plotDataHorizontal[i] * horizWidth;
+            
+            if (i === 0) {
+                horizCtx.moveTo(x_value, y);
+            } else {
+                horizCtx.lineTo(x_value, y);
+            }
+        }
+    } else {
+        // For other modes, draw bars as before
+        for (let i = 0; i < plotDataHorizontal.length; i++) {
+            const y = (i / plotDataHorizontal.length) * horizHeight;
+            const x_value = plotDataHorizontal[i] * horizWidth;
+            horizCtx.moveTo(0, y);
+            horizCtx.lineTo(x_value, y);
+        }
     }
     horizCtx.stroke();
     
@@ -1943,64 +1972,107 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     vertCtx.strokeStyle = colors[Math.min(algorithm, colors.length -1)]; // Ensure valid index
     vertCtx.lineWidth = 2;
     
-    for (let i = 0; i < plotDataVertical.length; i++) {
-        const x_coord = (i / plotDataVertical.length) * vertWidth;
-        const y_value_scaled = plotDataVertical[i] * vertHeight;
-        const yStart = vertHeight;
-        const yEnd = vertHeight - y_value_scaled;
-        
-        vertCtx.moveTo(x_coord, yStart);
-        vertCtx.lineTo(x_coord, yEnd);
+    if (isDerivativeMode) {
+        // For derivative mode, draw a line chart instead of bars
+        for (let i = 0; i < plotDataVertical.length; i++) {
+            const x_coord = (i / plotDataVertical.length) * vertWidth;
+            const y_value = (1 - plotDataVertical[i]) * vertHeight; // Flip Y since canvas Y is inverted
+            
+            if (i === 0) {
+                vertCtx.moveTo(x_coord, y_value);
+            } else {
+                vertCtx.lineTo(x_coord, y_value);
+            }
+        }
+    } else {
+        // For other modes, draw bars as before
+        for (let i = 0; i < plotDataVertical.length; i++) {
+            const x_coord = (i / plotDataVertical.length) * vertWidth;
+            const y_value_scaled = plotDataVertical[i] * vertHeight;
+            const yStart = vertHeight;
+            const yEnd = vertHeight - y_value_scaled;
+            
+            vertCtx.moveTo(x_coord, yStart);
+            vertCtx.lineTo(x_coord, yEnd);
+        }
     }
     vertCtx.stroke();
     
     // Now draw grids ON TOP of the data for both graphs
-    drawGrid(horizCtx, horizWidth, horizHeight, true, algorithm === 2);
-    drawGrid(vertCtx, vertWidth, vertHeight, false, algorithm === 2);
+    if (isDerivativeMode) {
+        // For derivative mode, pass the actual derivative ranges for proper grid marking
+        drawDerivativeGrid(horizCtx, horizWidth, horizHeight, true, minDerivHorizontal, maxDerivHorizontal, horizontalProfile.length);
+        drawDerivativeGrid(vertCtx, vertWidth, vertHeight, false, minDerivVertical, maxDerivVertical, verticalProfile.length);
+    } else {
+        // For other modes, use the original grid function
+        drawGrid(horizCtx, horizWidth, horizHeight, true, false);
+        drawGrid(vertCtx, vertWidth, vertHeight, false, false);
+    }
 }
 
-// Helper function to draw grid for secondary graphs
-function drawGrid(ctx, width, height, isVertical, isDerivative) {
+// Helper function specifically for drawing derivative grids with proper coordinate marking
+function drawDerivativeGrid(ctx, width, height, isVertical, minValue, maxValue, dataLength) {
     ctx.save();
     
+    // Electric blue for grid lines
+    const gridColor = '#00BFFF'; // Electric blue
+    
     // Draw background grid lines
-    ctx.strokeStyle = '#444444';
+    ctx.strokeStyle = gridColor;
     ctx.lineWidth = 0.5;
     ctx.globalAlpha = 0.4;
     ctx.setLineDash([2, 2]); // Dotted lines for grid
     
+    // Calculate absolute maximum for scaling
+    const absMax = Math.max(Math.abs(minValue), Math.abs(maxValue));
+    
     ctx.beginPath();
     if (isVertical) {
-        // Horizontal lines for vertical graph (right side)
-        const majorSteps = 4; // Number of major divisions
-        for (let i = 0; i <= majorSteps; i++) {
-            const y = (i / majorSteps) * height;
+        // This is the right-side graph (horizontal projection)
+        // Y-axis represents the pixel positions in the image
+        const ySteps = 10; // Number of horizontal lines
+        for (let i = 0; i <= ySteps; i++) {
+            const y = (i / ySteps) * height;
+            const pixelPos = Math.floor((dataLength - 1) * (i / ySteps));
             ctx.moveTo(0, y);
             ctx.lineTo(width, y);
         }
         
-        // Vertical lines for vertical graph (right side)
-        const xSteps = 4; 
+        // X-axis represents derivative values
+        // Draw grid lines at specific derivative values
+        const xSteps = 4; // -max, -max/2, 0, max/2, max
         for (let i = 0; i <= xSteps; i++) {
-            const x = (i / xSteps) * width;
+            // Map from derivative value to x position (normalized to [0, 1] range)
+            const derivValue = minValue + (i / xSteps) * (maxValue - minValue);
+            const normalizedX = (derivValue - minValue) / (maxValue - minValue);
+            const x = normalizedX * width;
+            
             ctx.moveTo(x, 0);
             ctx.lineTo(x, height);
         }
     } else {
-        // Horizontal lines for horizontal graph (bottom)
-        const ySteps = 4;
-        for (let i = 0; i <= ySteps; i++) {
-            const y = (i / ySteps) * height;
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
-        }
-        
-        // Vertical lines for horizontal graph (bottom)
-        const xSteps = 10;
+        // This is the bottom graph (vertical projection)
+        // X-axis represents the pixel positions
+        const xSteps = 10; // Number of vertical lines
         for (let i = 0; i <= xSteps; i++) {
             const x = (i / xSteps) * width;
+            const pixelPos = Math.floor((dataLength - 1) * (i / xSteps));
             ctx.moveTo(x, 0);
             ctx.lineTo(x, height);
+        }
+        
+        // Y-axis represents derivative values (Y is inverted in canvas)
+        // Draw grid lines at specific derivative values
+        const ySteps = 4; // -max, -max/2, 0, max/2, max
+        for (let i = 0; i <= ySteps; i++) {
+            // Map from derivative value to y position (normalized to [0, 1] range)
+            // Remember to invert Y since canvas Y is top-down
+            const derivValue = minValue + (i / ySteps) * (maxValue - minValue);
+            const normalizedY = 1 - (derivValue - minValue) / (maxValue - minValue);
+            const y = normalizedY * height;
+            
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
         }
     }
     ctx.stroke();
@@ -2015,115 +2087,99 @@ function drawGrid(ctx, width, height, isVertical, isDerivative) {
     ctx.globalAlpha = 0.8;
     
     if (isVertical) {
-        // Y-axis (left edge)
+        // Y-axis (left edge - represents pixel position)
         ctx.moveTo(0, 0);
         ctx.lineTo(0, height);
         
-        // X-axis (bottom edge)
+        // X-axis (bottom edge - represents derivative values)
         ctx.moveTo(0, height);
         ctx.lineTo(width, height);
-        
-        // If derivative mode, mark the zero line (center line) prominently
-        if (isDerivative) {
-            // Horizontal zero line (at 50% height)
-            ctx.strokeStyle = '#ff6666'; // Red for zero line
-            ctx.lineWidth = 1.5;
-            const centerY = height / 2;
-            ctx.moveTo(0, centerY);
-            ctx.lineTo(width, centerY);
-        }
     } else {
-        // Y-axis (left edge)
+        // Y-axis (left edge - represents derivative values)
         ctx.moveTo(0, 0);
         ctx.lineTo(0, height);
         
-        // X-axis (bottom edge)
+        // X-axis (bottom edge - represents pixel position)
         ctx.moveTo(0, height);
         ctx.lineTo(width, height);
-        
-        // If derivative mode, mark the zero line (center line) prominently
-        if (isDerivative) {
-            // Vertical zero line (at 50% width)
-            ctx.strokeStyle = '#ff6666'; // Red for zero line
-            ctx.lineWidth = 1.5;
-            const centerX = width / 2;
-            ctx.moveTo(centerX, 0);
-            ctx.lineTo(centerX, height);
-        }
     }
     ctx.stroke();
     
-    // Add axis labels
+    // Draw the zero line with higher emphasis - THIS IS KEY FOR DERIVATIVE
+    ctx.beginPath();
+    ctx.strokeStyle = '#FF0000'; // Red for zero line
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.8;
+    
+    if (isVertical) {
+        // For the vertical graph (right side), find where zero is on X-axis
+        const zeroX = (-minValue) / (maxValue - minValue) * width;
+        ctx.moveTo(zeroX, 0);
+        ctx.lineTo(zeroX, height);
+    } else {
+        // For the horizontal graph (bottom), find where zero is on Y-axis
+        const zeroY = (1 - (-minValue) / (maxValue - minValue)) * height;
+        ctx.moveTo(0, zeroY);
+        ctx.lineTo(width, zeroY);
+    }
+    ctx.stroke();
+    
+    // Add axis and value labels
     ctx.fillStyle = '#ffffff'; // White text
     ctx.globalAlpha = 0.9;
     ctx.font = '10px Arial';
     
     if (isVertical) {
-        // Labels for vertical graph (right side)
-        // Y-axis labels
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText('0', 3, height - 2);
-        
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        if (isDerivative) {
-            ctx.fillText('-1', 3, height - 2);
-            ctx.fillText('0', 3, height / 2);
-            ctx.fillText('+1', 3, 10);
-        } else {
-            ctx.fillText('0.5', 3, height / 2);
-            ctx.fillText('1.0', 3, 10);
-        }
-        
-        // X-axis labels
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText('0', 0, height + 2);
-        ctx.fillText('0.5', width / 2, height + 2);
-        ctx.fillText('1.0', width - 10, height + 2);
-    } else {
-        // Labels for horizontal graph (bottom)
-        // X-axis tick labels
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText('0', 5, 5);
-        
-        if (isDerivative) {
-            ctx.fillText('Left', 5, 5);
-            ctx.fillText('Middle', width / 2, 5);
-            ctx.fillText('Right', width - 20, 5);
-        } else {
-            ctx.fillText('25%', width / 4, 5);
-            ctx.fillText('50%', width / 2, 5);
-            ctx.fillText('75%', (width / 4) * 3, 5);
-        }
-        
-        // Y-axis tick labels
+        // For the vertical graph (right side)
+        // Y-axis: pixel positions
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        ctx.fillText('0', 20, height - 5);
-        ctx.fillText('0.5', 20, height / 2);
-        ctx.fillText('1.0', 20, 10);
-    }
-    
-    // Draw crosshairs for derivative zero crossings if in derivative mode
-    if (isDerivative) {
-        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; // Semi-transparent yellow
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-        ctx.lineWidth = 0.8;
-        
-        ctx.beginPath();
-        if (isVertical) {
-            // Highlight the center horizontal line
-            const centerY = height / 2;
-            ctx.fillRect(0, centerY - 1, width, 2);
-        } else {
-            // Highlight the center vertical line
-            const centerX = width / 2;
-            ctx.fillRect(centerX - 1, 0, 2, height);
+        for (let i = 0; i <= 5; i++) {
+            const y = (i / 5) * height;
+            const pixelPos = Math.floor((dataLength - 1) * (i / 5));
+            ctx.fillText(`${pixelPos}`, -5, y);
         }
-        ctx.stroke();
+        
+        // X-axis: derivative values
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const derivSteps = 5;
+        for (let i = 0; i <= derivSteps; i++) {
+            const derivValue = minValue + (i / derivSteps) * (maxValue - minValue);
+            const x = (derivValue - minValue) / (maxValue - minValue) * width;
+            ctx.fillText(derivValue.toFixed(1), x, height + 5);
+        }
+        
+        // Label the zero line specially
+        const zeroX = (-minValue) / (maxValue - minValue) * width;
+        ctx.fillStyle = '#FF6666'; // Light red for zero label
+        ctx.fillText("0", zeroX, height + 5);
+        
+    } else {
+        // For the horizontal graph (bottom)
+        // X-axis: pixel positions
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let i = 0; i <= 5; i++) {
+            const x = (i / 5) * width;
+            const pixelPos = Math.floor((dataLength - 1) * (i / 5));
+            ctx.fillText(`${pixelPos}`, x, height + 5);
+        }
+        
+        // Y-axis: derivative values (remember Y is inverted)
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const derivSteps = 5;
+        for (let i = 0; i <= derivSteps; i++) {
+            const derivValue = minValue + (i / derivSteps) * (maxValue - minValue);
+            const y = (1 - (derivValue - minValue) / (maxValue - minValue)) * height;
+            ctx.fillText(derivValue.toFixed(1), -5, y);
+        }
+        
+        // Label the zero line specially
+        const zeroY = (1 - (-minValue) / (maxValue - minValue)) * height;
+        ctx.fillStyle = '#FF6666'; // Light red for zero label
+        ctx.fillText("0", -5, zeroY);
     }
     
     ctx.restore();
