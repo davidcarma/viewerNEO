@@ -1501,7 +1501,7 @@ function displayProjection(horizontal, vertical, image) {
         <div class="projection-controls">
             <div class="algorithm-buttons">
                 <h3>Algorithm Controls</h3>
-                <button id="algo-btn-1" class="algo-btn">Algorithm 1</button>
+                <button id="algo-btn-1" class="algo-btn">LPF</button>
                 <button id="algo-btn-2" class="algo-btn">Algorithm 2</button>
                 <button id="algo-btn-3" class="algo-btn">Algorithm 3</button>
                 <button id="algo-btn-4" class="algo-btn">Algorithm 4</button>
@@ -1733,6 +1733,29 @@ function displayProjection(horizontal, vertical, image) {
     return cleanup;
 }
 
+// Helper function to apply a Low Pass Filter (Moving Average)
+function applyLPF(data, windowSize) {
+    if (!data || data.length === 0 || windowSize <= 1) {
+        return [...data]; // Return a copy if no filtering is needed
+    }
+    const result = new Array(data.length).fill(0);
+    const halfWindow = Math.floor(windowSize / 2);
+
+    for (let i = 0; i < data.length; i++) {
+        let sum = 0;
+        let count = 0;
+        for (let j = -halfWindow; j <= halfWindow; j++) {
+            const index = i + j;
+            if (index >= 0 && index < data.length) {
+                sum += data[index];
+                count++;
+            }
+        }
+        result[i] = count > 0 ? sum / count : 0;
+    }
+    return result;
+}
+
 // Helper function to set up algorithm buttons
 function setupAlgorithmButtons(horizontalProfile, verticalProfile, 
                              primaryHorizCtx, primaryVertCtx,
@@ -1772,79 +1795,89 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     horizCtx.clearRect(0, 0, horizWidth, horizHeight);
     vertCtx.clearRect(0, 0, vertWidth, vertHeight);
     
-    // Normalize data
-    const normalize = (array, maxValue) => array.map(value => (value / maxValue) || 0);
-    const maxHorizontal = Math.max(...horizontalProfile);
-    const maxVertical = Math.max(...verticalProfile);
-    const normalizedHorizontal = normalize(horizontalProfile, maxHorizontal);
-    const normalizedVertical = normalize(verticalProfile, maxVertical);
+    // Normalize function (remains the same)
+    const normalize = (array, maxValue) => array.map(value => (value / Math.max(0.00001, maxValue)) || 0); // Added Math.max to avoid div by zero
     
     // Color selection based on algorithm
     const colors = ['#4a90e2', '#72c02c', '#e74c3c', '#f39c12', '#9b59b6', 
                   '#3498db', '#2ecc71', '#e67e22', '#9b59b6', '#1abc9c'];
     
-    // Draw HORIZONTAL projection (vertical graph on right)
+    // Data for plotting
+    let plotDataHorizontal, plotDataVertical;
+
+    switch(algorithm) {
+        case 1: // LPF button
+            {
+                const lpfWindowSize = 5; // Window size for LPF
+                const filteredHorizontal = applyLPF(horizontalProfile, lpfWindowSize);
+                const filteredVertical = applyLPF(verticalProfile, lpfWindowSize);
+
+                plotDataHorizontal = normalize(filteredHorizontal, Math.max(...filteredHorizontal));
+                plotDataVertical = normalize(filteredVertical, Math.max(...filteredVertical));
+            }
+            break;
+        case 3: // Actual data (original primary projection)
+            {
+                plotDataHorizontal = normalize(horizontalProfile, Math.max(...horizontalProfile));
+                plotDataVertical = normalize(verticalProfile, Math.max(...verticalProfile));
+            }
+            break;
+        default: // Algorithmic patterns (sine, step, etc.)
+            {
+                // For algorithmic patterns, we still need a base length from original profiles
+                const baseHorizontalNormalized = normalize(horizontalProfile, Math.max(...horizontalProfile));
+                const baseVerticalNormalized = normalize(verticalProfile, Math.max(...verticalProfile));
+                
+                // Generate pattern data of the same length
+                plotDataHorizontal = new Array(baseHorizontalNormalized.length);
+                plotDataVertical = new Array(baseVerticalNormalized.length);
+
+                for (let i = 0; i < baseHorizontalNormalized.length; i++) {
+                    if (algorithm === 2) { // Step pattern for horizontal
+                        plotDataHorizontal[i] = (i % 20 < 10 ? 0.3 : 0.7);
+                    } else { // Default sine-like pattern for horizontal
+                        plotDataHorizontal[i] = Math.abs(Math.sin(i * 0.1 * (algorithm % 3 + 1)) * 0.4 + 0.6);
+                    }
+                }
+
+                for (let i = 0; i < baseVerticalNormalized.length; i++) {
+                     if (algorithm === 2) { // Step pattern for vertical
+                        plotDataVertical[i] = (i % 30 < 15 ? 0.3 : 0.7);
+                    } else { // Default sine-like pattern for vertical
+                        plotDataVertical[i] = Math.abs(Math.sin(i * 0.05 * (algorithm % 3 + 1)) * 0.4 + 0.3);
+                    }
+                }
+            }
+            break;
+    }
+    
+    // Draw HORIZONTAL projection (vertical graph on right) using plotDataHorizontal
     horizCtx.beginPath();
     horizCtx.strokeStyle = colors[(algorithm - 1) % colors.length];
     horizCtx.lineWidth = 2;
     
-    for (let i = 0; i < normalizedHorizontal.length; i++) {
-        // Y-coordinate exactly matches image height proportionally
-        const y = (i / normalizedHorizontal.length) * horizHeight;
-        let x = 0;
-        
-        // Apply different algorithm-based transformations
-        switch(algorithm) {
-            case 1: // Basic sine wave pattern
-                x = Math.abs(Math.sin(i * 0.05) * 0.7 + 0.2) * horizWidth;
-                break;
-            case 2: // Step pattern
-                x = (i % 20 < 10 ? 0.3 : 0.7) * horizWidth;
-                break;
-            case 3: // Actual data
-                x = normalizedHorizontal[i] * horizWidth;
-                break;
-            default: // Variations based on algorithm number
-                x = (Math.sin(i * 0.1 * (algorithm % 3 + 1)) * 0.4 + 0.6) * horizWidth;
-        }
-        
-        if (i === 0) {
-            horizCtx.moveTo(0, y);
-        }
-        horizCtx.lineTo(x, y);
+    for (let i = 0; i < plotDataHorizontal.length; i++) {
+        const y = (i / plotDataHorizontal.length) * horizHeight;
+        const x_value = plotDataHorizontal[i] * horizWidth;
+        horizCtx.moveTo(0, y);
+        horizCtx.lineTo(x_value, y);
     }
     horizCtx.stroke();
     
-    // Draw VERTICAL projection (horizontal graph at bottom)
+    // Draw VERTICAL projection (horizontal graph at bottom) using plotDataVertical
     vertCtx.beginPath();
-    vertCtx.strokeStyle = colors[algorithm % colors.length];
+    // Use a consistent color indexing, e.g., (algorithm - 1) or ensure colors array is long enough
+    vertCtx.strokeStyle = colors[Math.min(algorithm, colors.length -1)]; // Ensure valid index
     vertCtx.lineWidth = 2;
     
-    for (let i = 0; i < normalizedVertical.length; i++) {
-        // X-coordinate exactly matches image width proportionally
-        const x = (i / normalizedVertical.length) * vertWidth;
+    for (let i = 0; i < plotDataVertical.length; i++) {
+        const x_coord = (i / plotDataVertical.length) * vertWidth;
+        const y_value_scaled = plotDataVertical[i] * vertHeight;
         const yStart = vertHeight;
-        let yEnd = 0;
+        const yEnd = vertHeight - y_value_scaled;
         
-        // Apply different algorithm-based transformations
-        switch(algorithm) {
-            case 1: // Sine pattern
-                yEnd = vertHeight - Math.abs(Math.sin(i * 0.1) * 0.8) * vertHeight;
-                break;
-            case 2: // Step pattern
-                yEnd = vertHeight - (i % 30 < 15 ? 0.3 : 0.7) * vertHeight;
-                break;
-            case 3: // Actual data
-                yEnd = vertHeight - normalizedVertical[i] * vertHeight;
-                break;
-            default: // Variations based on algorithm number
-                yEnd = vertHeight - (Math.sin(i * 0.05 * (algorithm % 3 + 1)) * 0.4 + 0.3) * vertHeight;
-        }
-        
-        if (i === 0) {
-            vertCtx.moveTo(x, yStart);
-        }
-        vertCtx.lineTo(x, yEnd);
+        vertCtx.moveTo(x_coord, yStart);
+        vertCtx.lineTo(x_coord, yEnd);
     }
     vertCtx.stroke();
 }
