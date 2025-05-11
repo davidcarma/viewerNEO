@@ -1923,7 +1923,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
             }
             break;
     }
-    
+        
     // Draw HORIZONTAL projection (vertical graph on right) using plotDataHorizontal
     horizCtx.beginPath();
     horizCtx.strokeStyle = colors[(algorithm - 1) % colors.length];
@@ -1953,6 +1953,180 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
         vertCtx.lineTo(x_coord, yEnd);
     }
     vertCtx.stroke();
+    
+    // Now draw grids ON TOP of the data for both graphs
+    drawGrid(horizCtx, horizWidth, horizHeight, true, algorithm === 2);
+    drawGrid(vertCtx, vertWidth, vertHeight, false, algorithm === 2);
+}
+
+// Helper function to draw grid for secondary graphs
+function drawGrid(ctx, width, height, isVertical, isDerivative) {
+    ctx.save();
+    
+    // Draw background grid lines
+    ctx.strokeStyle = '#444444';
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.4;
+    ctx.setLineDash([2, 2]); // Dotted lines for grid
+    
+    ctx.beginPath();
+    if (isVertical) {
+        // Horizontal lines for vertical graph (right side)
+        const majorSteps = 4; // Number of major divisions
+        for (let i = 0; i <= majorSteps; i++) {
+            const y = (i / majorSteps) * height;
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+        }
+        
+        // Vertical lines for vertical graph (right side)
+        const xSteps = 4; 
+        for (let i = 0; i <= xSteps; i++) {
+            const x = (i / xSteps) * width;
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+        }
+    } else {
+        // Horizontal lines for horizontal graph (bottom)
+        const ySteps = 4;
+        for (let i = 0; i <= ySteps; i++) {
+            const y = (i / ySteps) * height;
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+        }
+        
+        // Vertical lines for horizontal graph (bottom)
+        const xSteps = 10;
+        for (let i = 0; i <= xSteps; i++) {
+            const x = (i / xSteps) * width;
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+        }
+    }
+    ctx.stroke();
+    
+    // Reset line style for axes
+    ctx.setLineDash([]); // Solid lines for axes
+    
+    // Draw the axes with higher emphasis
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffffff'; // White color for axes
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.8;
+    
+    if (isVertical) {
+        // Y-axis (left edge)
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, height);
+        
+        // X-axis (bottom edge)
+        ctx.moveTo(0, height);
+        ctx.lineTo(width, height);
+        
+        // If derivative mode, mark the zero line (center line) prominently
+        if (isDerivative) {
+            // Horizontal zero line (at 50% height)
+            ctx.strokeStyle = '#ff6666'; // Red for zero line
+            ctx.lineWidth = 1.5;
+            const centerY = height / 2;
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+        }
+    } else {
+        // Y-axis (left edge)
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, height);
+        
+        // X-axis (bottom edge)
+        ctx.moveTo(0, height);
+        ctx.lineTo(width, height);
+        
+        // If derivative mode, mark the zero line (center line) prominently
+        if (isDerivative) {
+            // Vertical zero line (at 50% width)
+            ctx.strokeStyle = '#ff6666'; // Red for zero line
+            ctx.lineWidth = 1.5;
+            const centerX = width / 2;
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, height);
+        }
+    }
+    ctx.stroke();
+    
+    // Add axis labels
+    ctx.fillStyle = '#ffffff'; // White text
+    ctx.globalAlpha = 0.9;
+    ctx.font = '10px Arial';
+    
+    if (isVertical) {
+        // Labels for vertical graph (right side)
+        // Y-axis labels
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('0', 3, height - 2);
+        
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        if (isDerivative) {
+            ctx.fillText('-1', 3, height - 2);
+            ctx.fillText('0', 3, height / 2);
+            ctx.fillText('+1', 3, 10);
+        } else {
+            ctx.fillText('0.5', 3, height / 2);
+            ctx.fillText('1.0', 3, 10);
+        }
+        
+        // X-axis labels
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('0', 0, height + 2);
+        ctx.fillText('0.5', width / 2, height + 2);
+        ctx.fillText('1.0', width - 10, height + 2);
+    } else {
+        // Labels for horizontal graph (bottom)
+        // X-axis tick labels
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('0', 5, 5);
+        
+        if (isDerivative) {
+            ctx.fillText('Left', 5, 5);
+            ctx.fillText('Middle', width / 2, 5);
+            ctx.fillText('Right', width - 20, 5);
+        } else {
+            ctx.fillText('25%', width / 4, 5);
+            ctx.fillText('50%', width / 2, 5);
+            ctx.fillText('75%', (width / 4) * 3, 5);
+        }
+        
+        // Y-axis tick labels
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('0', 20, height - 5);
+        ctx.fillText('0.5', 20, height / 2);
+        ctx.fillText('1.0', 20, 10);
+    }
+    
+    // Draw crosshairs for derivative zero crossings if in derivative mode
+    if (isDerivative) {
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; // Semi-transparent yellow
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.lineWidth = 0.8;
+        
+        ctx.beginPath();
+        if (isVertical) {
+            // Highlight the center horizontal line
+            const centerY = height / 2;
+            ctx.fillRect(0, centerY - 1, width, 2);
+        } else {
+            // Highlight the center vertical line
+            const centerX = width / 2;
+            ctx.fillRect(centerX - 1, 0, 2, height);
+        }
+        ctx.stroke();
+    }
+    
+    ctx.restore();
 }
 
 // Main canvas drag functionality
