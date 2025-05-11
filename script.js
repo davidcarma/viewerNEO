@@ -2107,7 +2107,7 @@ function drawDerivativeGrid(ctx, width, height, isVertical, minValue, maxValue, 
     
     // Draw the zero line with higher emphasis - THIS IS KEY FOR DERIVATIVE
     ctx.beginPath();
-    ctx.strokeStyle = '#FF0000'; // Red for zero line
+    ctx.strokeStyle = '#00AFFF'; // Bright blue for zero line (changed from red)
     ctx.lineWidth = 1.5;
     ctx.globalAlpha = 0.8;
     
@@ -2152,7 +2152,7 @@ function drawDerivativeGrid(ctx, width, height, isVertical, minValue, maxValue, 
         
         // Label the zero line specially
         const zeroX = (-minValue) / (maxValue - minValue) * width;
-        ctx.fillStyle = '#FF6666'; // Light red for zero label
+        ctx.fillStyle = '#00AFFF'; // Bright blue for zero label (changed from red)
         ctx.fillText("0", zeroX, height + 5);
         
     } else {
@@ -2178,7 +2178,7 @@ function drawDerivativeGrid(ctx, width, height, isVertical, minValue, maxValue, 
         
         // Label the zero line specially
         const zeroY = (1 - (-minValue) / (maxValue - minValue)) * height;
-        ctx.fillStyle = '#FF6666'; // Light red for zero label
+        ctx.fillStyle = '#00AFFF'; // Bright blue for zero label (changed from red)
         ctx.fillText("0", -5, zeroY);
     }
     
