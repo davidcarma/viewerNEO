@@ -1502,7 +1502,7 @@ function displayProjection(horizontal, vertical, image) {
             <div class="algorithm-buttons">
                 <h3>Algorithm Controls</h3>
                 <button id="algo-btn-1" class="algo-btn">LPF</button>
-                <button id="algo-btn-2" class="algo-btn">Algorithm 2</button>
+                <button id="algo-btn-2" class="algo-btn">Derivative</button>
                 <button id="algo-btn-3" class="algo-btn">Algorithm 3</button>
                 <button id="algo-btn-4" class="algo-btn">Algorithm 4</button>
                 <button id="algo-btn-5" class="algo-btn">Algorithm 5</button>
@@ -1756,6 +1756,28 @@ function applyLPF(data, windowSize) {
     return result;
 }
 
+// Helper function to calculate the derivative of a signal
+function calculateDerivative(data) {
+    if (!data || data.length <= 1) {
+        return data.length === 1 ? [0] : []; // Return empty or zero array for edge cases
+    }
+    
+    const result = new Array(data.length).fill(0);
+    
+    // First point - forward difference
+    result[0] = data[1] - data[0];
+    
+    // Middle points - central difference (more accurate)
+    for (let i = 1; i < data.length - 1; i++) {
+        result[i] = (data[i+1] - data[i-1]) / 2;
+    }
+    
+    // Last point - backward difference
+    result[data.length - 1] = data[data.length - 1] - data[data.length - 2];
+    
+    return result;
+}
+
 // Helper function to set up algorithm buttons
 function setupAlgorithmButtons(horizontalProfile, verticalProfile, 
                              primaryHorizCtx, primaryVertCtx,
@@ -1808,18 +1830,65 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     switch(algorithm) {
         case 1: // LPF button
             {
-                const lpfWindowSize = 20; // Window size for LPF
+                const lpfWindowSize = 15; // Increased window size for more noticeable smoothing
                 const filteredHorizontal = applyLPF(horizontalProfile, lpfWindowSize);
                 const filteredVertical = applyLPF(verticalProfile, lpfWindowSize);
 
                 plotDataHorizontal = normalize(filteredHorizontal, Math.max(...filteredHorizontal));
                 plotDataVertical = normalize(filteredVertical, Math.max(...filteredVertical));
+                
+                // Update analysis pane with LPF information
+                document.getElementById('right-analysis-pane').innerHTML = `
+                    <h3>Low Pass Filter Results</h3>
+                    <div class="analysis-content">
+                        <p>Applied moving average filter with window size: ${lpfWindowSize}</p>
+                        <p>This filter smooths the signal by reducing high-frequency components.</p>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
+            }
+            break;
+        case 2: // Derivative button
+            {
+                // Calculate derivatives
+                const derivHorizontal = calculateDerivative(horizontalProfile);
+                const derivVertical = calculateDerivative(verticalProfile);
+                
+                // Find max absolute value for proper normalization (derivative can be positive or negative)
+                const maxAbsHorizontal = Math.max(...derivHorizontal.map(Math.abs));
+                const maxAbsVertical = Math.max(...derivVertical.map(Math.abs));
+                
+                // Create centered normalized derivative values (map -1...1 to 0...1 for display)
+                plotDataHorizontal = derivHorizontal.map(v => 0.5 + (v / (2 * maxAbsHorizontal + 0.00001)));
+                plotDataVertical = derivVertical.map(v => 0.5 + (v / (2 * maxAbsVertical + 0.00001)));
+                
+                // Update analysis pane with derivative information
+                document.getElementById('right-analysis-pane').innerHTML = `
+                    <h3>Derivative Results</h3>
+                    <div class="analysis-content">
+                        <p>First derivative shows rate of change at each point.</p>
+                        <p>Peaks indicate rising edges, valleys indicate falling edges.</p>
+                        <p>Zero-crossings indicate local maxima and minima in the original signal.</p>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
             }
             break;
         case 3: // Actual data (original primary projection)
             {
                 plotDataHorizontal = normalize(horizontalProfile, Math.max(...horizontalProfile));
                 plotDataVertical = normalize(verticalProfile, Math.max(...verticalProfile));
+                
+                // Update analysis pane with original data information
+                document.getElementById('right-analysis-pane').innerHTML = `
+                    <h3>Original Projection Data</h3>
+                    <div class="analysis-content">
+                        <p>Showing unmodified projection data.</p>
+                        <p>Horizontal projection: ${horizontalProfile.length} points</p>
+                        <p>Vertical projection: ${verticalProfile.length} points</p>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
             }
             break;
         default: // Algorithmic patterns (sine, step, etc.)
@@ -1832,21 +1901,25 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 plotDataHorizontal = new Array(baseHorizontalNormalized.length);
                 plotDataVertical = new Array(baseVerticalNormalized.length);
 
+                // Generate different pattern based on algorithm number
                 for (let i = 0; i < baseHorizontalNormalized.length; i++) {
-                    if (algorithm === 2) { // Step pattern for horizontal
-                        plotDataHorizontal[i] = (i % 20 < 10 ? 0.3 : 0.7);
-                    } else { // Default sine-like pattern for horizontal
-                        plotDataHorizontal[i] = Math.abs(Math.sin(i * 0.1 * (algorithm % 3 + 1)) * 0.4 + 0.6);
-                    }
+                    // Use algorithmic patterns for other buttons
+                    plotDataHorizontal[i] = Math.abs(Math.sin(i * 0.1 * (algorithm % 3 + 1)) * 0.4 + 0.6);
                 }
 
                 for (let i = 0; i < baseVerticalNormalized.length; i++) {
-                     if (algorithm === 2) { // Step pattern for vertical
-                        plotDataVertical[i] = (i % 30 < 15 ? 0.3 : 0.7);
-                    } else { // Default sine-like pattern for vertical
-                        plotDataVertical[i] = Math.abs(Math.sin(i * 0.05 * (algorithm % 3 + 1)) * 0.4 + 0.3);
-                    }
+                    // Use algorithmic patterns for other buttons
+                    plotDataVertical[i] = Math.abs(Math.sin(i * 0.05 * (algorithm % 3 + 1)) * 0.4 + 0.3);
                 }
+                
+                // Update analysis pane with algorithm information
+                document.getElementById('right-analysis-pane').innerHTML = `
+                    <h3>Algorithm ${algorithm} Results</h3>
+                    <div class="analysis-content">
+                        <p>Demonstrating pattern generation algorithm ${algorithm}.</p>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
             }
             break;
     }
