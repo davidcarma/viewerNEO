@@ -1734,49 +1734,51 @@ function displayProjection(horizontal, vertical, image) {
 }
 
 // Helper function to apply a Low Pass Filter (Moving Average)
-function applyLPF(data, windowSize) {
-    if (!data || data.length === 0 || windowSize <= 1) {
-        return [...data]; // Return a copy if no filtering is needed
-    }
-    const result = new Array(data.length).fill(0);
-    const halfWindow = Math.floor(windowSize / 2);
+// This function has been moved to lpf_filter.js
+// function applyLPF(data, windowSize) {
+//     if (!data || data.length === 0 || windowSize <= 1) {
+//         return [...data]; // Return a copy if no filtering is needed
+//     }
+//     const result = new Array(data.length).fill(0);
+//     const halfWindow = Math.floor(windowSize / 2);
 
-    for (let i = 0; i < data.length; i++) {
-        let sum = 0;
-        let count = 0;
-        for (let j = -halfWindow; j <= halfWindow; j++) {
-            const index = i + j;
-            if (index >= 0 && index < data.length) {
-                sum += data[index];
-                count++;
-            }
-        }
-        result[i] = count > 0 ? sum / count : 0;
-    }
-    return result;
-}
+//     for (let i = 0; i < data.length; i++) {
+//         let sum = 0;
+//         let count = 0;
+//         for (let j = -halfWindow; j <= halfWindow; j++) {
+//             const index = i + j;
+//             if (index >= 0 && index < data.length) {
+//                 sum += data[index];
+//                 count++;
+//             }
+//         }
+//         result[i] = count > 0 ? sum / count : 0;
+//     }
+//     return result;
+// }
 
 // Helper function to calculate the derivative of a signal
-function calculateDerivative(data) {
-    if (!data || data.length <= 1) {
-        return data.length === 1 ? [0] : []; // Return empty or zero array for edge cases
-    }
+// This function has been moved to derivative_processor.js
+// function calculateDerivative(data) {
+//     if (!data || data.length <= 1) {
+//         return data.length === 1 ? [0] : []; // Return empty or zero array for edge cases
+//     }
     
-    const result = new Array(data.length).fill(0);
+//     const result = new Array(data.length).fill(0);
     
-    // First point - forward difference
-    result[0] = data[1] - data[0];
+//     // First point - forward difference
+//     result[0] = data[1] - data[0];
     
-    // Middle points - central difference (more accurate)
-    for (let i = 1; i < data.length - 1; i++) {
-        result[i] = (data[i+1] - data[i-1]) / 2;
-    }
+//     // Middle points - central difference (more accurate)
+//     for (let i = 1; i < data.length - 1; i++) {
+//         result[i] = (data[i+1] - data[i-1]) / 2;
+//     }
     
-    // Last point - backward difference
-    result[data.length - 1] = data[data.length - 1] - data[data.length - 2];
+//     // Last point - backward difference
+//     result[data.length - 1] = data[data.length - 1] - data[data.length - 2];
     
-    return result;
-}
+//     return result;
+// }
 
 // Helper function to set up algorithm buttons
 function setupAlgorithmButtons(horizontalProfile, verticalProfile, 
