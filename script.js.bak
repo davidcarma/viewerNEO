@@ -1762,22 +1762,41 @@ function setupAlgorithmButtons(horizontalProfile, verticalProfile,
                              secondaryHorizCtx, secondaryVertCtx,
                              horizGraphWidth, horizGraphHeight,
                              vertGraphWidth, vertGraphHeight) {
+    
+    // Dynamically load the algorithm metadata
+    import('./js/algorithms/index.js')
+        .then(algorithmModule => {
+            // Update button names with the actual algorithm names
+            algorithmModule.algorithms.forEach(algo => {
+                const button = document.getElementById(`algo-btn-${algo.id}`);
+                if (button) {
+                    button.textContent = algo.name;
+                    
+                    // Add tooltip with description
+                    button.title = `${algo.fullName}: ${algo.description}`;
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Failed to load algorithm metadata:', error);
+        });
+    
+    // Set up click handlers for algorithm buttons
     for (let i = 1; i <= 10; i++) {
         const button = document.getElementById(`algo-btn-${i}`);
         if (!button) continue;
         
         button.addEventListener('click', function() {
-            // Update results display
+            // Update results display with algorithm name
             document.getElementById('right-analysis-pane').innerHTML = `
                 <h3>Algorithm ${i} Results</h3>
                 <div class="analysis-content">
-                    <p>Results from Algorithm ${i} (operating on full-resolution data) will appear here.</p>
-                    <p>Full-res image: ${horizontalProfile.length}x${verticalProfile.length}</p>
+                    <p>Processing algorithm ${i}... Please wait.</p>
                     <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
                 </div>
             `;
             
-            // Redraw secondary graphs with different visualizations
+            // Apply the selected algorithm to the profile data
             updateSecondaryGraphs(i, horizontalProfile, verticalProfile, 
                                secondaryHorizCtx, secondaryVertCtx,
                                horizGraphWidth, horizGraphHeight,
@@ -1795,91 +1814,131 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     horizCtx.clearRect(0, 0, horizWidth, horizHeight);
     vertCtx.clearRect(0, 0, vertWidth, vertHeight);
     
-    // Normalize function (remains the same)
-    const normalize = (array, maxValue) => array.map(value => (value / Math.max(0.00001, maxValue)) || 0); // Added Math.max to avoid div by zero
+    // Normalize function for visualizing data
+    const normalize = (array, maxValue) => array.map(value => (value / Math.max(0.00001, maxValue)) || 0);
     
     // Color selection based on algorithm
     const colors = ['#4a90e2', '#72c02c', '#e74c3c', '#f39c12', '#9b59b6', 
                   '#3498db', '#2ecc71', '#e67e22', '#9b59b6', '#1abc9c'];
     
-    // Data for plotting
-    let plotDataHorizontal, plotDataVertical;
-
-    switch(algorithm) {
-        case 1: // LPF button
-            {
-                const lpfWindowSize = 20; // Window size for LPF
-                const filteredHorizontal = applyLPF(horizontalProfile, lpfWindowSize);
-                const filteredVertical = applyLPF(verticalProfile, lpfWindowSize);
-
-                plotDataHorizontal = normalize(filteredHorizontal, Math.max(...filteredHorizontal));
-                plotDataVertical = normalize(filteredVertical, Math.max(...filteredVertical));
+    // Import the algorithm module dynamically
+    import('./js/algorithms/index.js')
+        .then(algorithms => {
+            // Get algorithm result using the processor
+            const result = algorithms.processData(algorithm, horizontalProfile, verticalProfile);
+            
+            if (!result) {
+                console.error(`Algorithm ${algorithm} processing failed`);
+                return;
             }
-            break;
-        case 3: // Actual data (original primary projection)
-            {
-                plotDataHorizontal = normalize(horizontalProfile, Math.max(...horizontalProfile));
-                plotDataVertical = normalize(verticalProfile, Math.max(...verticalProfile));
-            }
-            break;
-        default: // Algorithmic patterns (sine, step, etc.)
-            {
-                // For algorithmic patterns, we still need a base length from original profiles
-                const baseHorizontalNormalized = normalize(horizontalProfile, Math.max(...horizontalProfile));
-                const baseVerticalNormalized = normalize(verticalProfile, Math.max(...verticalProfile));
+            
+            // Extract horizontal and vertical processed data
+            const { horizontalData, verticalData, analysisInfo } = result;
+            
+            // Normalize the data for visualization
+            const max1 = Math.max(...horizontalData);
+            const max2 = Math.max(...verticalData);
+            const plotDataHorizontal = normalize(horizontalData, max1);
+            const plotDataVertical = normalize(verticalData, max2);
+            
+            // Update the analysis pane with the results
+            const analysisPane = document.getElementById('right-analysis-pane');
+            if (analysisPane) {
+                // Get the algorithm info
+                const algorithmInfo = algorithms.getAlgorithm(algorithm);
                 
-                // Generate pattern data of the same length
-                plotDataHorizontal = new Array(baseHorizontalNormalized.length);
-                plotDataVertical = new Array(baseVerticalNormalized.length);
-
-                for (let i = 0; i < baseHorizontalNormalized.length; i++) {
-                    if (algorithm === 2) { // Step pattern for horizontal
-                        plotDataHorizontal[i] = (i % 20 < 10 ? 0.3 : 0.7);
-                    } else { // Default sine-like pattern for horizontal
-                        plotDataHorizontal[i] = Math.abs(Math.sin(i * 0.1 * (algorithm % 3 + 1)) * 0.4 + 0.6);
+                // Create HTML for the analysis results
+                let analysisHtml = `
+                    <h3>${algorithmInfo ? algorithmInfo.fullName : `Algorithm ${algorithm}`}</h3>
+                    <div class="analysis-content">
+                        <p>${analysisInfo.description || `Results from Algorithm ${algorithm}`}</p>
+                `;
+                
+                // Add extra properties from analysisInfo if available
+                if (analysisInfo) {
+                    // Filter out large arrays from the analysis info
+                    const propsToDisplay = Object.entries(analysisInfo).filter(([key, value]) => {
+                        return key !== 'description' && key !== 'title' && !Array.isArray(value) || (Array.isArray(value) && value.length < 50);
+                    });
+                    
+                    if (propsToDisplay.length > 0) {
+                        analysisHtml += '<div class="analysis-details">';
+                        
+                        // Add horizontal stats if available
+                        if (analysisInfo.horizontalStats) {
+                            analysisHtml += '<h4>Horizontal Statistics</h4><ul>';
+                            for (const [key, value] of Object.entries(analysisInfo.horizontalStats)) {
+                                if (typeof value === 'number') {
+                                    analysisHtml += `<li>${key}: ${value.toFixed(4)}</li>`;
+                                }
+                            }
+                            analysisHtml += '</ul>';
+                        }
+                        
+                        // Add vertical stats if available
+                        if (analysisInfo.verticalStats) {
+                            analysisHtml += '<h4>Vertical Statistics</h4><ul>';
+                            for (const [key, value] of Object.entries(analysisInfo.verticalStats)) {
+                                if (typeof value === 'number') {
+                                    analysisHtml += `<li>${key}: ${value.toFixed(4)}</li>`;
+                                }
+                            }
+                            analysisHtml += '</ul>';
+                        }
+                        
+                        // Add other info properties that aren't large arrays
+                        for (const [key, value] of propsToDisplay) {
+                            if (key !== 'horizontalStats' && key !== 'verticalStats' && key !== 'settings') {
+                                if (typeof value === 'object' && value !== null) {
+                                    analysisHtml += `<h4>${key}</h4><pre>${JSON.stringify(value, null, 2)}</pre>`;
+                                } else if (typeof value !== 'function' && typeof value !== 'undefined') {
+                                    analysisHtml += `<p><strong>${key}:</strong> ${value}</p>`;
+                                }
+                            }
+                        }
+                        
+                        analysisHtml += '</div>';
                     }
                 }
-
-                for (let i = 0; i < baseVerticalNormalized.length; i++) {
-                     if (algorithm === 2) { // Step pattern for vertical
-                        plotDataVertical[i] = (i % 30 < 15 ? 0.3 : 0.7);
-                    } else { // Default sine-like pattern for vertical
-                        plotDataVertical[i] = Math.abs(Math.sin(i * 0.05 * (algorithm % 3 + 1)) * 0.4 + 0.3);
-                    }
-                }
+                
+                analysisHtml += `<p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>`;
+                analysisHtml += '</div>';
+                
+                analysisPane.innerHTML = analysisHtml;
             }
-            break;
-    }
-    
-    // Draw HORIZONTAL projection (vertical graph on right) using plotDataHorizontal
-    horizCtx.beginPath();
-    horizCtx.strokeStyle = colors[(algorithm - 1) % colors.length];
-    horizCtx.lineWidth = 2;
-    
-    for (let i = 0; i < plotDataHorizontal.length; i++) {
-        const y = (i / plotDataHorizontal.length) * horizHeight;
-        const x_value = plotDataHorizontal[i] * horizWidth;
-        horizCtx.moveTo(0, y);
-        horizCtx.lineTo(x_value, y);
-    }
-    horizCtx.stroke();
-    
-    // Draw VERTICAL projection (horizontal graph at bottom) using plotDataVertical
-    vertCtx.beginPath();
-    // Use a consistent color indexing, e.g., (algorithm - 1) or ensure colors array is long enough
-    vertCtx.strokeStyle = colors[Math.min(algorithm, colors.length -1)]; // Ensure valid index
-    vertCtx.lineWidth = 2;
-    
-    for (let i = 0; i < plotDataVertical.length; i++) {
-        const x_coord = (i / plotDataVertical.length) * vertWidth;
-        const y_value_scaled = plotDataVertical[i] * vertHeight;
-        const yStart = vertHeight;
-        const yEnd = vertHeight - y_value_scaled;
-        
-        vertCtx.moveTo(x_coord, yStart);
-        vertCtx.lineTo(x_coord, yEnd);
-    }
-    vertCtx.stroke();
+            
+            // Draw HORIZONTAL projection (vertical graph on right) using plotDataHorizontal
+            horizCtx.beginPath();
+            horizCtx.strokeStyle = colors[(algorithm - 1) % colors.length];
+            horizCtx.lineWidth = 2;
+            
+            for (let i = 0; i < plotDataHorizontal.length; i++) {
+                const y = (i / plotDataHorizontal.length) * horizHeight;
+                const x_value = plotDataHorizontal[i] * horizWidth;
+                horizCtx.moveTo(0, y);
+                horizCtx.lineTo(x_value, y);
+            }
+            horizCtx.stroke();
+            
+            // Draw VERTICAL projection (horizontal graph at bottom) using plotDataVertical
+            vertCtx.beginPath();
+            vertCtx.strokeStyle = colors[Math.min(algorithm, colors.length - 1) - 1]; // Ensure valid index
+            vertCtx.lineWidth = 2;
+            
+            for (let i = 0; i < plotDataVertical.length; i++) {
+                const x_coord = (i / plotDataVertical.length) * vertWidth;
+                const y_value_scaled = plotDataVertical[i] * vertHeight;
+                const yStart = vertHeight;
+                const yEnd = vertHeight - y_value_scaled;
+                
+                vertCtx.moveTo(x_coord, yStart);
+                vertCtx.lineTo(x_coord, yEnd);
+            }
+            vertCtx.stroke();
+        })
+        .catch(error => {
+            console.error('Error loading algorithms module:', error);
+        });
 }
 
 // Main canvas drag functionality
