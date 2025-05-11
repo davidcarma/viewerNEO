@@ -1418,21 +1418,49 @@ function displayProjection(horizontal, vertical, image) {
     // Create a projection overlay with a grid layout
     const projectionOverlay = document.createElement('div');
     projectionOverlay.id = 'projection-overlay';
-    projectionOverlay.style.display = "grid";
-    projectionOverlay.style.gridTemplateColumns = `${scaledWidth}px 100px`; // Two columns, vertical graph width scaled
-    projectionOverlay.style.gridTemplateRows = `${scaledHeight}px 100px`; // Two rows, horizontal graph height scaled
-    projectionOverlay.style.gap = "10px"; // Spacing between panels
-    projectionOverlay.style.justifyContent = "center"; // Center the grid
-    projectionOverlay.style.alignItems = "center"; // Vertically center items
-
+    projectionOverlay.className = 'projection-layout';
+    
     projectionOverlay.innerHTML = `
-        <canvas id="image-canvas" width="${scaledWidth}" height="${scaledHeight}" style="border: 1px solid white; grid-column: 1; grid-row: 1;"></canvas>
-        <canvas id="horizontal-projection" width="100" height="${scaledHeight}" style="border: 1px solid white; grid-column: 2; grid-row: 1;"></canvas>
-        <canvas id="vertical-projection" width="${scaledWidth}" height="100" style="border: 1px solid white; grid-column: 1; grid-row: 2;"></canvas>
-        <div id="dummy-panel" style="visibility: hidden; grid-column: 2; grid-row: 2;"></div>
-        <div style="grid-column: 1 / span 2; display: flex; justify-content: space-between; margin-top: 10px;">
-            <button id="full-screen-projection">Full Screen</button>
-            <button id="close-projection">Close</button>
+        <div class="projection-main-area">
+            <div class="projection-top-area">
+                <canvas id="image-canvas" width="${scaledWidth}" height="${scaledHeight}"></canvas>
+                <canvas id="horizontal-projection" width="100" height="${scaledHeight}"></canvas>
+                <div id="left-analysis-pane" class="analysis-pane">
+                    <h3>Left Analysis Pane</h3>
+                    <div class="analysis-content">
+                        <p>Future analysis will appear here</p>
+                    </div>
+                </div>
+            </div>
+            <div class="projection-bottom-area">
+                <canvas id="vertical-projection" width="${scaledWidth}" height="100"></canvas>
+                <div id="bottom-right-pane"></div>
+                <div id="bottom-analysis-pane" class="analysis-pane">
+                    <h3>Bottom Analysis Pane</h3>
+                    <div class="analysis-content">
+                        <p>Future analysis will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="projection-controls">
+            <div class="algorithm-buttons">
+                <h3>Algorithm Controls</h3>
+                <button id="algo-btn-1" class="algo-btn">Algorithm 1</button>
+                <button id="algo-btn-2" class="algo-btn">Algorithm 2</button>
+                <button id="algo-btn-3" class="algo-btn">Algorithm 3</button>
+                <button id="algo-btn-4" class="algo-btn">Algorithm 4</button>
+                <button id="algo-btn-5" class="algo-btn">Algorithm 5</button>
+                <button id="algo-btn-6" class="algo-btn">Algorithm 6</button>
+                <button id="algo-btn-7" class="algo-btn">Algorithm 7</button>
+                <button id="algo-btn-8" class="algo-btn">Algorithm 8</button>
+                <button id="algo-btn-9" class="algo-btn">Algorithm 9</button>
+                <button id="algo-btn-10" class="algo-btn">Algorithm 10</button>
+            </div>
+            <div class="view-controls">
+                <button id="full-screen-projection">Full Screen</button>
+                <button id="close-projection">Close</button>
+            </div>
         </div>
     `;
     document.body.appendChild(projectionOverlay);
@@ -1485,25 +1513,104 @@ function displayProjection(horizontal, vertical, image) {
     vCtx.strokeStyle = 'white'; // White graph line
     vCtx.stroke();
 
-    // Full Screen Button Logic
+    // Full Screen Button Logic - Properly handle fullscreen mode
     document.getElementById('full-screen-projection').addEventListener('click', () => {
-        if (projectionOverlay.requestFullscreen) {
-            projectionOverlay.requestFullscreen();
-        } else if (projectionOverlay.webkitRequestFullscreen) {
-            // Safari
-            projectionOverlay.webkitRequestFullscreen();
-        } else if (projectionOverlay.msRequestFullscreen) {
-            // IE/Edge
-            projectionOverlay.msRequestFullscreen();
+        const overlay = document.getElementById('projection-overlay');
+        
+        if (!document.fullscreenElement) {
+            // Enter fullscreen
+            if (overlay.requestFullscreen) {
+                overlay.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+            } else if (overlay.webkitRequestFullscreen) {
+                overlay.webkitRequestFullscreen();
+            } else if (overlay.msRequestFullscreen) {
+                overlay.msRequestFullscreen();
+            }
+            overlay.classList.add('fullscreen');
+            document.getElementById('full-screen-projection').textContent = 'Exit Full Screen';
+        } else {
+            // Exit fullscreen
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+            overlay.classList.remove('fullscreen');
+            document.getElementById('full-screen-projection').textContent = 'Full Screen';
         }
     });
 
+    // Track fullscreen changes
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    function handleFullscreenChange() {
+        const overlay = document.getElementById('projection-overlay');
+        if (!document.fullscreenElement && 
+            !document.webkitFullscreenElement && 
+            !document.mozFullScreenElement && 
+            !document.msFullscreenElement) {
+            // Exited fullscreen
+            overlay.classList.remove('fullscreen');
+            document.getElementById('full-screen-projection').textContent = 'Full Screen';
+        }
+    }
+
     // Close button logic
     document.getElementById('close-projection').addEventListener('click', () => {
+        document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+        
+        // Exit fullscreen if active
+        if (document.fullscreenElement || 
+            document.webkitFullscreenElement || 
+            document.mozFullScreenElement || 
+            document.msFullscreenElement) {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+        
         document.body.removeChild(projectionOverlay);
         projectionButton.disabled = false;
         projectionButton.classList.remove('disabled'); // Re-enable the button
     });
+
+    // Algorithm buttons - dummy functions for future implementation
+    for (let i = 1; i <= 10; i++) {
+        document.getElementById(`algo-btn-${i}`).addEventListener('click', () => {
+            // Placeholder for algorithm implementation
+            console.log(`Algorithm ${i} clicked - Function to be implemented`);
+            
+            // Show a message in both analysis panes
+            const leftPane = document.getElementById('left-analysis-pane');
+            const bottomPane = document.getElementById('bottom-analysis-pane');
+            
+            const analysisHTML = `
+                <h3>Algorithm ${i} Results</h3>
+                <div class="analysis-content">
+                    <p>Results from Algorithm ${i} will appear here when implemented.</p>
+                    <p>This is a placeholder for future functionality.</p>
+                    <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                </div>
+            `;
+            
+            leftPane.innerHTML = analysisHTML;
+            bottomPane.innerHTML = analysisHTML;
+        });
+    }
 }
 
 // Main canvas drag functionality
