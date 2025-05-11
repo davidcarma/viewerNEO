@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>High DPI Image Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Add local TIFF.js library -->
+    <script src="lib/tiff.js"></script>
+</head>
+<body>
+    <div id="thumbnail-panel">
+        <div class="thumbnail-header">
+            <h3>Images</h3>
+            <button id="close-thumbnails">×</button>
+        </div>
+        <div id="thumbnails-container"></div>
+    </div>
+    <div id="thumbnail-toggle-handle" class="hidden"></div>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        <div id="drop-overlay">Drop image or folder here</div>
+        <div id="info-panel">
+            Image Size: -<br>
+            Zoom: 100%<br>
+            Position: 0, 0
+        </div>
+        <div id="controls">
+            <button id="load-btn">Load Image</button>
+            <button id="zoom-in">Zoom In</button>
+            <button id="zoom-out">Zoom Out</button>
+            <button id="grid-btn">Grid</button>
+            <button id="reset">Reset View</button>
+            <button id="projection-btn">Show Projection</button> 
+            <button id="toggle-thumbnails">Show Thumbnails</button>
+        </div>
+        <div id="grid-controls">
+            <label>
+                Size (px):
+                <input type="number" id="grid-size" value="100" min="1" max="1000">
+            </label>
+            <label>
+                Color:
+                <input type="color" id="grid-color" value="#ff0000">
+            </label>
+            <label>
+                Opacity:
+                <input type="number" id="grid-opacity" value="50" min="0" max="100">
+            </label>
+        </div>
+        <div class="loading">Loading...</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*,.tif,.tiff" multiple>
+    <input type="file" id="directory-input" accept="image/*,.tif,.tiff" webkitdirectory directory multiple>
+    <script src="script.js"></script>
+</body>
+</html>
