@@ -1422,23 +1422,39 @@ function displayProjection(horizontal, vertical, image) {
     
     projectionOverlay.innerHTML = `
         <div class="projection-main-area">
-            <div class="projection-top-area">
-                <canvas id="image-canvas" width="${scaledWidth}" height="${scaledHeight}"></canvas>
-                <canvas id="horizontal-projection" width="100" height="${scaledHeight}"></canvas>
-                <div id="left-analysis-pane" class="analysis-pane">
-                    <h3>Left Analysis Pane</h3>
-                    <div class="analysis-content">
-                        <p>Future analysis will appear here</p>
+            <div class="projection-top-row">
+                <div class="primary-image-col">
+                    <canvas id="image-canvas" width="${scaledWidth}" height="${scaledHeight}"></canvas>
+                    <div class="vertical-graph-section">
+                        <canvas id="vertical-projection" width="${scaledWidth}" height="80"></canvas>
+                    </div>
+                    <div class="graph-container horizontal">
+                        <canvas id="graph-bottom-1" width="${scaledWidth}" height="80"></canvas>
+                        <div class="graph-label">Additional Graph 2</div>
+                    </div>
+                    <div id="bottom-analysis-pane" class="analysis-pane">
+                        <h3>Bottom Analysis Pane</h3>
+                        <div class="analysis-content">
+                            <p>Future analysis will appear here</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="projection-bottom-area">
-                <canvas id="vertical-projection" width="${scaledWidth}" height="100"></canvas>
-                <div id="bottom-right-pane"></div>
-                <div id="bottom-analysis-pane" class="analysis-pane">
-                    <h3>Bottom Analysis Pane</h3>
-                    <div class="analysis-content">
-                        <p>Future analysis will appear here</p>
+                <div class="right-section">
+                    <div class="horizontal-graphs-row">
+                        <div class="graph-container vertical">
+                            <canvas id="horizontal-projection" width="100" height="${scaledHeight}"></canvas>
+                            <div class="graph-label">Horizontal Projection</div>
+                        </div>
+                        <div class="graph-container vertical">
+                            <canvas id="graph-top-1" width="100" height="${scaledHeight}"></canvas>
+                            <div class="graph-label">Additional Graph 1</div>
+                        </div>
+                    </div>
+                    <div id="left-analysis-pane" class="analysis-pane">
+                        <h3>Right Analysis Pane</h3>
+                        <div class="analysis-content">
+                            <p>Future analysis will appear here</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1465,53 +1481,142 @@ function displayProjection(horizontal, vertical, image) {
     `;
     document.body.appendChild(projectionOverlay);
 
+    // Get all canvas elements
     const imageCanvas = document.getElementById('image-canvas');
+    const verticalProjection = document.getElementById('vertical-projection');
+    const bottomGraph = document.getElementById('graph-bottom-1');
+    const hCanvas = document.getElementById('horizontal-projection');
+    const topGraph = document.getElementById('graph-top-1');
+    
+    // Get contexts for all canvases
     const imageCtx = imageCanvas.getContext('2d');
-    const hCanvas = document.getElementById('horizontal-projection'); // This is for horizontal projection (vertical graph)
     const hCtx = hCanvas.getContext('2d');
-    const vCanvas = document.getElementById('vertical-projection'); // This is for vertical projection (horizontal graph)
-    const vCtx = vCanvas.getContext('2d');
+    const vCtx = verticalProjection.getContext('2d');
+    const topGraphCtx = topGraph.getContext('2d');
+    const bottomGraphCtx = bottomGraph.getContext('2d');
 
-    // Render the original image on the image canvas, maintaining aspect ratio
-    imageCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
-    imageCtx.drawImage(
-        image,
-        0, 0,
-        scaledWidth,
-        scaledHeight
-    );
-
-    // Normalize horizontal and vertical data for projections
-    const normalize = (array, maxValue) =>
-        array.map(value => (value / maxValue) || 0);
-
-    const maxHorizontal = Math.max(...horizontal);
-    const maxVertical = Math.max(...vertical);
-
-    const normalizedHorizontal = normalize(horizontal, maxHorizontal);
-    const normalizedVertical = normalize(vertical, maxVertical);
-
-    // Correctly plot the horizontal projection on the vertical graph (right of image)
-    hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
-    hCtx.beginPath();
-    normalizedHorizontal.forEach((value, index) => {
-        const y = (index / normalizedHorizontal.length) * hCanvas.height; // Map index to canvas height
-        const x = value * hCanvas.width; // Map value to canvas width
-        hCtx.lineTo(x, y);
+    // Function to update sizes for correlation
+    function updateCorrelationSizes() {
+        // Get the actual dimensions of the image canvas
+        const actualWidth = imageCanvas.clientWidth;
+        const actualHeight = imageCanvas.clientHeight;
+        
+        // Update vertical graphs to match image width
+        verticalProjection.width = actualWidth;
+        bottomGraph.width = actualWidth;
+        
+        // Update horizontal graphs to match image height
+        hCanvas.style.height = `${actualHeight}px`;
+        topGraph.style.height = `${actualHeight}px`;
+        
+        // Re-render graphs with new dimensions
+        renderGraphs();
+    }
+    
+    // Call initially
+    updateCorrelationSizes();
+    
+    // Add resize observer to maintain correlation on window resize
+    const resizeObserver = new ResizeObserver(() => {
+        updateCorrelationSizes();
     });
-    hCtx.strokeStyle = 'white'; // White graph line
-    hCtx.stroke();
-
-    // Correctly plot the vertical projection on the horizontal graph (below the image)
-    vCtx.clearRect(0, 0, vCanvas.width, vCanvas.height);
-    vCtx.beginPath();
-    normalizedVertical.forEach((value, index) => {
-        const x = (index / normalizedVertical.length) * vCanvas.width; // Map index to canvas width
-        const y = vCanvas.height - value * vCanvas.height; // Map value to canvas height
-        vCtx.lineTo(x, y);
-    });
-    vCtx.strokeStyle = 'white'; // White graph line
-    vCtx.stroke();
+    
+    // Observe the image canvas for size changes
+    resizeObserver.observe(imageCanvas);
+    
+    // Function to render all graphs
+    function renderGraphs() {
+        // Render the original image on the image canvas, maintaining aspect ratio
+        imageCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+        imageCtx.drawImage(
+            image,
+            0, 0,
+            imageCanvas.width,
+            imageCanvas.height
+        );
+    
+        // Normalize horizontal and vertical data for projections
+        const normalize = (array, maxValue) =>
+            array.map(value => (value / maxValue) || 0);
+    
+        const maxHorizontal = Math.max(...horizontal);
+        const maxVertical = Math.max(...vertical);
+    
+        const normalizedHorizontal = normalize(horizontal, maxHorizontal);
+        const normalizedVertical = normalize(vertical, maxVertical);
+    
+        // Correctly plot the horizontal projection on the vertical graph (right of image)
+        hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
+        hCtx.beginPath();
+        normalizedHorizontal.forEach((value, index) => {
+            const y = (index / normalizedHorizontal.length) * hCanvas.height; // Map index to canvas height
+            const x = value * hCanvas.width; // Map value to canvas width
+            if (index === 0) {
+                hCtx.moveTo(x, y);
+            } else {
+                hCtx.lineTo(x, y);
+            }
+        });
+        hCtx.strokeStyle = 'white'; // White graph line
+        hCtx.lineWidth = 2;
+        hCtx.stroke();
+    
+        // Correctly plot the vertical projection on the horizontal graph (below the image)
+        vCtx.clearRect(0, 0, verticalProjection.width, verticalProjection.height);
+        vCtx.beginPath();
+        normalizedVertical.forEach((value, index) => {
+            const x = (index / normalizedVertical.length) * verticalProjection.width; // Map index to canvas width
+            const y = verticalProjection.height - value * verticalProjection.height; // Map value to canvas height
+            if (index === 0) {
+                vCtx.moveTo(x, y);
+            } else {
+                vCtx.lineTo(x, y);
+            }
+        });
+        vCtx.strokeStyle = 'white'; // White graph line
+        vCtx.lineWidth = 2;
+        vCtx.stroke();
+        
+        // Add placeholder content to the new graphs with different colors
+        // Top additional graph (vertical orientation like horizontal projection)
+        topGraphCtx.clearRect(0, 0, topGraph.width, topGraph.height);
+        topGraphCtx.beginPath();
+        // Create a sine wave pattern as placeholder
+        for (let i = 0; i < topGraph.height; i++) {
+            const y = i;
+            const x = (Math.sin(i * 0.1) * 0.4 + 0.5) * topGraph.width;
+            if (i === 0) {
+                topGraphCtx.moveTo(x, y);
+            } else {
+                topGraphCtx.lineTo(x, y);
+            }
+        }
+        topGraphCtx.strokeStyle = '#4a90e2'; // Blue graph line
+        topGraphCtx.lineWidth = 2;
+        topGraphCtx.stroke();
+        
+        // Bottom additional graph (horizontal orientation like vertical projection)
+        bottomGraphCtx.clearRect(0, 0, bottomGraph.width, bottomGraph.height);
+        bottomGraphCtx.beginPath();
+        // Create a pattern as placeholder
+        for (let i = 0; i < bottomGraph.width; i++) {
+            const x = i;
+            const amplitude = bottomGraph.height * 0.4;
+            const frequency = 0.02;
+            const y = bottomGraph.height - (Math.sin(i * frequency) * amplitude + amplitude + 10);
+            if (i === 0) {
+                bottomGraphCtx.moveTo(x, y);
+            } else {
+                bottomGraphCtx.lineTo(x, y);
+            }
+        }
+        bottomGraphCtx.strokeStyle = '#72c02c'; // Green graph line
+        bottomGraphCtx.lineWidth = 2;
+        bottomGraphCtx.stroke();
+    }
+    
+    // Initial render
+    renderGraphs();
 
     // Full Screen Button Logic - Properly handle fullscreen mode
     document.getElementById('full-screen-projection').addEventListener('click', () => {
@@ -1530,6 +1635,9 @@ function displayProjection(horizontal, vertical, image) {
             }
             overlay.classList.add('fullscreen');
             document.getElementById('full-screen-projection').textContent = 'Exit Full Screen';
+            
+            // Update sizes after entering fullscreen
+            setTimeout(updateCorrelationSizes, 100);
         } else {
             // Exit fullscreen
             if (document.exitFullscreen) {
@@ -1559,6 +1667,9 @@ function displayProjection(horizontal, vertical, image) {
             // Exited fullscreen
             overlay.classList.remove('fullscreen');
             document.getElementById('full-screen-projection').textContent = 'Full Screen';
+            
+            // Update sizes after exiting fullscreen
+            setTimeout(updateCorrelationSizes, 100);
         }
     }
 
@@ -1568,6 +1679,9 @@ function displayProjection(horizontal, vertical, image) {
         document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
         document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
         document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+        
+        // Disconnect the resize observer
+        resizeObserver.disconnect();
         
         // Exit fullscreen if active
         if (document.fullscreenElement || 
@@ -1594,23 +1708,113 @@ function displayProjection(horizontal, vertical, image) {
             // Placeholder for algorithm implementation
             console.log(`Algorithm ${i} clicked - Function to be implemented`);
             
-            // Show a message in both analysis panes
-            const leftPane = document.getElementById('left-analysis-pane');
-            const bottomPane = document.getElementById('bottom-analysis-pane');
-            
-            const analysisHTML = `
-                <h3>Algorithm ${i} Results</h3>
-                <div class="analysis-content">
-                    <p>Results from Algorithm ${i} will appear here when implemented.</p>
-                    <p>This is a placeholder for future functionality.</p>
-                    <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                </div>
-            `;
-            
-            leftPane.innerHTML = analysisHTML;
-            bottomPane.innerHTML = analysisHTML;
+            // Update additional graphs when algorithm is selected
+            // This function will also update the analysis panes
+            updateAdditionalGraphs(i, topGraphCtx, bottomGraphCtx, topGraph, bottomGraph);
         });
     }
+    
+    // Helper function to update the additional graphs based on algorithm selection
+    function updateAdditionalGraphs(algorithmIndex, topCtx, bottomCtx, topCanvas, bottomCanvas) {
+        // Get fresh references to panes
+        const leftPane = document.getElementById('left-analysis-pane');
+        const bottomPane = document.getElementById('bottom-analysis-pane');
+
+        const analysisHTML = `
+            <h3>Algorithm ${algorithmIndex} Results</h3>
+            <div class="analysis-content">
+                <p>Results from Algorithm ${algorithmIndex} will appear here when implemented.</p>
+                <p>This is a placeholder for future functionality.</p>
+                <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+            </div>
+        `;
+        
+        // Update both analysis panes
+        if (leftPane) leftPane.innerHTML = analysisHTML;
+        if (bottomPane) bottomPane.innerHTML = analysisHTML;
+
+        // Clear canvases
+        topCtx.clearRect(0, 0, topCanvas.width, topCanvas.height);
+        bottomCtx.clearRect(0, 0, bottomCanvas.width, bottomCanvas.height);
+        
+        // Generate different patterns based on algorithm index
+        
+        // Top graph (vertical)
+        topCtx.beginPath();
+        for (let i = 0; i < topCanvas.height; i++) {
+            const y = i;
+            let x;
+            
+            // Different pattern based on algorithm
+            switch(algorithmIndex % 5) {
+                case 1: // Sine wave
+                    x = (Math.sin(i * 0.1) * 0.4 + 0.5) * topCanvas.width;
+                    break;
+                case 2: // Square pattern
+                    x = (i % 30 < 15 ? 0.2 : 0.8) * topCanvas.width;
+                    break;
+                case 3: // Triangle wave
+                    x = (Math.abs((i % 60) - 30) / 30 * 0.6 + 0.2) * topCanvas.width;
+                    break;
+                case 4: // Random noise
+                    x = (Math.random() * 0.6 + 0.2) * topCanvas.width;
+                    break;
+                default: // Smooth curve
+                    x = (Math.pow(i / topCanvas.height, 2) * 0.7 + 0.2) * topCanvas.width;
+            }
+            
+            if (i === 0) {
+                topCtx.moveTo(x, y);
+            } else {
+                topCtx.lineTo(x, y);
+            }
+        }
+        
+        // Different color based on algorithm
+        const colors = ['#4a90e2', '#72c02c', '#e74c3c', '#f39c12', '#9b59b6'];
+        topCtx.strokeStyle = colors[(algorithmIndex - 1) % colors.length];
+        topCtx.lineWidth = 2;
+        topCtx.stroke();
+        
+        // Bottom graph (horizontal)
+        bottomCtx.beginPath();
+        for (let i = 0; i < bottomCanvas.width; i++) {
+            const x = i;
+            let y;
+            
+            // Different pattern based on algorithm
+            switch(algorithmIndex % 5) {
+                case 1: // Sine wave
+                    y = bottomCanvas.height - (Math.sin(i * 0.02) * bottomCanvas.height * 0.4 + bottomCanvas.height * 0.5);
+                    break;
+                case 2: // Step pattern
+                    y = bottomCanvas.height - (Math.floor(i / 20) % 5) * (bottomCanvas.height / 6) - bottomCanvas.height * 0.2;
+                    break;
+                case 3: // Sawtooth
+                    y = bottomCanvas.height - ((i % 50) / 50 * bottomCanvas.height * 0.6 + bottomCanvas.height * 0.2);
+                    break;
+                case 4: // Pulse
+                    y = bottomCanvas.height - (i % 80 < 10 ? bottomCanvas.height * 0.8 : bottomCanvas.height * 0.2);
+                    break;
+                default: // Smooth curve
+                    y = bottomCanvas.height - (Math.pow(i / bottomCanvas.width, 0.5) * bottomCanvas.height * 0.7 + bottomCanvas.height * 0.2);
+            }
+            
+            if (i === 0) {
+                bottomCtx.moveTo(x, y);
+            } else {
+                bottomCtx.lineTo(x, y);
+            }
+        }
+        
+        // Different color for bottom graph
+        bottomCtx.strokeStyle = colors[(algorithmIndex + 1) % colors.length];
+        bottomCtx.lineWidth = 2;
+        bottomCtx.stroke();
+    }
+
+    // Call updateAdditionalGraphs with a default algorithm (e.g., 1) to populate panes initially
+    updateAdditionalGraphs(1, topGraphCtx, bottomGraphCtx, topGraph, bottomGraph);
 }
 
 // Main canvas drag functionality
