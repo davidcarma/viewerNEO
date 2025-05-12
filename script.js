@@ -1145,32 +1145,48 @@ function resetView() {
 function drawGrid() {
     if (!showGrid || !image) return;
 
+    // gridSize is the grid spacing on the canvas, scaled by zoom.
     const gridSize = gridSettings.size * zoomLevel;
+
     ctx.save();
     ctx.strokeStyle = gridSettings.color;
     ctx.globalAlpha = gridSettings.opacity;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1; // This will be 1 CSS pixel thick, scaled by DPR.
 
-    const startX = Math.floor(-offsetX / gridSize) * gridSize + offsetX;
-    const startY = Math.floor(-offsetY / gridSize) * gridSize + offsetY;
-    const endX = canvas.width;
-    const endY = canvas.height;
+    // Define image boundaries on the canvas (in CSS pixels)
+    const imgDisplayX = offsetX;
+    const imgDisplayY = offsetY;
+    const imgDisplayWidth = image.width * zoomLevel;
+    const imgDisplayHeight = image.height * zoomLevel;
 
-    for (let x = startX; x <= endX; x += gridSize) {
+    // Set clipping region to the image's display area
+    ctx.beginPath();
+    ctx.rect(imgDisplayX, imgDisplayY, imgDisplayWidth, imgDisplayHeight);
+    ctx.clip();
+
+    // Draw vertical lines
+    // Lines are at imgDisplayX + k * gridSize
+    // k iterates from 0 as long as k * gridSize is within the image's displayed width
+    for (let k = 0; (k * gridSize) <= imgDisplayWidth; k++) {
+        const x = imgDisplayX + (k * gridSize);
         ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, endY);
+        ctx.moveTo(x, imgDisplayY);
+        ctx.lineTo(x, imgDisplayY + imgDisplayHeight);
         ctx.stroke();
     }
 
-    for (let y = startY; y <= endY; y += gridSize) {
+    // Draw horizontal lines
+    // Lines are at imgDisplayY + k * gridSize
+    // k iterates from 0 as long as k * gridSize is within the image's displayed height
+    for (let k = 0; (k * gridSize) <= imgDisplayHeight; k++) {
+        const y = imgDisplayY + (k * gridSize);
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(endX, y);
+        ctx.moveTo(imgDisplayX, y);
+        ctx.lineTo(imgDisplayX + imgDisplayWidth, y);
         ctx.stroke();
     }
 
-    ctx.restore();
+    ctx.restore(); // Restore context to remove clipping
 }
 
 // Add function to handle TIFF files
