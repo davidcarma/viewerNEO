@@ -137,7 +137,7 @@ function calculateModDerivativeFFT(data) {
 }
 
 // Find top N peaks in FFT results
-function findFFTPeaks(fftData, numPeaks = 3) {
+function findFFTPeaks(fftData, numPeaks = 3, originalLength) {
     if (!fftData || fftData.length === 0) {
         return [];
     }
@@ -148,18 +148,51 @@ function findFFTPeaks(fftData, numPeaks = 3) {
     // Sort by value in descending order
     indexedData.sort((a, b) => b[1] - a[1]);
     
+    // Calculate frequency scale based on original signal length (before padding)
+    const nyquist = 0.5; // Nyquist frequency (0.5 cycles/pixel)
+    let frequencyScale;
+
+    if (originalLength > 0) {
+        frequencyScale = nyquist / (originalLength / 2);
+    } else {
+        // Log a warning as this indicates an issue with how originalLength is provided
+        // or the data processing stage prior to calling this function.
+        console.warn(`findFFTPeaks: Invalid originalLength (${originalLength}). Frequencies and wavelengths will likely be NaN or Infinity.`);
+        frequencyScale = NaN; // Leads to NaN frequency/wavelength, clearly indicating error
+    }
+    
     // Return top N peaks (index, frequency, wavelength, and magnitude)
     return indexedData.slice(0, numPeaks).map(pair => {
         const index = pair[0];
-        // Calculate frequency consistently with tooltip - bins go from 0 to Nyquist (0.5 cycles/pixel)
-        const frequency = (index / fftData.length) * 0.5;
-        const wavelength = frequency > 0 ? 1 / frequency : Infinity; // Pixels per cycle (lambda)
+        const magnitudeValue = pair[1]; // Raw magnitude from fftData
+
+        // Calculate frequency
+        let frequency = index * frequencyScale; // Can be NaN if frequencyScale is NaN, or 0 if index is 0.
+
+        // Calculate wavelength
+        let wavelength;
+        if (Number.isNaN(frequency)) {
+            wavelength = NaN;
+        } else if (frequency === 0) {
+            // DC component or zero frequency: wavelength is infinite.
+            wavelength = Infinity; 
+        } else {
+            // For non-zero, non-NaN frequencies.
+            wavelength = 1 / frequency;
+        }
         
+        // Format numbers for the output object
+        // .toFixed converts to string, Number() converts back.
+        // This ensures that NaN and Infinity are preserved as such if they occur.
+        const formattedFrequency = Number(frequency.toFixed(4));
+        const formattedWavelength = Number(wavelength.toFixed(2));
+        const formattedMagnitude = Number(magnitudeValue.toFixed(2));
+
         return {
             index: index,
-            frequency: frequency,
-            wavelength: wavelength, // Lambda (pixels per cycle)
-            magnitude: pair[1]
+            frequency: formattedFrequency,
+            wavelength: formattedWavelength,
+            magnitude: formattedMagnitude
         };
     });
 } 

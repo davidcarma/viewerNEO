@@ -2932,15 +2932,15 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
             if (dataIndex >= 0 && dataIndex < originalData.length) {
                 if ((algorithm === 3 || algorithm === 4) && fftData) {
                     // FFT mode - directly use the position to get the frequency value
-                    // The x position represents the bin index in the FFT data
-                    // Map x position to FFT bin
-                    const binFraction = x / rect.width;
+                    // For vertical graph: Y-axis is frequency, X-axis is magnitude
+                    // Map y position to FFT bin
+                    const binFraction = y / rect.height; // Correct: Y is frequency axis
                     const fftIndex = Math.min(Math.floor(binFraction * fftData.length), fftData.length - 1);
                     
                     // Calculate frequency - bins go from 0 to Nyquist (0.5 cycles/pixel)
-                    frequency = (fftIndex / fftData.length) * 0.5;
+                    frequency = (fftIndex / fftData.length) * 0.5; // Assuming fftData.length is num_bins to Nyquist
                     wavelength = frequency > 0 ? 1 / frequency : Infinity;
-                    amplitude = fftData[fftIndex];
+                    amplitude = fftData[fftIndex]; // Magnitude at this frequency bin
                     
                     tooltip.innerHTML = `
                         <div class="tooltip-title">FFT Measurement</div>
@@ -2995,15 +2995,15 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
             if (dataIndex >= 0 && dataIndex < originalData.length) {
                 if ((algorithm === 3 || algorithm === 4) && fftData) {
                     // FFT mode - directly use the position to get the frequency value
-                    // The y position represents the bin index in the FFT data (inverted)
-                    // Map y position to FFT bin (remember y is inverted in canvas)
-                    const binFraction = 1 - (y / rect.height);
+                    // For horizontal graph: X-axis is frequency, Y-axis is magnitude
+                    // Map x position to FFT bin
+                    const binFraction = x / rect.width; // Correct: X is frequency axis
                     const fftIndex = Math.min(Math.floor(binFraction * fftData.length), fftData.length - 1);
                     
                     // Calculate frequency - bins go from 0 to Nyquist (0.5 cycles/pixel)
-                    frequency = (fftIndex / fftData.length) * 0.5;
+                    frequency = (fftIndex / fftData.length) * 0.5; // Assuming fftData.length is num_bins to Nyquist
                     wavelength = frequency > 0 ? 1 / frequency : Infinity;
-                    amplitude = fftData[fftIndex];
+                    amplitude = fftData[fftIndex]; // Magnitude at this frequency bin
                     
                     tooltip.innerHTML = `
                         <div class="tooltip-title">FFT Measurement</div>
