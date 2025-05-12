@@ -1174,7 +1174,7 @@ button.disabled {
     padding-bottom: 8px;
 }
 
-/* Add CSS for draggable/resizable components */
+/* Styling for draggable elements and the layout manager */
 .draggable {
     position: relative;
     cursor: move;
@@ -1275,16 +1275,6 @@ button.disabled {
     border: 1px dashed #72c02c;
 }
 
-/* Style for graph containers */
-.graph-container {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: center;
-    padding-top: 25px; /* Add space for drag handle */
-}
-
 /* When elements are being aligned, show guidelines */
 .alignment-guide {
     position: absolute;
@@ -1305,7 +1295,14 @@ button.disabled {
     right: 0;
 }
 
-/* Snap button in the main controls */
+/* Styling for the grid-related controls */
+.grid-controls-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
 .snap-grid-toggle {
     display: flex;
     align-items: center;
@@ -1316,14 +1313,41 @@ button.disabled {
     color: white;
     border: none;
     border-radius: 3px;
-    margin-left: auto;
+    width: auto;
 }
 
 .snap-grid-toggle.active {
     background: #72c02c;
 }
 
-/* Custom layout for projection overlay */
+/* Style for table expand button */
+.table-expand-btn {
+    background: rgba(70, 70, 90, 0.7);
+    border: none;
+    border-radius: 3px;
+    color: white;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.table-expand-btn:hover {
+    background: rgba(80, 80, 110, 0.9);
+}
+
+/* Style for resizable tables */
+.resizable-table {
+    transition: max-height 0.3s ease;
+    overflow-y: auto;
+    max-height: 150px;
+}
+
+/* Custom layout mode for the projection overlay */
 .projection-layout.custom-layout {
     display: flex;
     flex-direction: column;

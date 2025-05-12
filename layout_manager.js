@@ -33,6 +33,7 @@ class LayoutManager {
         this.activeElement = null;
         this.resizing = false;
         this.resizeDirection = '';
+        this.dragOffset = { x: 0, y: 0 }; // Store offset from mouse to element corner
         
         // Ensure method binding (manually bind each method that needs 'this' context)
         this.makeElementsDraggable = this.makeElementsDraggable.bind(this);
@@ -49,6 +50,8 @@ class LayoutManager {
         this.init = this.init.bind(this);
         this.addSnapToggle = this.addSnapToggle.bind(this);
         this.setupInitialLayout = this.setupInitialLayout.bind(this);
+        this.updateGridSize = this.updateGridSize.bind(this);
+        this.makeTableResizable = this.makeTableResizable.bind(this);
         
         // Create alignment guides
         try {
@@ -79,6 +82,58 @@ class LayoutManager {
         console.log('LayoutManager constructor completed successfully');
     }
     
+    // Update grid size method
+    updateGridSize(newSize) {
+        if (newSize > 0) {
+            this.gridSize = newSize;
+            console.log(`Grid size updated to ${newSize}px`);
+            
+            // Update the grid size display if it exists
+            const gridSizeDisplay = document.getElementById('grid-size-display');
+            if (gridSizeDisplay) {
+                gridSizeDisplay.textContent = `${newSize}px`;
+            }
+        }
+    }
+    
+    // Make tables resizable
+    makeTableResizable() {
+        const tables = this.container.querySelectorAll('.peak-table');
+        tables.forEach(table => {
+            // Check if table is already resizable
+            if (table.classList.contains('resizable-table')) return;
+            
+            table.classList.add('resizable-table');
+            
+            // Make table expandable/collapsible
+            if (table.parentElement) {
+                // Create expand button
+                const expandBtn = document.createElement('button');
+                expandBtn.className = 'table-expand-btn';
+                expandBtn.innerHTML = '&#x21A7;'; // Down arrow
+                expandBtn.title = 'Expand table';
+                
+                expandBtn.addEventListener('click', () => {
+                    const currentHeight = table.style.maxHeight || 
+                                         getComputedStyle(table).maxHeight;
+                    
+                    if (currentHeight === 'none' || currentHeight === 'auto') {
+                        table.style.maxHeight = '150px'; // Collapse
+                        expandBtn.innerHTML = '&#x21A7;'; // Down arrow
+                        expandBtn.title = 'Expand table';
+                    } else {
+                        table.style.maxHeight = 'none'; // Expand
+                        expandBtn.innerHTML = '&#x21A5;'; // Up arrow
+                        expandBtn.title = 'Collapse table';
+                    }
+                });
+                
+                // Insert before the table
+                table.parentElement.insertBefore(expandBtn, table);
+            }
+        });
+    }
+    
     // Initialize draggable elements
     init() {
         if (!this.container) {
@@ -101,6 +156,9 @@ class LayoutManager {
             // Make elements draggable
             this.makeElementsDraggable();
             
+            // Make tables resizable
+            this.makeTableResizable();
+            
             // Add snap toggle button
             this.addSnapToggle();
             
@@ -117,12 +175,53 @@ class LayoutManager {
     addSnapToggle() {
         const controlsArea = document.querySelector('.view-controls');
         if (controlsArea) {
+            // Create container for grid controls
+            const gridControlsContainer = document.createElement('div');
+            gridControlsContainer.className = 'grid-controls-container';
+            
+            // Snap toggle button
             const snapButton = document.createElement('button');
             snapButton.className = 'snap-grid-toggle';
             snapButton.textContent = 'Snap to Grid';
             snapButton.addEventListener('click', this.toggleSnap);
             
-            controlsArea.appendChild(snapButton);
+            // Grid size control
+            const gridSizeLabel = document.createElement('label');
+            gridSizeLabel.textContent = 'Grid Size: ';
+            gridSizeLabel.style.color = 'white';
+            gridSizeLabel.style.marginLeft = '10px';
+            
+            const gridSizeInput = document.createElement('input');
+            gridSizeInput.type = 'number';
+            gridSizeInput.min = '5';
+            gridSizeInput.max = '100';
+            gridSizeInput.value = this.gridSize;
+            gridSizeInput.style.width = '50px';
+            gridSizeInput.addEventListener('change', (e) => {
+                const newSize = parseInt(e.target.value, 10);
+                if (!isNaN(newSize) && newSize > 0) {
+                    this.updateGridSize(newSize);
+                }
+            });
+            
+            // Grid size display
+            const gridSizeDisplay = document.createElement('span');
+            gridSizeDisplay.id = 'grid-size-display';
+            gridSizeDisplay.textContent = `${this.gridSize}px`;
+            gridSizeDisplay.style.marginLeft = '5px';
+            gridSizeDisplay.style.color = 'white';
+            
+            // Assemble controls
+            gridSizeLabel.appendChild(gridSizeInput);
+            gridSizeLabel.appendChild(gridSizeDisplay);
+            
+            // Add to container
+            gridControlsContainer.appendChild(snapButton);
+            gridControlsContainer.appendChild(gridSizeLabel);
+            
+            // Add to view controls
+            controlsArea.appendChild(gridControlsContainer);
+            
             this.snapButton = snapButton;
         }
     }
@@ -291,6 +390,13 @@ class LayoutManager {
             this.initialLeft = rect.left - containerRect.left;
             this.initialTop = rect.top - containerRect.top;
             
+            // Calculate the offset from the mouse to the element's top-left corner
+            // This ensures we drag from the exact point we clicked, not the element's corner
+            this.dragOffset = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            
             // Set absolute positioning if not already set
             if (getComputedStyle(element).position !== 'absolute') {
                 element.style.position = 'absolute';
@@ -365,13 +471,11 @@ class LayoutManager {
     
     // Handle drag movement
     handleDrag(e) {
-        // Calculate how far the mouse has moved
-        const deltaX = e.clientX - this.initialX;
-        const deltaY = e.clientY - this.initialY;
+        const containerRect = this.container.getBoundingClientRect();
         
-        // Calculate new position
-        let newLeft = this.initialLeft + deltaX;
-        let newTop = this.initialTop + deltaY;
+        // Calculate new position based on the mouse position and drag offset
+        let newLeft = e.clientX - containerRect.left - this.dragOffset.x;
+        let newTop = e.clientY - containerRect.top - this.dragOffset.y;
         
         // Apply snap to grid if enabled
         if (this.snapToGrid) {
@@ -379,7 +483,7 @@ class LayoutManager {
             newTop = Math.round(newTop / this.gridSize) * this.gridSize;
         }
         
-        // Check for alignment with other elements
+        // Check for alignment with other elements and container edges/center
         const { showHorizontalGuide, horizontalGuidePos, showVerticalGuide, verticalGuidePos } = 
             this.checkAlignment(newLeft, newTop, this.activeElement);
         
@@ -401,6 +505,10 @@ class LayoutManager {
         } else {
             this.verticalGuide.style.display = 'none';
         }
+        
+        // Ensure the element stays within the container bounds
+        newLeft = Math.max(0, newLeft);
+        newTop = Math.max(0, newTop);
         
         // Apply the new position
         this.activeElement.style.left = `${newLeft}px`;
@@ -450,15 +558,37 @@ class LayoutManager {
             newHeight = Math.round(newHeight / this.gridSize) * this.gridSize;
         }
         
-        // Enforce minimum size
-        if (newWidth < 100) newWidth = 100;
-        if (newHeight < 100) newHeight = 100;
+        // Determine minimum sizes based on element type
+        let minWidth = 100;
+        let minHeight = 50;
+        
+        // Use smaller minimums for tables to allow more visibility
+        if (this.activeElement.querySelector('.peak-table')) {
+            minWidth = 200; // Tables need more width to be useful
+            minHeight = 150; // Higher minimum to show more rows
+        } else if (this.activeElement.classList.contains('analysis-pane')) {
+            minWidth = 180;
+            minHeight = 100;
+        }
+        
+        // Enforce minimum sizes
+        if (newWidth < minWidth) newWidth = minWidth;
+        if (newHeight < minHeight) newHeight = minHeight;
         
         // Apply the new position and size
         this.activeElement.style.left = `${newLeft}px`;
         this.activeElement.style.top = `${newTop}px`;
         this.activeElement.style.width = `${newWidth}px`;
         this.activeElement.style.height = `${newHeight}px`;
+        
+        // If this is a table-containing element, adjust the table's max-height
+        const table = this.activeElement.querySelector('.peak-table');
+        if (table) {
+            // Set table height to be slightly less than container to allow for padding
+            const tableHeight = newHeight - 30; // Allow for padding/headers
+            table.style.maxHeight = `${tableHeight}px`;
+            table.style.height = `${tableHeight}px`;
+        }
     }
     
     // Handle mouse up - end drag/resize
@@ -492,7 +622,7 @@ class LayoutManager {
         const activeBounds = activeElement.getBoundingClientRect();
         const containerRect = this.container.getBoundingClientRect();
         
-        // Adjust activeTop based on the new position we're calculating
+        // Adjusted positions and dimensions
         const activeTop = top;
         const activeBottom = activeTop + activeBounds.height;
         const activeLeft = left;
@@ -500,27 +630,82 @@ class LayoutManager {
         const activeMiddleY = activeTop + activeBounds.height / 2;
         const activeMiddleX = activeLeft + activeBounds.width / 2;
         
-        // Check container edges first
-        if (Math.abs(activeTop) < threshold) {
+        // Container dimensions
+        const containerWidth = containerRect.width;
+        const containerHeight = containerRect.height;
+        
+        // Helper function to check if a snap should take priority
+        const isPrioritySnap = (distance) => distance < 5; // Tighter threshold for priority
+        
+        // Check container edges first (with better center alignment)
+        // Top edge
+        const topEdgeDist = Math.abs(activeTop);
+        if (topEdgeDist < threshold) {
             showHorizontalGuide = true;
             horizontalGuidePos = 0;
-        } else if (Math.abs(activeBottom - containerRect.height) < threshold) {
-            showHorizontalGuide = true;
-            horizontalGuidePos = containerRect.height - activeBounds.height;
-        } else if (Math.abs(activeMiddleY - containerRect.height / 2) < threshold) {
-            showHorizontalGuide = true;
-            horizontalGuidePos = containerRect.height / 2 - activeBounds.height / 2;
         }
         
-        if (Math.abs(activeLeft) < threshold) {
+        // Bottom edge
+        const bottomEdgeDist = Math.abs(activeBottom - containerHeight);
+        if (bottomEdgeDist < threshold && (!showHorizontalGuide || isPrioritySnap(bottomEdgeDist))) {
+            showHorizontalGuide = true;
+            horizontalGuidePos = containerHeight - activeBounds.height;
+        }
+        
+        // Horizontal center
+        const horizCenterDist = Math.abs(activeMiddleY - containerHeight / 2);
+        if (horizCenterDist < threshold && (!showHorizontalGuide || isPrioritySnap(horizCenterDist))) {
+            showHorizontalGuide = true;
+            horizontalGuidePos = containerHeight / 2 - activeBounds.height / 2;
+        }
+        
+        // Left edge
+        const leftEdgeDist = Math.abs(activeLeft);
+        if (leftEdgeDist < threshold) {
             showVerticalGuide = true;
             verticalGuidePos = 0;
-        } else if (Math.abs(activeRight - containerRect.width) < threshold) {
+        }
+        
+        // Right edge
+        const rightEdgeDist = Math.abs(activeRight - containerWidth);
+        if (rightEdgeDist < threshold && (!showVerticalGuide || isPrioritySnap(rightEdgeDist))) {
             showVerticalGuide = true;
-            verticalGuidePos = containerRect.width - activeBounds.width;
-        } else if (Math.abs(activeMiddleX - containerRect.width / 2) < threshold) {
+            verticalGuidePos = containerWidth - activeBounds.width;
+        }
+        
+        // Vertical center
+        const vertCenterDist = Math.abs(activeMiddleX - containerWidth / 2);
+        if (vertCenterDist < threshold && (!showVerticalGuide || isPrioritySnap(vertCenterDist))) {
             showVerticalGuide = true;
-            verticalGuidePos = containerRect.width / 2 - activeBounds.width / 2;
+            verticalGuidePos = containerWidth / 2 - activeBounds.width / 2;
+        }
+        
+        // Check horizontal quarter lines
+        const quarterHeight = containerHeight / 4;
+        const threeQuarterHeight = quarterHeight * 3;
+        
+        if (Math.abs(activeTop - quarterHeight) < threshold && (!showHorizontalGuide || isPrioritySnap(Math.abs(activeTop - quarterHeight)))) {
+            showHorizontalGuide = true;
+            horizontalGuidePos = quarterHeight;
+        }
+        
+        if (Math.abs(activeTop - threeQuarterHeight) < threshold && (!showHorizontalGuide || isPrioritySnap(Math.abs(activeTop - threeQuarterHeight)))) {
+            showHorizontalGuide = true;
+            horizontalGuidePos = threeQuarterHeight;
+        }
+        
+        // Check vertical quarter lines
+        const quarterWidth = containerWidth / 4;
+        const threeQuarterWidth = quarterWidth * 3;
+        
+        if (Math.abs(activeLeft - quarterWidth) < threshold && (!showVerticalGuide || isPrioritySnap(Math.abs(activeLeft - quarterWidth)))) {
+            showVerticalGuide = true;
+            verticalGuidePos = quarterWidth;
+        }
+        
+        if (Math.abs(activeLeft - threeQuarterWidth) < threshold && (!showVerticalGuide || isPrioritySnap(Math.abs(activeLeft - threeQuarterWidth)))) {
+            showVerticalGuide = true;
+            verticalGuidePos = threeQuarterWidth;
         }
         
         // Check alignment with other draggable elements
@@ -536,25 +721,39 @@ class LayoutManager {
             const elemMiddleX = elemLeft + elemRect.width / 2;
             
             // Check vertical alignment (top, middle, bottom)
-            if (Math.abs(activeTop - elemTop) < threshold) {
+            const topAlignDist = Math.abs(activeTop - elemTop);
+            if (topAlignDist < threshold && (!showHorizontalGuide || isPrioritySnap(topAlignDist))) {
                 showHorizontalGuide = true;
                 horizontalGuidePos = elemTop;
-            } else if (Math.abs(activeBottom - elemBottom) < threshold) {
+            }
+            
+            const bottomAlignDist = Math.abs(activeBottom - elemBottom);
+            if (bottomAlignDist < threshold && (!showHorizontalGuide || isPrioritySnap(bottomAlignDist))) {
                 showHorizontalGuide = true;
                 horizontalGuidePos = elemBottom - activeBounds.height;
-            } else if (Math.abs(activeMiddleY - elemMiddleY) < threshold) {
+            }
+            
+            const middleYAlignDist = Math.abs(activeMiddleY - elemMiddleY);
+            if (middleYAlignDist < threshold && (!showHorizontalGuide || isPrioritySnap(middleYAlignDist))) {
                 showHorizontalGuide = true;
                 horizontalGuidePos = elemMiddleY - activeBounds.height / 2;
             }
             
             // Check horizontal alignment (left, middle, right)
-            if (Math.abs(activeLeft - elemLeft) < threshold) {
+            const leftAlignDist = Math.abs(activeLeft - elemLeft);
+            if (leftAlignDist < threshold && (!showVerticalGuide || isPrioritySnap(leftAlignDist))) {
                 showVerticalGuide = true;
                 verticalGuidePos = elemLeft;
-            } else if (Math.abs(activeRight - elemRight) < threshold) {
+            }
+            
+            const rightAlignDist = Math.abs(activeRight - elemRight);
+            if (rightAlignDist < threshold && (!showVerticalGuide || isPrioritySnap(rightAlignDist))) {
                 showVerticalGuide = true;
                 verticalGuidePos = elemRight - activeBounds.width;
-            } else if (Math.abs(activeMiddleX - elemMiddleX) < threshold) {
+            }
+            
+            const middleXAlignDist = Math.abs(activeMiddleX - elemMiddleX);
+            if (middleXAlignDist < threshold && (!showVerticalGuide || isPrioritySnap(middleXAlignDist))) {
                 showVerticalGuide = true;
                 verticalGuidePos = elemMiddleX - activeBounds.width / 2;
             }
