@@ -1969,9 +1969,25 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 fftHorizontal = calculateDerivativeFFT(horizontalProfile);
                 fftVertical = calculateDerivativeFFT(verticalProfile);
                 
+                const originalHorizontalLength = horizontalProfile.length;
+                const originalVerticalLength = verticalProfile.length;
+
                 // Find top peaks in FFT results
-                const horizontalPeaks = findFFTPeaks(fftHorizontal);
-                const verticalPeaks = findFFTPeaks(fftVertical);
+                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal);
+                let verticalPeaksRaw = findFFTPeaks(fftVertical);
+
+                // Correct frequency and wavelength calculations
+                const horizontalPeaks = horizontalPeaksRaw.map(peak => ({
+                    ...peak,
+                    frequency: peak.index / originalHorizontalLength,
+                    wavelength: (peak.index === 0 || originalHorizontalLength === 0) ? Infinity : originalHorizontalLength / peak.index
+                }));
+
+                const verticalPeaks = verticalPeaksRaw.map(peak => ({
+                    ...peak,
+                    frequency: peak.index / originalVerticalLength,
+                    wavelength: (peak.index === 0 || originalVerticalLength === 0) ? Infinity : originalVerticalLength / peak.index
+                }));
                 
                 // Normalize FFT results
                 plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
@@ -2048,9 +2064,25 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 fftHorizontal = calculateModDerivativeFFT(horizontalProfile);
                 fftVertical = calculateModDerivativeFFT(verticalProfile);
                 
+                const originalHorizontalLength = horizontalProfile.length;
+                const originalVerticalLength = verticalProfile.length;
+
                 // Find top peaks in FFT results
-                const horizontalPeaks = findFFTPeaks(fftHorizontal);
-                const verticalPeaks = findFFTPeaks(fftVertical);
+                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal);
+                let verticalPeaksRaw = findFFTPeaks(fftVertical);
+
+                // Correct frequency and wavelength calculations
+                const horizontalPeaks = horizontalPeaksRaw.map(peak => ({
+                    ...peak,
+                    frequency: peak.index / originalHorizontalLength,
+                    wavelength: (peak.index === 0 || originalHorizontalLength === 0) ? Infinity : originalHorizontalLength / peak.index
+                }));
+
+                const verticalPeaks = verticalPeaksRaw.map(peak => ({
+                    ...peak,
+                    frequency: peak.index / originalVerticalLength,
+                    wavelength: (peak.index === 0 || originalVerticalLength === 0) ? Infinity : originalVerticalLength / peak.index
+                }));
                 
                 // Normalize FFT results
                 plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
