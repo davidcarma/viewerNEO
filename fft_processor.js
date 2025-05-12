@@ -151,7 +151,8 @@ function findFFTPeaks(fftData, numPeaks = 3) {
     // Return top N peaks (index, frequency, wavelength, and magnitude)
     return indexedData.slice(0, numPeaks).map(pair => {
         const index = pair[0];
-        const frequency = index / (fftData.length * 2); // Normalized frequency (cycles/pixel)
+        // Calculate frequency consistently with tooltip - bins go from 0 to Nyquist (0.5 cycles/pixel)
+        const frequency = (index / fftData.length) * 0.5;
         const wavelength = frequency > 0 ? 1 / frequency : Infinity; // Pixels per cycle (lambda)
         
         return {

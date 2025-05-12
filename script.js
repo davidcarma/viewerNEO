@@ -2895,10 +2895,13 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         
-        console.log(`Mousemove: x=${x}, y=${y} on canvas: ${canvas.id || 'unnamed'}`);
-        
         // Calculate data values based on mouse position
         let dataIndex, dataValue, frequency, wavelength, amplitude;
+        
+        // Always show tooltip - guaranteed to have some basic information
+        tooltip.style.left = `${e.clientX + 15}px`;
+        tooltip.style.top = `${e.clientY + 15}px`;
+        tooltip.style.display = 'block';
         
         if (isVertical) {
             // Vertical graph (shows horizontal projection)
@@ -2907,36 +2910,34 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
             
             if (dataIndex >= 0 && dataIndex < originalData.length) {
                 if ((algorithm === 3 || algorithm === 4) && fftData) {
-                    // FFT mode
-                    const pixelCoord = Math.floor((dataIndex / originalData.length) * originalData.length);
-                    const fftIndex = Math.floor((x / rect.width) * (fftData.length / 2));
+                    // FFT mode - directly use the position to get the frequency value
+                    // The x position represents the bin index in the FFT data
+                    // Map x position to FFT bin
+                    const binFraction = x / rect.width;
+                    const fftIndex = Math.min(Math.floor(binFraction * fftData.length), fftData.length - 1);
                     
-                    frequency = fftIndex / (fftData.length * 2);
+                    // Calculate frequency - bins go from 0 to Nyquist (0.5 cycles/pixel)
+                    frequency = (fftIndex / fftData.length) * 0.5;
                     wavelength = frequency > 0 ? 1 / frequency : Infinity;
-                    amplitude = fftIndex < fftData.length ? fftData[fftIndex] : 0;
+                    amplitude = fftData[fftIndex];
                     
                     tooltip.innerHTML = `
-                        <div>Row: ${pixelCoord}</div>
-                        <div>Freq: ${frequency.toFixed(4)} c/px</div>
-                        <div>λ: ${wavelength.toFixed(1)} px</div>
-                        <div>Magnitude: ${amplitude.toFixed(1)}</div>
+                        <div class="tooltip-title">FFT Measurement</div>
+                        <div class="tooltip-freq">Freq: ${frequency.toFixed(4)} c/px</div>
+                        <div class="tooltip-lambda">λ: ${wavelength.toFixed(1)} px</div>
+                        <div class="tooltip-mag">Magnitude: ${amplitude.toFixed(1)}</div>
+                        <div class="tooltip-bin">Bin: ${fftIndex} / ${fftData.length}</div>
                     `;
                 } else {
                     // Non-FFT modes
                     dataValue = originalData[dataIndex];
-                    const normalizedValue = normalizedData[dataIndex] * width;
                     
                     tooltip.innerHTML = `
-                        <div>Row: ${dataIndex}</div>
-                        <div>Value: ${dataValue.toFixed(2)}</div>
+                        <div class="tooltip-title">Projection Value</div>
+                        <div class="tooltip-amp">Amplitude: ${dataValue.toFixed(2)}</div>
+                        <div class="tooltip-pos">Position: ${dataIndex}</div>
                     `;
                 }
-                
-                // Position tooltip and show it
-                tooltip.style.left = `${e.clientX + 15}px`;
-                tooltip.style.top = `${e.clientY + 15}px`;
-                tooltip.style.display = 'block';
-                console.log('Showing tooltip');
             }
         } else {
             // Horizontal graph (shows vertical projection)
@@ -2945,36 +2946,34 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
             
             if (dataIndex >= 0 && dataIndex < originalData.length) {
                 if ((algorithm === 3 || algorithm === 4) && fftData) {
-                    // FFT mode
-                    const pixelCoord = Math.floor((dataIndex / originalData.length) * originalData.length);
-                    const fftIndex = Math.floor((1 - y / rect.height) * (fftData.length / 2));
+                    // FFT mode - directly use the position to get the frequency value
+                    // The y position represents the bin index in the FFT data (inverted)
+                    // Map y position to FFT bin (remember y is inverted in canvas)
+                    const binFraction = 1 - (y / rect.height);
+                    const fftIndex = Math.min(Math.floor(binFraction * fftData.length), fftData.length - 1);
                     
-                    frequency = fftIndex / (fftData.length * 2);
+                    // Calculate frequency - bins go from 0 to Nyquist (0.5 cycles/pixel)
+                    frequency = (fftIndex / fftData.length) * 0.5;
                     wavelength = frequency > 0 ? 1 / frequency : Infinity;
-                    amplitude = fftIndex < fftData.length ? fftData[fftIndex] : 0;
+                    amplitude = fftData[fftIndex];
                     
                     tooltip.innerHTML = `
-                        <div>Column: ${pixelCoord}</div>
-                        <div>Freq: ${frequency.toFixed(4)} c/px</div>
-                        <div>λ: ${wavelength.toFixed(1)} px</div>
-                        <div>Magnitude: ${amplitude.toFixed(1)}</div>
+                        <div class="tooltip-title">FFT Measurement</div>
+                        <div class="tooltip-freq">Freq: ${frequency.toFixed(4)} c/px</div>
+                        <div class="tooltip-lambda">λ: ${wavelength.toFixed(1)} px</div>
+                        <div class="tooltip-mag">Magnitude: ${amplitude.toFixed(1)}</div>
+                        <div class="tooltip-bin">Bin: ${fftIndex} / ${fftData.length}</div>
                     `;
                 } else {
                     // Non-FFT mode
                     dataValue = originalData[dataIndex];
-                    const normalizedValue = (1 - normalizedData[dataIndex]) * height;
                     
                     tooltip.innerHTML = `
-                        <div>Column: ${dataIndex}</div>
-                        <div>Value: ${dataValue.toFixed(2)}</div>
+                        <div class="tooltip-title">Projection Value</div>
+                        <div class="tooltip-amp">Amplitude: ${dataValue.toFixed(2)}</div>
+                        <div class="tooltip-pos">Position: ${dataIndex}</div>
                     `;
                 }
-                
-                // Position tooltip and show it
-                tooltip.style.left = `${e.clientX + 15}px`;
-                tooltip.style.top = `${e.clientY + 15}px`;
-                tooltip.style.display = 'block';
-                console.log('Showing tooltip');
             }
         }
     };
