@@ -1395,7 +1395,52 @@ document.getElementById('projection-btn').addEventListener('click', () => {
     displayProjection(horizontalProfile, verticalProfile, image);
 });
 
+// Create tooltip element function
+function createTooltip() {
+    // First check if tooltip already exists
+    let tooltip = document.getElementById('graph-tooltip');
+    if (tooltip) {
+        console.log('Tooltip already exists, no need to recreate');
+        return tooltip;
+    }
+    
+    // Check if projection overlay exists
+    const projectionOverlay = document.getElementById('projection-overlay');
+    
+    // Create new tooltip
+    tooltip = document.createElement('div');
+    tooltip.id = 'graph-tooltip';
+    tooltip.className = 'graph-tooltip';
+    
+    // Apply inline styles to ensure visibility regardless of CSS loading
+    tooltip.style.position = 'absolute';
+    tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+    tooltip.style.color = 'white';
+    tooltip.style.padding = '8px 12px';
+    tooltip.style.borderRadius = '4px';
+    tooltip.style.fontSize = '12px';
+    tooltip.style.zIndex = '10000';
+    tooltip.style.pointerEvents = 'none';
+    tooltip.style.display = 'none';
+    tooltip.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.3)';
+    tooltip.style.border = '1px solid #444';
+    
+    // Add to projection overlay if it exists, otherwise to document body
+    if (projectionOverlay) {
+        projectionOverlay.appendChild(tooltip);
+        console.log('Created new tooltip element in projection overlay');
+    } else {
+        document.body.appendChild(tooltip);
+        console.log('Created new tooltip element in document body');
+    }
+    
+    return tooltip;
+}
+
 function displayProjection(horizontal, vertical, image) {
+    // Create tooltip element for measurements
+    createTooltip();
+    
     // Define max dimensions for the image preview canvas attributes
     const previewBoxMaxWidth = 600; 
     const previewBoxMaxHeight = 450;
@@ -1786,11 +1831,30 @@ function setupAlgorithmButtons(horizontalProfile, verticalProfile,
                              secondaryHorizCtx, secondaryVertCtx,
                              horizGraphWidth, horizGraphHeight,
                              vertGraphWidth, vertGraphHeight) {
+    
+    // Debug function to help diagnose tooltip issues
+    function debugAlgorithmClick(algorithmNumber) {
+        console.log(`Algorithm ${algorithmNumber} button clicked`);
+        console.log(`Horizontal projection data length: ${horizontalProfile.length}`);
+        console.log(`Vertical projection data length: ${verticalProfile.length}`);
+        
+        // Log canvas element references
+        console.log('Secondary horizontal canvas:', secondaryHorizCtx.canvas);
+        console.log('Secondary vertical canvas:', secondaryVertCtx.canvas);
+        
+        // Report if tooltips exist
+        const tooltip = document.getElementById('graph-tooltip');
+        console.log('Tooltip element exists:', !!tooltip);
+    }
+    
     for (let i = 1; i <= 10; i++) {
         const button = document.getElementById(`algo-btn-${i}`);
         if (!button) continue;
         
         button.addEventListener('click', function() {
+            // Debug logging
+            debugAlgorithmClick(i);
+            
             // Update results display
             document.getElementById('right-analysis-pane').innerHTML = `
                 <h3>Algorithm ${i} Results</h3>
@@ -1815,16 +1879,16 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                              horizCtx, vertCtx,
                              horizWidth, horizHeight,
                              vertWidth, vertHeight) {
-    // Clear previous content
-    horizCtx.clearRect(0, 0, horizWidth, horizHeight);
-    vertCtx.clearRect(0, 0, vertWidth, vertHeight);
-    
     // Normalize function (remains the same)
     const normalize = (array, maxValue) => array.map(value => (value / Math.max(0.00001, maxValue)) || 0); // Added Math.max to avoid div by zero
     
     // Color selection based on algorithm
     const colors = ['#4a90e2', '#72c02c', '#e74c3c', '#f39c12', '#9b59b6', 
                   '#3498db', '#2ecc71', '#e67e22', '#9b59b6', '#1abc9c'];
+    
+    // Clear previous content
+    horizCtx.clearRect(0, 0, horizWidth, horizHeight);
+    vertCtx.clearRect(0, 0, vertWidth, vertHeight);
     
     // Data for plotting
     let plotDataHorizontal, plotDataVertical;
@@ -1833,6 +1897,10 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     // For derivative mode, store raw data for proper grid markers
     let rawDerivHorizontal, rawDerivVertical;
     let minDerivHorizontal, maxDerivHorizontal, minDerivVertical, maxDerivVertical;
+    
+    // Declare FFT data variables to avoid ReferenceError
+    let fftHorizontal = null;
+    let fftVertical = null;
 
     switch(algorithm) {
         case 1: // LPF button
@@ -1923,6 +1991,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                                 <th>Rank</th>
                                 <th>Bin</th>
                                 <th>Frequency</th>
+                                <th>λ (pixels)</th>
                                 <th>Magnitude</th>
                             </tr>
                             ${horizontalPeaks.map((peak, i) => `
@@ -1930,6 +1999,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                                     <td>${i+1}</td>
                                     <td>${peak.index}</td>
                                     <td>${peak.frequency.toFixed(4)} c/px</td>
+                                    <td>${peak.wavelength.toFixed(1)}</td>
                                     <td>${peak.magnitude.toFixed(1)}</td>
                                 </tr>
                             `).join('')}
@@ -1948,6 +2018,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                                 <th>Rank</th>
                                 <th>Bin</th>
                                 <th>Frequency</th>
+                                <th>λ (pixels)</th>
                                 <th>Magnitude</th>
                             </tr>
                             ${verticalPeaks.map((peak, i) => `
@@ -1955,6 +2026,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                                     <td>${i+1}</td>
                                     <td>${peak.index}</td>
                                     <td>${peak.frequency.toFixed(4)} c/px</td>
+                                    <td>${peak.wavelength.toFixed(1)}</td>
                                     <td>${peak.magnitude.toFixed(1)}</td>
                                 </tr>
                             `).join('')}
@@ -1997,6 +2069,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                                 <th>Rank</th>
                                 <th>Bin</th>
                                 <th>Frequency</th>
+                                <th>λ (pixels)</th>
                                 <th>Magnitude</th>
                             </tr>
                             ${horizontalPeaks.map((peak, i) => `
@@ -2004,6 +2077,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                                     <td>${i+1}</td>
                                     <td>${peak.index}</td>
                                     <td>${peak.frequency.toFixed(4)} c/px</td>
+                                    <td>${peak.wavelength.toFixed(1)}</td>
                                     <td>${peak.magnitude.toFixed(1)}</td>
                                 </tr>
                             `).join('')}
@@ -2022,6 +2096,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                                 <th>Rank</th>
                                 <th>Bin</th>
                                 <th>Frequency</th>
+                                <th>λ (pixels)</th>
                                 <th>Magnitude</th>
                             </tr>
                             ${verticalPeaks.map((peak, i) => `
@@ -2029,6 +2104,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                                     <td>${i+1}</td>
                                     <td>${peak.index}</td>
                                     <td>${peak.frequency.toFixed(4)} c/px</td>
+                                    <td>${peak.wavelength.toFixed(1)}</td>
                                     <td>${peak.magnitude.toFixed(1)}</td>
                                 </tr>
                             `).join('')}
@@ -2133,6 +2209,15 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     
     // Now draw grids ON TOP of the data for both graphs
     if (isDerivativeMode) {
+        // Add tooltip event handlers for measurements
+        setupGraphTooltips(horizCtx, horizWidth, horizHeight, true, algorithm, 
+                          horizontalProfile, plotDataHorizontal, 
+                          algorithm === 3 || algorithm === 4 ? fftHorizontal : null);
+                          
+        setupGraphTooltips(vertCtx, vertWidth, vertHeight, false, algorithm,
+                          verticalProfile, plotDataVertical,
+                          algorithm === 3 || algorithm === 4 ? fftVertical : null);
+                          
         if (algorithm === 3 || algorithm === 4) {
             // For FFT modes, use a frequency grid
             drawFFTGrid(horizCtx, horizWidth, horizHeight, true, fftHorizontal.length, horizontalProfile.length);
@@ -2759,5 +2844,152 @@ function drawFFTGrid(ctx, width, height, isVertical, fftLength, originalDataLeng
     }
     
     ctx.restore();
+}
+
+// Add the tooltip setup function to the end of the file
+// Helper function to set up tooltips for graph measurements
+function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalData, normalizedData, fftData) {
+    const canvas = ctx.canvas;
+    
+    // Make sure tooltip exists
+    const tooltip = createTooltip();
+    
+    console.log(`Setting up tooltip for canvas ID: ${canvas.id || 'unnamed'}, type: ${isVertical ? 'Vertical' : 'Horizontal'}`);
+    console.log(`Canvas dimensions: ${canvas.width}x${canvas.height}, DOM size: ${canvas.clientWidth}x${canvas.clientHeight}`);
+    
+    // Remove any existing event listeners to avoid duplicates
+    canvas.removeEventListener('mousemove', canvas._tooltipMoveHandler);
+    canvas.removeEventListener('mouseleave', canvas._tooltipLeaveHandler);
+    
+    // Add some interactive style to indicate the canvas is interactive
+    canvas.style.cursor = 'crosshair';
+    
+    // Create a debug overlay to verify the event area
+    const debugOverlay = document.createElement('div');
+    debugOverlay.style.position = 'absolute';
+    debugOverlay.style.border = '1px solid red';
+    debugOverlay.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+    debugOverlay.style.pointerEvents = 'none';
+    debugOverlay.style.zIndex = '9999';
+    
+    // Position overlay on top of canvas
+    const rect = canvas.getBoundingClientRect();
+    debugOverlay.style.left = `${rect.left}px`;
+    debugOverlay.style.top = `${rect.top}px`;
+    debugOverlay.style.width = `${rect.width}px`;
+    debugOverlay.style.height = `${rect.height}px`;
+    
+    // Add overlay to document for 3 seconds
+    document.body.appendChild(debugOverlay);
+    setTimeout(() => {
+        if (document.body.contains(debugOverlay)) {
+            document.body.removeChild(debugOverlay);
+        }
+    }, 3000);
+    
+    // Define mousemove handler
+    canvas._tooltipMoveHandler = function(e) {
+        e.stopPropagation();
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        console.log(`Mousemove: x=${x}, y=${y} on canvas: ${canvas.id || 'unnamed'}`);
+        
+        // Calculate data values based on mouse position
+        let dataIndex, dataValue, frequency, wavelength, amplitude;
+        
+        if (isVertical) {
+            // Vertical graph (shows horizontal projection)
+            // Y-axis is the data index (rows), X-axis is value
+            dataIndex = Math.floor((y / rect.height) * originalData.length);
+            
+            if (dataIndex >= 0 && dataIndex < originalData.length) {
+                if ((algorithm === 3 || algorithm === 4) && fftData) {
+                    // FFT mode
+                    const pixelCoord = Math.floor((dataIndex / originalData.length) * originalData.length);
+                    const fftIndex = Math.floor((x / rect.width) * (fftData.length / 2));
+                    
+                    frequency = fftIndex / (fftData.length * 2);
+                    wavelength = frequency > 0 ? 1 / frequency : Infinity;
+                    amplitude = fftIndex < fftData.length ? fftData[fftIndex] : 0;
+                    
+                    tooltip.innerHTML = `
+                        <div>Row: ${pixelCoord}</div>
+                        <div>Freq: ${frequency.toFixed(4)} c/px</div>
+                        <div>λ: ${wavelength.toFixed(1)} px</div>
+                        <div>Magnitude: ${amplitude.toFixed(1)}</div>
+                    `;
+                } else {
+                    // Non-FFT modes
+                    dataValue = originalData[dataIndex];
+                    const normalizedValue = normalizedData[dataIndex] * width;
+                    
+                    tooltip.innerHTML = `
+                        <div>Row: ${dataIndex}</div>
+                        <div>Value: ${dataValue.toFixed(2)}</div>
+                    `;
+                }
+                
+                // Position tooltip and show it
+                tooltip.style.left = `${e.clientX + 15}px`;
+                tooltip.style.top = `${e.clientY + 15}px`;
+                tooltip.style.display = 'block';
+                console.log('Showing tooltip');
+            }
+        } else {
+            // Horizontal graph (shows vertical projection)
+            // X-axis is the data index (columns), Y-axis is value
+            dataIndex = Math.floor((x / rect.width) * originalData.length);
+            
+            if (dataIndex >= 0 && dataIndex < originalData.length) {
+                if ((algorithm === 3 || algorithm === 4) && fftData) {
+                    // FFT mode
+                    const pixelCoord = Math.floor((dataIndex / originalData.length) * originalData.length);
+                    const fftIndex = Math.floor((1 - y / rect.height) * (fftData.length / 2));
+                    
+                    frequency = fftIndex / (fftData.length * 2);
+                    wavelength = frequency > 0 ? 1 / frequency : Infinity;
+                    amplitude = fftIndex < fftData.length ? fftData[fftIndex] : 0;
+                    
+                    tooltip.innerHTML = `
+                        <div>Column: ${pixelCoord}</div>
+                        <div>Freq: ${frequency.toFixed(4)} c/px</div>
+                        <div>λ: ${wavelength.toFixed(1)} px</div>
+                        <div>Magnitude: ${amplitude.toFixed(1)}</div>
+                    `;
+                } else {
+                    // Non-FFT mode
+                    dataValue = originalData[dataIndex];
+                    const normalizedValue = (1 - normalizedData[dataIndex]) * height;
+                    
+                    tooltip.innerHTML = `
+                        <div>Column: ${dataIndex}</div>
+                        <div>Value: ${dataValue.toFixed(2)}</div>
+                    `;
+                }
+                
+                // Position tooltip and show it
+                tooltip.style.left = `${e.clientX + 15}px`;
+                tooltip.style.top = `${e.clientY + 15}px`;
+                tooltip.style.display = 'block';
+                console.log('Showing tooltip');
+            }
+        }
+    };
+    
+    // Define mouseleave handler
+    canvas._tooltipLeaveHandler = function() {
+        tooltip.style.display = 'none';
+        console.log('Hiding tooltip (mouseleave)');
+    };
+    
+    // Add the event listeners
+    canvas.addEventListener('mousemove', canvas._tooltipMoveHandler);
+    canvas.addEventListener('mouseleave', canvas._tooltipLeaveHandler);
+    
+    // Log that we've set up the tooltip
+    console.log(`Tooltip setup complete for ${isVertical ? 'Vertical' : 'Horizontal'} projection, canvas: ${canvas.id || 'unnamed'}`);
 }
 

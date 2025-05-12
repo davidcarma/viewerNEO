@@ -1039,3 +1039,38 @@ button.disabled {
     margin-top: 5px;
     font-style: italic;
 }
+
+/* Graph tooltip styling */
+.graph-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 2000;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid #444;
+    max-width: 200px;
+    white-space: nowrap;
+}
+
+.graph-tooltip div {
+    margin: 3px 0;
+    line-height: 1.2;
+}
+
+/* Style specific frequency values */
+.graph-tooltip div:nth-child(2) {
+    color: #4a90e2; /* Blue for frequency */
+}
+
+.graph-tooltip div:nth-child(3) {
+    color: #72c02c; /* Green for wavelength */
+}
+
+.graph-tooltip div:nth-child(4) {
+    color: #e74c3c; /* Red for magnitude */
+}
