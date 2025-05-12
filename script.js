@@ -2076,21 +2076,12 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 const originalVerticalLength = verticalProfile.length;
 
                 // Find top peaks in FFT results
-                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal, 8); // Request 8 peaks instead of default 3
-                let verticalPeaksRaw = findFFTPeaks(fftVertical, 8); // Request 8 peaks instead of default 3
+                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal, 8, originalHorizontalLength);
+                let verticalPeaksRaw = findFFTPeaks(fftVertical, 8, originalVerticalLength);
 
-                // Correct frequency and wavelength calculations
-                const horizontalPeaks = horizontalPeaksRaw.map(peak => ({
-                    ...peak,
-                    frequency: peak.index / originalHorizontalLength,
-                    wavelength: (peak.index === 0 || originalHorizontalLength === 0) ? Infinity : originalHorizontalLength / peak.index
-                }));
-
-                const verticalPeaks = verticalPeaksRaw.map(peak => ({
-                    ...peak,
-                    frequency: peak.index / originalVerticalLength,
-                    wavelength: (peak.index === 0 || originalVerticalLength === 0) ? Infinity : originalVerticalLength / peak.index
-                }));
+                // Use peaks directly - they now have correct frequency calculations
+                const horizontalPeaks = horizontalPeaksRaw;
+                const verticalPeaks = verticalPeaksRaw;
                 
                 // Normalize FFT results
                 plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
@@ -2171,21 +2162,12 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 const originalVerticalLength = verticalProfile.length;
 
                 // Find top peaks in FFT results
-                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal, 8); // Request 8 peaks instead of default 3
-                let verticalPeaksRaw = findFFTPeaks(fftVertical, 8); // Request 8 peaks instead of default 3
+                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal, 8, originalHorizontalLength);
+                let verticalPeaksRaw = findFFTPeaks(fftVertical, 8, originalVerticalLength);
 
-                // Correct frequency and wavelength calculations
-                const horizontalPeaks = horizontalPeaksRaw.map(peak => ({
-                    ...peak,
-                    frequency: peak.index / originalHorizontalLength,
-                    wavelength: (peak.index === 0 || originalHorizontalLength === 0) ? Infinity : originalHorizontalLength / peak.index
-                }));
-
-                const verticalPeaks = verticalPeaksRaw.map(peak => ({
-                    ...peak,
-                    frequency: peak.index / originalVerticalLength,
-                    wavelength: (peak.index === 0 || originalVerticalLength === 0) ? Infinity : originalVerticalLength / peak.index
-                }));
+                // Use peaks directly - they now have correct frequency calculations
+                const horizontalPeaks = horizontalPeaksRaw;
+                const verticalPeaks = verticalPeaksRaw;
                 
                 // Normalize FFT results
                 plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
