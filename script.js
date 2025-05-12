@@ -23,7 +23,8 @@ let showGrid = false;
 const gridSettings = {
     size: 100,
     color: '#ff0000',
-    opacity: 0.5
+    opacity: 0.5,
+    isFixed: false // Added for fixed grid functionality
 };
 
 // New state variables for thumbnails
@@ -104,7 +105,7 @@ gridBtn.addEventListener('click', () => {
 });
 
 document.getElementById('grid-size').addEventListener('change', (e) => {
-    gridSettings.size = parseInt(e.target.value);
+    gridSettings.size = parseFloat(e.target.value); // Use parseFloat
     render();
 });
 
@@ -115,6 +116,12 @@ document.getElementById('grid-color').addEventListener('input', (e) => {
 
 document.getElementById('grid-opacity').addEventListener('input', (e) => {
     gridSettings.opacity = parseInt(e.target.value) / 100;
+    render();
+});
+
+// Add event listener for the new fixed grid switch
+document.getElementById('grid-fixed-switch').addEventListener('change', (e) => {
+    gridSettings.isFixed = e.target.checked;
     render();
 });
 
@@ -1145,13 +1152,13 @@ function resetView() {
 function drawGrid() {
     if (!showGrid || !image) return;
 
-    // gridSize is the grid spacing on the canvas, scaled by zoom.
-    const gridSize = gridSettings.size * zoomLevel;
+    const dpr = window.devicePixelRatio || 1;
+    const scaledGridSize = gridSettings.size * zoomLevel;
 
     ctx.save();
     ctx.strokeStyle = gridSettings.color;
     ctx.globalAlpha = gridSettings.opacity;
-    ctx.lineWidth = 1; // This will be 1 CSS pixel thick, scaled by DPR.
+    ctx.lineWidth = 1; // This will be 1 CSS pixel thick, scaled by DPR before drawing.
 
     // Define image boundaries on the canvas (in CSS pixels)
     const imgDisplayX = offsetX;
@@ -1159,31 +1166,58 @@ function drawGrid() {
     const imgDisplayWidth = image.width * zoomLevel;
     const imgDisplayHeight = image.height * zoomLevel;
 
-    // Set clipping region to the image's display area
+    // Set clipping region to the image's display area on the canvas
     ctx.beginPath();
     ctx.rect(imgDisplayX, imgDisplayY, imgDisplayWidth, imgDisplayHeight);
     ctx.clip();
 
-    // Draw vertical lines
-    // Lines are at imgDisplayX + k * gridSize
-    // k iterates from 0 as long as k * gridSize is within the image's displayed width
-    for (let k = 0; (k * gridSize) <= imgDisplayWidth; k++) {
-        const x = imgDisplayX + (k * gridSize);
-        ctx.beginPath();
-        ctx.moveTo(x, imgDisplayY);
-        ctx.lineTo(x, imgDisplayY + imgDisplayHeight);
-        ctx.stroke();
-    }
+    if (gridSettings.isFixed) {
+        // Fixed grid: Lines are relative to canvas origin (0,0), but scaled by zoom.
+        // The grid appears fixed on screen, image moves underneath.
+        const canvasWidth = canvas.width / dpr;
+        const canvasHeight = canvas.height / dpr;
 
-    // Draw horizontal lines
-    // Lines are at imgDisplayY + k * gridSize
-    // k iterates from 0 as long as k * gridSize is within the image's displayed height
-    for (let k = 0; (k * gridSize) <= imgDisplayHeight; k++) {
-        const y = imgDisplayY + (k * gridSize);
-        ctx.beginPath();
-        ctx.moveTo(imgDisplayX, y);
-        ctx.lineTo(imgDisplayX + imgDisplayWidth, y);
-        ctx.stroke();
+        // Calculate the starting offset for grid lines so they appear aligned
+        // with the image's pan position if it were not fixed.
+        // This makes the fixed grid appear as if it's an extension of the image's grid.
+        const startGridX = - (offsetX % scaledGridSize);
+        const startGridY = - (offsetY % scaledGridSize);
+
+        // Draw vertical lines across the visible canvas area
+        for (let x = startGridX; x < canvasWidth; x += scaledGridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvasHeight);
+            ctx.stroke();
+        }
+
+        // Draw horizontal lines across the visible canvas area
+        for (let y = startGridY; y < canvasHeight; y += scaledGridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvasWidth, y);
+            ctx.stroke();
+        }
+
+    } else {
+        // Floating grid (moves with image): Lines are relative to image origin.
+        // Draw vertical lines
+        for (let k = 0; (k * scaledGridSize) <= imgDisplayWidth; k++) {
+            const x = imgDisplayX + (k * scaledGridSize);
+            ctx.beginPath();
+            ctx.moveTo(x, imgDisplayY);
+            ctx.lineTo(x, imgDisplayY + imgDisplayHeight);
+            ctx.stroke();
+        }
+
+        // Draw horizontal lines
+        for (let k = 0; (k * scaledGridSize) <= imgDisplayHeight; k++) {
+            const y = imgDisplayY + (k * scaledGridSize);
+            ctx.beginPath();
+            ctx.moveTo(imgDisplayX, y);
+            ctx.lineTo(imgDisplayX + imgDisplayWidth, y);
+            ctx.stroke();
+        }
     }
 
     ctx.restore(); // Restore context to remove clipping
