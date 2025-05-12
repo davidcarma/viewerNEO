@@ -1503,8 +1503,8 @@ function displayProjection(horizontal, vertical, image) {
                 <h3>Algorithm Controls</h3>
                 <button id="algo-btn-1" class="algo-btn">LPF</button>
                 <button id="algo-btn-2" class="algo-btn">Derivative</button>
-                <button id="algo-btn-3" class="algo-btn">Algorithm 3</button>
-                <button id="algo-btn-4" class="algo-btn">Algorithm 4</button>
+                <button id="algo-btn-3" class="algo-btn">Deriv + FFT</button>
+                <button id="algo-btn-4" class="algo-btn">Mod+FFT</button>
                 <button id="algo-btn-5" class="algo-btn">Algorithm 5</button>
                 <button id="algo-btn-6" class="algo-btn">Algorithm 6</button>
                 <button id="algo-btn-7" class="algo-btn">Algorithm 7</button>
@@ -1892,16 +1892,66 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
             break;
         case 3: // Actual data (original primary projection)
             {
-                plotDataHorizontal = normalize(horizontalProfile, Math.max(...horizontalProfile));
-                plotDataVertical = normalize(verticalProfile, Math.max(...verticalProfile));
+                // Modified to use Derivative + FFT
+                const fftHorizontal = calculateDerivativeFFT(horizontalProfile);
+                const fftVertical = calculateDerivativeFFT(verticalProfile);
                 
-                // Update analysis pane with original data information
+                // Normalize FFT results
+                plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
+                plotDataVertical = normalize(fftVertical, Math.max(...fftVertical));
+                
+                // Create a special mode for FFT visualization - it's a frequency spectrum
+                isDerivativeMode = true; // Use line chart
+                
+                // Store min/max values for grid rendering
+                minDerivHorizontal = 0; // FFT magnitudes are always positive
+                maxDerivHorizontal = Math.max(...fftHorizontal);
+                minDerivVertical = 0;
+                maxDerivVertical = Math.max(...fftVertical);
+                
+                // Update analysis pane with FFT information
                 document.getElementById('right-analysis-pane').innerHTML = `
-                    <h3>Original Projection Data</h3>
+                    <h3>Derivative + FFT Analysis</h3>
                     <div class="analysis-content">
-                        <p>Showing unmodified projection data.</p>
-                        <p>Horizontal projection: ${horizontalProfile.length} points</p>
-                        <p>Vertical projection: ${verticalProfile.length} points</p>
+                        <p>Combined derivative and FFT frequency analysis.</p>
+                        <p>Horizontal FFT: ${fftHorizontal.length} frequency components</p>
+                        <p>Vertical FFT: ${fftVertical.length} frequency components</p>
+                        <p>Peak Horizontal Frequency: ${fftHorizontal.indexOf(Math.max(...fftHorizontal))}</p>
+                        <p>Peak Vertical Frequency: ${fftVertical.indexOf(Math.max(...fftVertical))}</p>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
+            }
+            break;
+        case 4: // Algorithm 4 - Mod(Derivative) + FFT
+            {
+                // Use Mod(Derivative) + FFT
+                const fftHorizontal = calculateModDerivativeFFT(horizontalProfile);
+                const fftVertical = calculateModDerivativeFFT(verticalProfile);
+                
+                // Normalize FFT results
+                plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
+                plotDataVertical = normalize(fftVertical, Math.max(...fftVertical));
+                
+                // Create a special mode for FFT visualization - it's a frequency spectrum
+                isDerivativeMode = true; // Use line chart
+                
+                // Store min/max values for grid rendering
+                minDerivHorizontal = 0; // FFT magnitudes are always positive
+                maxDerivHorizontal = Math.max(...fftHorizontal);
+                minDerivVertical = 0;
+                maxDerivVertical = Math.max(...fftVertical);
+                
+                // Update analysis pane with mod derivative + FFT information
+                document.getElementById('right-analysis-pane').innerHTML = `
+                    <h3>|Derivative| + FFT Analysis</h3>
+                    <div class="analysis-content">
+                        <p>Combined absolute value of derivative and FFT analysis.</p>
+                        <p>The modulus emphasizes all edges regardless of direction.</p>
+                        <p>Horizontal FFT: ${fftHorizontal.length} frequency components</p>
+                        <p>Vertical FFT: ${fftVertical.length} frequency components</p>
+                        <p>Peak Horizontal Frequency: ${fftHorizontal.indexOf(Math.max(...fftHorizontal))}</p>
+                        <p>Peak Vertical Frequency: ${fftVertical.indexOf(Math.max(...fftVertical))}</p>
                         <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
                     </div>
                 `;
@@ -2002,9 +2052,15 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     
     // Now draw grids ON TOP of the data for both graphs
     if (isDerivativeMode) {
-        // For derivative mode, pass the actual derivative ranges for proper grid marking
-        drawDerivativeGrid(horizCtx, horizWidth, horizHeight, true, minDerivHorizontal, maxDerivHorizontal, horizontalProfile.length);
-        drawDerivativeGrid(vertCtx, vertWidth, vertHeight, false, minDerivVertical, maxDerivVertical, verticalProfile.length);
+        if (algorithm === 3 || algorithm === 4) {
+            // For FFT modes, use a frequency grid
+            drawFFTGrid(horizCtx, horizWidth, horizHeight, true, fftHorizontal.length, horizontalProfile.length);
+            drawFFTGrid(vertCtx, vertWidth, vertHeight, false, fftVertical.length, verticalProfile.length);
+        } else {
+            // For standard derivative mode, pass the actual derivative ranges for proper grid marking
+            drawDerivativeGrid(horizCtx, horizWidth, horizHeight, true, minDerivHorizontal, maxDerivHorizontal, horizontalProfile.length);
+            drawDerivativeGrid(vertCtx, vertWidth, vertHeight, false, minDerivVertical, maxDerivVertical, verticalProfile.length);
+        }
     } else {
         // For other modes, use the original grid function
         drawGrid(horizCtx, horizWidth, horizHeight, true, false);
@@ -2483,4 +2539,144 @@ document.addEventListener('DOMContentLoaded', () => {
     showPasteTip();
     addThumbnailContextMenu();
 });
+
+// Helper function specifically for drawing FFT grids with frequency labels
+function drawFFTGrid(ctx, width, height, isVertical, fftLength, originalDataLength) {
+    ctx.save();
+    
+    // Purple-ish color for frequency grid lines
+    const gridColor = '#9370DB'; // Medium purple
+    
+    // Draw background grid lines
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.4;
+    ctx.setLineDash([2, 2]); // Dotted lines for grid
+    
+    ctx.beginPath();
+    if (isVertical) {
+        // This is the right-side graph (horizontal projection)
+        // Y-axis still represents the pixel positions in the image
+        const ySteps = 10; // Number of horizontal lines
+        for (let i = 0; i <= ySteps; i++) {
+            const y = (i / ySteps) * height;
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+        }
+        
+        // X-axis represents frequency bins
+        const xSteps = 10; // Frequency markers
+        for (let i = 0; i <= xSteps; i++) {
+            const x = (i / xSteps) * width;
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+        }
+    } else {
+        // This is the bottom graph (vertical projection)
+        // X-axis represents frequency bins
+        const xSteps = 10; 
+        for (let i = 0; i <= xSteps; i++) {
+            const x = (i / xSteps) * width;
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+        }
+        
+        // Y-axis represents magnitude
+        const ySteps = 4;
+        for (let i = 0; i <= ySteps; i++) {
+            const y = (i / ySteps) * height;
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+        }
+    }
+    ctx.stroke();
+    
+    // Reset line style for axes
+    ctx.setLineDash([]); // Solid lines for axes
+    
+    // Draw the axes with higher emphasis
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffffff'; // White color for axes
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.8;
+    
+    if (isVertical) {
+        // Y-axis (left edge - represents pixel position)
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, height);
+        
+        // X-axis (bottom edge - represents frequency)
+        ctx.moveTo(0, height);
+        ctx.lineTo(width, height);
+    } else {
+        // Y-axis (left edge - represents magnitude)
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, height);
+        
+        // X-axis (bottom edge - represents frequency)
+        ctx.moveTo(0, height);
+        ctx.lineTo(width, height);
+    }
+    ctx.stroke();
+    
+    // Add frequency labels
+    ctx.fillStyle = '#ffffff'; // White text
+    ctx.globalAlpha = 0.9;
+    ctx.font = '10px Arial';
+    
+    // Calculate the Nyquist frequency (half of sampling rate)
+    // In spatial domain, sampling rate is 1 pixel
+    const nyquistFreq = 0.5; // In cycles per pixel
+    
+    if (isVertical) {
+        // For the vertical graph (right side)
+        // Y-axis: positions in original data
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i <= 5; i++) {
+            const y = (i / 5) * height;
+            const pixelPos = Math.floor((originalDataLength - 1) * (i / 5));
+            ctx.fillText(`${pixelPos}px`, -5, y);
+        }
+        
+        // X-axis: frequency labels (as fraction of Nyquist)
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let i = 0; i <= 5; i++) {
+            const freq = (i / 5) * nyquistFreq;
+            const x = (i / 5) * width;
+            ctx.fillText(`${freq.toFixed(2)}`, x, height + 5);
+        }
+        
+        // Add units at the end
+        ctx.textAlign = 'right';
+        ctx.fillText("freq (cycles/px)", width, height + 20);
+        
+    } else {
+        // For the horizontal graph (bottom)
+        // X-axis: frequency labels
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let i = 0; i <= 5; i++) {
+            const freq = (i / 5) * nyquistFreq;
+            const x = (i / 5) * width;
+            ctx.fillText(`${freq.toFixed(2)}`, x, height + 5);
+        }
+        
+        // Y-axis: magnitude (remember Y is inverted)
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i <= 4; i++) {
+            const y = (1 - i / 4) * height;
+            const magValue = (i / 4);
+            ctx.fillText(magValue.toFixed(1), -5, y);
+        }
+        
+        // Add units at the end
+        ctx.textAlign = 'right';
+        ctx.fillText("freq (cycles/px)", width, height + 20);
+    }
+    
+    ctx.restore();
+}
 
