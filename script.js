@@ -1973,8 +1973,8 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 const originalVerticalLength = verticalProfile.length;
 
                 // Find top peaks in FFT results
-                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal);
-                let verticalPeaksRaw = findFFTPeaks(fftVertical);
+                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal, 8); // Request 8 peaks instead of default 3
+                let verticalPeaksRaw = findFFTPeaks(fftVertical, 8); // Request 8 peaks instead of default 3
 
                 // Correct frequency and wavelength calculations
                 const horizontalPeaks = horizontalPeaksRaw.map(peak => ({
@@ -2068,8 +2068,8 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 const originalVerticalLength = verticalProfile.length;
 
                 // Find top peaks in FFT results
-                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal);
-                let verticalPeaksRaw = findFFTPeaks(fftVertical);
+                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal, 8); // Request 8 peaks instead of default 3
+                let verticalPeaksRaw = findFFTPeaks(fftVertical, 8); // Request 8 peaks instead of default 3
 
                 // Correct frequency and wavelength calculations
                 const horizontalPeaks = horizontalPeaksRaw.map(peak => ({

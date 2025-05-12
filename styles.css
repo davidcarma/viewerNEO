@@ -164,10 +164,10 @@ button.disabled {
     border-radius: 10px;
     z-index: 1000;
     box-sizing: border-box;
-    width: 92%;
-    max-width: 1400px;
-    height: 92%;  
-    max-height: 1000px; 
+    width: 95%; /* Increased from 92% */
+    max-width: 1600px; /* Increased from 1400px */
+    height: 95%;  /* Increased from 92% */
+    max-height: 1200px; /* Increased from 1000px */
     display: flex;
     flex-direction: column;
 }
@@ -226,10 +226,9 @@ button.disabled {
     flex-direction: column;
     gap: 15px;
     flex: 0 0 auto;
-    width: 220px;
-    max-width: 250px;
+    width: 250px; /* Increased from 220px */
+    max-width: 300px; /* Increased from 250px */
     overflow-y: visible;
-    display: flex;
     align-items: flex-start;
 }
 
@@ -239,8 +238,9 @@ button.disabled {
     width: auto;
     height: auto;
     max-width: 100%;
-    max-height: 450px;
+    max-height: 500px; /* Increased from 450px */
     flex-shrink: 0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4); /* Added shadow for depth */
 }
 
 .vertical-graph-section {
@@ -255,6 +255,7 @@ button.disabled {
     width: 100%;
     height: 100%;
     align-items: flex-start;
+    justify-content: space-between; /* Added to spread out graphs */
 }
 
 .graph-container.vertical {
@@ -341,17 +342,18 @@ button.disabled {
 }
 
 #bottom-main-analysis-pane {
-    height: 120px;
-    min-height: 120px;
-    max-height: 180px;
+    height: 200px; /* Increased from 120px */
+    min-height: 180px; /* Increased from 120px */
+    max-height: 250px; /* Increased from 180px */
     margin-top: 5px;
     flex-shrink: 0;
+    overflow-y: auto;
 }
 
 #right-analysis-pane {
     flex: 1;
-    min-height: 150px;
-    max-height: 200px;
+    min-height: 300px; /* Increased from 150px */
+    max-height: 400px; /* Increased from 200px */
     overflow-y: auto;
 }
 
@@ -360,7 +362,8 @@ button.disabled {
     padding-bottom: 5px;
     border-bottom: 1px solid #666;
     font-size: 16px;
-    color: #d0d0d0;
+    color: #72c02c; /* Changed from #d0d0d0 to match the updated styling */
+    font-weight: bold;
 }
 
 .analysis-content {
@@ -1102,6 +1105,69 @@ button.disabled {
 }
 
 .tooltip-pos {
-    font-size: 11px;
-    color: #aaaaaa;
+    color: #ccc;
+}
+
+/* Enhanced Peak Table Styles */
+.analysis-pane .peak-table {
+    width: 100%; /* Increased from 95% */
+    margin: 10px auto; /* Reduced from 15px */
+    border-collapse: collapse;
+    font-size: 1em; /* Increased from 0.9em */
+    border: 2px solid #555; /* Added stronger border */
+}
+
+.analysis-pane .peak-table th,
+.analysis-pane .peak-table td {
+    border: 1px solid #555;
+    padding: 8px 10px; /* Increased padding */
+    text-align: center; /* Changed from left to center */
+}
+
+.analysis-pane .peak-table th {
+    background-color: #2a4d69; /* Changed from #383838 to a blue shade */
+    color: white;
+    font-weight: bold;
+    text-transform: uppercase; /* Added uppercase for emphasis */
+    font-size: 0.9em;
+}
+
+.analysis-pane .peak-table tr:first-child {
+    background-color: rgba(60, 179, 113, 0.3); /* Highlight first peak with more obvious color */
+    font-weight: bold;
+}
+
+.analysis-pane .peak-table tr:nth-child(even) {
+    background-color: #2f2f2f;
+}
+
+.analysis-pane .peak-table tr:hover {
+    background-color: #3a6186; /* Changed to a blue shade on hover */
+}
+
+/* Make the wavelength and magnitude columns stand out */
+.analysis-pane .peak-table td:nth-child(4), /* λ column */
+.analysis-pane .peak-table td:nth-child(5) { /* Magnitude column */
+    font-weight: bold;
+}
+
+.analysis-pane .peak-table td:nth-child(4) { /* λ column */
+    color: #72c02c; /* Green for wavelength */
+}
+
+.analysis-pane .peak-table td:nth-child(5) { /* Magnitude column */
+    color: #e74c3c; /* Red for magnitude */
+}
+
+/* Add a title to the projection overlay */
+.projection-layout::before {
+    content: "Image Frequency Analysis";
+    display: block;
+    text-align: center;
+    font-size: 1.2em;
+    color: white;
+    margin-bottom: 15px;
+    font-weight: bold;
+    border-bottom: 1px solid #555;
+    padding-bottom: 8px;
 }
