@@ -1890,11 +1890,15 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 `;
             }
             break;
-        case 3: // Actual data (original primary projection)
+        case 3: // Derivative + FFT
             {
                 // Modified to use Derivative + FFT
                 const fftHorizontal = calculateDerivativeFFT(horizontalProfile);
                 const fftVertical = calculateDerivativeFFT(verticalProfile);
+                
+                // Find top peaks in FFT results
+                const horizontalPeaks = findFFTPeaks(fftHorizontal);
+                const verticalPeaks = findFFTPeaks(fftVertical);
                 
                 // Normalize FFT results
                 plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
@@ -1909,15 +1913,52 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 minDerivVertical = 0;
                 maxDerivVertical = Math.max(...fftVertical);
                 
-                // Update analysis pane with FFT information
+                // Update RIGHT analysis pane with Horizontal FFT information (from rows/horizontal projection)
                 document.getElementById('right-analysis-pane').innerHTML = `
-                    <h3>Derivative + FFT Analysis</h3>
+                    <h3>Horizontal Proj. FFT Peaks</h3>
                     <div class="analysis-content">
-                        <p>Combined derivative and FFT frequency analysis.</p>
-                        <p>Horizontal FFT: ${fftHorizontal.length} frequency components</p>
-                        <p>Vertical FFT: ${fftVertical.length} frequency components</p>
-                        <p>Peak Horizontal Frequency: ${fftHorizontal.indexOf(Math.max(...fftHorizontal))}</p>
-                        <p>Peak Vertical Frequency: ${fftVertical.indexOf(Math.max(...fftVertical))}</p>
+                        <p>Derivative + FFT analysis of horizontal projection:</p>
+                        <table class="peak-table">
+                            <tr>
+                                <th>Rank</th>
+                                <th>Bin</th>
+                                <th>Frequency</th>
+                                <th>Magnitude</th>
+                            </tr>
+                            ${horizontalPeaks.map((peak, i) => `
+                                <tr>
+                                    <td>${i+1}</td>
+                                    <td>${peak.index}</td>
+                                    <td>${peak.frequency.toFixed(4)} c/px</td>
+                                    <td>${peak.magnitude.toFixed(1)}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
+                
+                // Update BOTTOM analysis pane with Vertical FFT information (from columns/vertical projection)
+                document.getElementById('bottom-main-analysis-pane').innerHTML = `
+                    <h3>Vertical Proj. FFT Peaks</h3>
+                    <div class="analysis-content">
+                        <p>Derivative + FFT analysis of vertical projection:</p>
+                        <table class="peak-table">
+                            <tr>
+                                <th>Rank</th>
+                                <th>Bin</th>
+                                <th>Frequency</th>
+                                <th>Magnitude</th>
+                            </tr>
+                            ${verticalPeaks.map((peak, i) => `
+                                <tr>
+                                    <td>${i+1}</td>
+                                    <td>${peak.index}</td>
+                                    <td>${peak.frequency.toFixed(4)} c/px</td>
+                                    <td>${peak.magnitude.toFixed(1)}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
                         <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
                     </div>
                 `;
@@ -1929,6 +1970,10 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 const fftHorizontal = calculateModDerivativeFFT(horizontalProfile);
                 const fftVertical = calculateModDerivativeFFT(verticalProfile);
                 
+                // Find top peaks in FFT results
+                const horizontalPeaks = findFFTPeaks(fftHorizontal);
+                const verticalPeaks = findFFTPeaks(fftVertical);
+                
                 // Normalize FFT results
                 plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
                 plotDataVertical = normalize(fftVertical, Math.max(...fftVertical));
@@ -1942,16 +1987,52 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 minDerivVertical = 0;
                 maxDerivVertical = Math.max(...fftVertical);
                 
-                // Update analysis pane with mod derivative + FFT information
+                // Update RIGHT analysis pane with Horizontal FFT information (from rows/horizontal projection)
                 document.getElementById('right-analysis-pane').innerHTML = `
-                    <h3>|Derivative| + FFT Analysis</h3>
+                    <h3>Horizontal Proj. |Deriv|+FFT Peaks</h3>
                     <div class="analysis-content">
-                        <p>Combined absolute value of derivative and FFT analysis.</p>
-                        <p>The modulus emphasizes all edges regardless of direction.</p>
-                        <p>Horizontal FFT: ${fftHorizontal.length} frequency components</p>
-                        <p>Vertical FFT: ${fftVertical.length} frequency components</p>
-                        <p>Peak Horizontal Frequency: ${fftHorizontal.indexOf(Math.max(...fftHorizontal))}</p>
-                        <p>Peak Vertical Frequency: ${fftVertical.indexOf(Math.max(...fftVertical))}</p>
+                        <p>|Derivative| + FFT analysis of horizontal projection:</p>
+                        <table class="peak-table">
+                            <tr>
+                                <th>Rank</th>
+                                <th>Bin</th>
+                                <th>Frequency</th>
+                                <th>Magnitude</th>
+                            </tr>
+                            ${horizontalPeaks.map((peak, i) => `
+                                <tr>
+                                    <td>${i+1}</td>
+                                    <td>${peak.index}</td>
+                                    <td>${peak.frequency.toFixed(4)} c/px</td>
+                                    <td>${peak.magnitude.toFixed(1)}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
+                
+                // Update BOTTOM analysis pane with Vertical FFT information (from columns/vertical projection)
+                document.getElementById('bottom-main-analysis-pane').innerHTML = `
+                    <h3>Vertical Proj. |Deriv|+FFT Peaks</h3>
+                    <div class="analysis-content">
+                        <p>|Derivative| + FFT analysis of vertical projection:</p>
+                        <table class="peak-table">
+                            <tr>
+                                <th>Rank</th>
+                                <th>Bin</th>
+                                <th>Frequency</th>
+                                <th>Magnitude</th>
+                            </tr>
+                            ${verticalPeaks.map((peak, i) => `
+                                <tr>
+                                    <td>${i+1}</td>
+                                    <td>${peak.index}</td>
+                                    <td>${peak.frequency.toFixed(4)} c/px</td>
+                                    <td>${peak.magnitude.toFixed(1)}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
                         <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
                     </div>
                 `;

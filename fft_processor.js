@@ -134,4 +134,24 @@ function calculateModDerivativeFFT(data) {
     const fftResult = calculateFFT(modDerivative);
     
     return fftResult;
+}
+
+// Find top N peaks in FFT results
+function findFFTPeaks(fftData, numPeaks = 3) {
+    if (!fftData || fftData.length === 0) {
+        return [];
+    }
+    
+    // Create array of [index, value] pairs
+    const indexedData = fftData.map((value, index) => [index, value]);
+    
+    // Sort by value in descending order
+    indexedData.sort((a, b) => b[1] - a[1]);
+    
+    // Return top N peaks (index and magnitude)
+    return indexedData.slice(0, numPeaks).map(pair => ({
+        index: pair[0],
+        frequency: pair[0] / (fftData.length * 2), // Normalized frequency (cycles/pixel)
+        magnitude: pair[1]
+    }));
 } 
