@@ -1961,8 +1961,9 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
         case 3: // Derivative + FFT
             {
                 // Modified to use Derivative + FFT
-                const fftHorizontal = calculateDerivativeFFT(horizontalProfile);
-                const fftVertical = calculateDerivativeFFT(verticalProfile);
+                // Assign to the outer scope variables
+                fftHorizontal = calculateDerivativeFFT(horizontalProfile);
+                fftVertical = calculateDerivativeFFT(verticalProfile);
                 
                 // Find top peaks in FFT results
                 const horizontalPeaks = findFFTPeaks(fftHorizontal);
@@ -2039,8 +2040,9 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
         case 4: // Algorithm 4 - Mod(Derivative) + FFT
             {
                 // Use Mod(Derivative) + FFT
-                const fftHorizontal = calculateModDerivativeFFT(horizontalProfile);
-                const fftVertical = calculateModDerivativeFFT(verticalProfile);
+                // Assign to the outer scope variables
+                fftHorizontal = calculateModDerivativeFFT(horizontalProfile);
+                fftVertical = calculateModDerivativeFFT(verticalProfile);
                 
                 // Find top peaks in FFT results
                 const horizontalPeaks = findFFTPeaks(fftHorizontal);
@@ -2212,16 +2214,28 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
         // Add tooltip event handlers for measurements
         setupGraphTooltips(horizCtx, horizWidth, horizHeight, true, algorithm, 
                           horizontalProfile, plotDataHorizontal, 
-                          algorithm === 3 || algorithm === 4 ? fftHorizontal : null);
+                          algorithm === 3 || algorithm === 4 ? fftHorizontal : null,
+                          algorithm === 2 ? rawDerivHorizontal : null);
                           
         setupGraphTooltips(vertCtx, vertWidth, vertHeight, false, algorithm,
                           verticalProfile, plotDataVertical,
-                          algorithm === 3 || algorithm === 4 ? fftVertical : null);
+                          algorithm === 3 || algorithm === 4 ? fftVertical : null,
+                          algorithm === 2 ? rawDerivVertical : null);
                           
         if (algorithm === 3 || algorithm === 4) {
             // For FFT modes, use a frequency grid
-            drawFFTGrid(horizCtx, horizWidth, horizHeight, true, fftHorizontal.length, horizontalProfile.length);
-            drawFFTGrid(vertCtx, vertWidth, vertHeight, false, fftVertical.length, verticalProfile.length);
+            if (Array.isArray(fftHorizontal) && Array.isArray(fftVertical)) {
+                drawFFTGrid(horizCtx, horizWidth, horizHeight, true, fftHorizontal.length, horizontalProfile.length);
+                drawFFTGrid(vertCtx, vertWidth, vertHeight, false, fftVertical.length, verticalProfile.length);
+            } else {
+                console.error(`FFT data is invalid or null for algorithm ${algorithm}. Horizontal:`, fftHorizontal, `Vertical:`, fftVertical);
+                // Fallback: Clear the canvas for secondary graphs if FFT data is invalid
+                horizCtx.clearRect(0, 0, horizWidth, horizHeight);
+                vertCtx.clearRect(0, 0, vertWidth, vertHeight);
+                // Optionally, draw a default grid or a message
+                drawGrid(horizCtx, horizWidth, horizHeight, true, false); 
+                drawGrid(vertCtx, vertWidth, vertHeight, false, false);   
+            }
         } else {
             // For standard derivative mode, pass the actual derivative ranges for proper grid marking
             drawDerivativeGrid(horizCtx, horizWidth, horizHeight, true, minDerivHorizontal, maxDerivHorizontal, horizontalProfile.length);
@@ -2229,6 +2243,13 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
         }
     } else {
         // For other modes, use the original grid function
+        // Add tooltip event handlers for non-derivative/non-FFT modes as well
+        setupGraphTooltips(horizCtx, horizWidth, horizHeight, true, algorithm, 
+                          horizontalProfile, plotDataHorizontal, null, null);
+                          
+        setupGraphTooltips(vertCtx, vertWidth, vertHeight, false, algorithm,
+                          verticalProfile, plotDataVertical, null, null);
+                          
         drawGrid(horizCtx, horizWidth, horizHeight, true, false);
         drawGrid(vertCtx, vertWidth, vertHeight, false, false);
     }
@@ -2848,7 +2869,7 @@ function drawFFTGrid(ctx, width, height, isVertical, fftLength, originalDataLeng
 
 // Add the tooltip setup function to the end of the file
 // Helper function to set up tooltips for graph measurements
-function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalData, normalizedData, fftData) {
+function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalData, normalizedData, fftData, rawDerivativeData) {
     const canvas = ctx.canvas;
     
     // Make sure tooltip exists
@@ -2938,9 +2959,9 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
                     
                     // For algorithm 2 (derivative), show actual derivative value
                     let actualValue;
-                    if (algorithm === 2 && rawDerivHorizontal) {
+                    if (algorithm === 2 && rawDerivativeData) {
                         // For derivative, use the raw derivative value
-                        actualValue = rawDerivHorizontal[dataIndex];
+                        actualValue = rawDerivativeData[dataIndex];
                         tooltip.innerHTML = `
                             <div class="tooltip-title">Derivative Value</div>
                             <div class="tooltip-amp">Value: ${actualValue.toFixed(3)}</div>
@@ -2998,9 +3019,9 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
                     
                     // For algorithm 2 (derivative), show actual derivative value
                     let actualValue;
-                    if (algorithm === 2 && rawDerivVertical) {
+                    if (algorithm === 2 && rawDerivativeData) {
                         // For derivative, use the raw derivative value
-                        actualValue = rawDerivVertical[dataIndex];
+                        actualValue = rawDerivativeData[dataIndex];
                         tooltip.innerHTML = `
                             <div class="tooltip-title">Derivative Value</div>
                             <div class="tooltip-amp">Value: ${actualValue.toFixed(3)}</div>
