@@ -1608,13 +1608,87 @@ function displayProjection(horizontal, vertical, image) {
                 <button id="algo-btn-10" class="algo-btn">Algorithm 10</button>
             </div>
             <div class="view-controls">
+                <button id="toggle-layout-mode">Toggle Layout Mode</button>
                 <button id="full-screen-projection">Full Screen</button>
                 <button id="close-projection">Close</button>
             </div>
         </div>
     `;
+    
+    // Add the overlay to the document
     document.body.appendChild(projectionOverlay);
-
+    
+    // Set initial state (not in custom layout mode)
+    const projectionLayout = projectionOverlay;
+    if (projectionLayout) {
+        projectionLayout.classList.remove('custom-layout');
+    }
+    
+    // Set initial button text
+    const toggleLayoutBtn = projectionOverlay.querySelector('#toggle-layout-mode');
+    if (toggleLayoutBtn) {
+        toggleLayoutBtn.textContent = 'Enable Custom Layout';
+        
+        // Handle layout toggle - create simpler direct implementation
+        toggleLayoutBtn.addEventListener('click', function() {
+            const layout = projectionOverlay;
+            
+            if (layout.classList.contains('custom-layout')) {
+                // Switch to fixed layout
+                layout.classList.remove('custom-layout');
+                this.textContent = 'Enable Custom Layout';
+                
+                // Get all draggable elements and reset their positions
+                const draggableElements = layout.querySelectorAll('.draggable');
+                draggableElements.forEach(element => {
+                    // Reset positioning
+                    element.style.position = '';
+                    element.style.left = '';
+                    element.style.top = '';
+                    element.style.width = '';
+                    element.style.height = '';
+                    element.style.flex = '';
+                });
+                
+                console.log('Reverted to fixed layout');
+                
+            } else {
+                // Switch to custom layout
+                layout.classList.add('custom-layout');
+                this.textContent = 'Reset to Fixed Layout';
+                
+                console.log('Switched to custom layout');
+                
+                // Initialize layout manager using a simpler approach
+                try {
+                    const container = layout.querySelector('.projection-main-area');
+                    if (!container) {
+                        console.error('Could not find projection-main-area');
+                        return;
+                    }
+                    
+                    const elements = [
+                        ...container.querySelectorAll('.analysis-pane'),
+                        ...container.querySelectorAll('.graph-container')
+                    ];
+                    
+                    console.log(`Found ${elements.length} elements to make draggable`);
+                    
+                    // Make each element draggable with a simpler implementation
+                    elements.forEach(element => {
+                        makeElementDraggable(element, container);
+                    });
+                    
+                } catch (err) {
+                    console.error('Error setting up draggable elements:', err);
+                }
+            }
+        });
+    }
+    
+    // Initialize the layout manager to make components draggable and resizable
+    console.log('Using simpler layout implementation rather than layout_manager.js');
+    
     // Get references to all canvases
     const imageCanvas = document.getElementById('image-canvas');
     const primaryVerticalProjectionGraph = document.getElementById('primary-vertical-projection-graph');
@@ -1821,6 +1895,35 @@ function displayProjection(horizontal, vertical, image) {
             else if (document.msExitFullscreen) document.msExitFullscreen();
             
             this.textContent = 'Full Screen';
+        }
+    });
+    
+    // Handle layout toggle
+    document.getElementById('toggle-layout-mode').addEventListener('click', function() {
+        const layout = document.querySelector('.projection-layout');
+        
+        if (layout.classList.contains('custom-layout')) {
+            // Switch to fixed layout
+            layout.classList.remove('custom-layout');
+            this.textContent = 'Enable Custom Layout';
+            
+            // Reset positions of all draggable elements
+            if (window.projectionLayoutManager) {
+                window.projectionLayoutManager.draggableElements.forEach(item => {
+                    window.projectionLayoutManager.resetElementPosition(item.element);
+                });
+            }
+        } else {
+            // Switch to custom layout
+            layout.classList.add('custom-layout');
+            this.textContent = 'Reset to Fixed Layout';
+            
+            // Initialize layout manager if not already done
+            if (window.projectionLayoutManager) {
+                window.projectionLayoutManager.init();
+            } else if (typeof initLayoutManager === 'function') {
+                initLayoutManager();
+            }
         }
     });
     
@@ -3098,5 +3201,175 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
     
     // Log that we've set up the tooltip
     console.log(`Tooltip setup complete for ${isVertical ? 'Vertical' : 'Horizontal'} projection, canvas: ${canvas.id || 'unnamed'}`);
+}
+
+// Simple implementation to make an element draggable and resizable
+function makeElementDraggable(element, container) {
+    if (!element || element.classList.contains('draggable-initialized')) return;
+    
+    // Mark as initialized
+    element.classList.add('draggable-initialized');
+    element.classList.add('draggable');
+    
+    // Create drag handle
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    dragHandle.innerHTML = `
+        <span class="drag-handle-grip">|||</span>
+        <span class="drag-handle-title">${element.querySelector('h3')?.textContent || 'Draggable'}</span>
+        <div class="drag-handle-controls">
+            <button title="Reset Position">&#8634;</button>
+        </div>
+    `;
+    
+    // Add resize handles
+    const positions = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+    positions.forEach(pos => {
+        const handle = document.createElement('div');
+        handle.className = `resize-handle ${pos}`;
+        handle.dataset.direction = pos;
+        element.appendChild(handle);
+        
+        // Resize logic
+        handle.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startRect = element.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            
+            const startLeft = startRect.left - containerRect.left;
+            const startTop = startRect.top - containerRect.top;
+            const startWidth = startRect.width;
+            const startHeight = startRect.height;
+            
+            // Position element absolutely if not already
+            if (getComputedStyle(element).position !== 'absolute') {
+                element.style.position = 'absolute';
+                element.style.left = startLeft + 'px';
+                element.style.top = startTop + 'px';
+                element.style.width = startWidth + 'px';
+                element.style.height = startHeight + 'px';
+                element.style.flex = 'none';
+            }
+            
+            element.classList.add('dragging');
+            
+            function handleResize(moveEvent) {
+                const deltaX = moveEvent.clientX - startX;
+                const deltaY = moveEvent.clientY - startY;
+                
+                let newLeft = startLeft;
+                let newTop = startTop;
+                let newWidth = startWidth;
+                let newHeight = startHeight;
+                
+                // Apply resize based on direction
+                switch (pos) {
+                    case 'top-left':
+                        newLeft = startLeft + deltaX;
+                        newTop = startTop + deltaY;
+                        newWidth = startWidth - deltaX;
+                        newHeight = startHeight - deltaY;
+                        break;
+                    case 'top-right':
+                        newTop = startTop + deltaY;
+                        newWidth = startWidth + deltaX;
+                        newHeight = startHeight - deltaY;
+                        break;
+                    case 'bottom-left':
+                        newLeft = startLeft + deltaX;
+                        newWidth = startWidth - deltaX;
+                        newHeight = startHeight + deltaY;
+                        break;
+                    case 'bottom-right':
+                        newWidth = startWidth + deltaX;
+                        newHeight = startHeight + deltaY;
+                        break;
+                }
+                
+                // Enforce minimum size
+                if (newWidth < 100) newWidth = 100;
+                if (newHeight < 100) newHeight = 100;
+                
+                // Apply the new position and size
+                element.style.left = newLeft + 'px';
+                element.style.top = newTop + 'px';
+                element.style.width = newWidth + 'px';
+                element.style.height = newHeight + 'px';
+            }
+            
+            function stopResize() {
+                document.removeEventListener('mousemove', handleResize);
+                document.removeEventListener('mouseup', stopResize);
+                element.classList.remove('dragging');
+            }
+            
+            document.addEventListener('mousemove', handleResize);
+            document.addEventListener('mouseup', stopResize);
+        });
+    });
+    
+    // Add reset button functionality
+    const resetBtn = dragHandle.querySelector('button');
+    resetBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        element.style.position = '';
+        element.style.left = '';
+        element.style.top = '';
+        element.style.width = '';
+        element.style.height = '';
+        element.style.flex = '';
+    });
+    
+    // Add drag functionality to the handle
+    dragHandle.addEventListener('mousedown', function(e) {
+        if (e.target.tagName === 'BUTTON') return; // Don't drag when clicking buttons
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const rect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        const startLeft = rect.left - containerRect.left;
+        const startTop = rect.top - containerRect.top;
+        
+        // Position element absolutely if not already
+        if (getComputedStyle(element).position !== 'absolute') {
+            element.style.position = 'absolute';
+            element.style.left = startLeft + 'px';
+            element.style.top = startTop + 'px';
+            element.style.width = rect.width + 'px';
+            element.style.height = rect.height + 'px';
+            element.style.flex = 'none';
+        }
+        
+        element.classList.add('dragging');
+        
+        function handleDrag(moveEvent) {
+            const deltaX = moveEvent.clientX - startX;
+            const deltaY = moveEvent.clientY - startY;
+            
+            element.style.left = (startLeft + deltaX) + 'px';
+            element.style.top = (startTop + deltaY) + 'px';
+        }
+        
+        function stopDrag() {
+            document.removeEventListener('mousemove', handleDrag);
+            document.removeEventListener('mouseup', stopDrag);
+            element.classList.remove('dragging');
+        }
+        
+        document.addEventListener('mousemove', handleDrag);
+        document.addEventListener('mouseup', stopDrag);
+    });
+    
+    element.appendChild(dragHandle);
+    console.log('Made element draggable:', element);
 }
 
