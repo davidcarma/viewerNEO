@@ -2896,7 +2896,7 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
         const y = e.clientY - rect.top;
         
         // Calculate data values based on mouse position
-        let dataIndex, dataValue, frequency, wavelength, amplitude;
+        let dataIndex, plotValue, frequency, wavelength, amplitude;
         
         // Always show tooltip - guaranteed to have some basic information
         tooltip.style.left = `${e.clientX + 15}px`;
@@ -2929,14 +2929,41 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
                         <div class="tooltip-bin">Bin: ${fftIndex} / ${fftData.length}</div>
                     `;
                 } else {
-                    // Non-FFT modes
-                    dataValue = originalData[dataIndex];
+                    // Non-FFT modes - use the plotted data value, not the original data
+                    // Get the actual normalized value being plotted at this index
+                    plotValue = normalizedData[dataIndex];
                     
-                    tooltip.innerHTML = `
-                        <div class="tooltip-title">Projection Value</div>
-                        <div class="tooltip-amp">Amplitude: ${dataValue.toFixed(2)}</div>
-                        <div class="tooltip-pos">Position: ${dataIndex}</div>
-                    `;
+                    // Get the x-coordinate this value is plotted at
+                    const plotX = plotValue * width;
+                    
+                    // For algorithm 2 (derivative), show actual derivative value
+                    let actualValue;
+                    if (algorithm === 2 && rawDerivHorizontal) {
+                        // For derivative, use the raw derivative value
+                        actualValue = rawDerivHorizontal[dataIndex];
+                        tooltip.innerHTML = `
+                            <div class="tooltip-title">Derivative Value</div>
+                            <div class="tooltip-amp">Value: ${actualValue.toFixed(3)}</div>
+                            <div class="tooltip-pos">Position: ${dataIndex}</div>
+                        `;
+                    } else if (algorithm === 1) {
+                        // For LPF, show the filtered value
+                        // Reconstruct from the normalized plot data
+                        const maxValue = Math.max(...originalData);
+                        actualValue = plotValue * maxValue;
+                        tooltip.innerHTML = `
+                            <div class="tooltip-title">Filtered Value</div>
+                            <div class="tooltip-amp">Value: ${actualValue.toFixed(2)}</div>
+                            <div class="tooltip-pos">Position: ${dataIndex}</div>
+                        `;
+                    } else {
+                        // For other algorithms, just show the normalized plot value
+                        tooltip.innerHTML = `
+                            <div class="tooltip-title">Plot Value</div>
+                            <div class="tooltip-amp">Value: ${plotValue.toFixed(3)}</div>
+                            <div class="tooltip-pos">Position: ${dataIndex}</div>
+                        `;
+                    }
                 }
             }
         } else {
@@ -2965,14 +2992,38 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
                         <div class="tooltip-bin">Bin: ${fftIndex} / ${fftData.length}</div>
                     `;
                 } else {
-                    // Non-FFT mode
-                    dataValue = originalData[dataIndex];
+                    // Non-FFT mode - use the plotted data value, not the original data
+                    // Get the actual normalized value being plotted at this index
+                    plotValue = normalizedData[dataIndex];
                     
-                    tooltip.innerHTML = `
-                        <div class="tooltip-title">Projection Value</div>
-                        <div class="tooltip-amp">Amplitude: ${dataValue.toFixed(2)}</div>
-                        <div class="tooltip-pos">Position: ${dataIndex}</div>
-                    `;
+                    // For algorithm 2 (derivative), show actual derivative value
+                    let actualValue;
+                    if (algorithm === 2 && rawDerivVertical) {
+                        // For derivative, use the raw derivative value
+                        actualValue = rawDerivVertical[dataIndex];
+                        tooltip.innerHTML = `
+                            <div class="tooltip-title">Derivative Value</div>
+                            <div class="tooltip-amp">Value: ${actualValue.toFixed(3)}</div>
+                            <div class="tooltip-pos">Position: ${dataIndex}</div>
+                        `;
+                    } else if (algorithm === 1) {
+                        // For LPF, show the filtered value
+                        // Reconstruct from the normalized plot data
+                        const maxValue = Math.max(...originalData);
+                        actualValue = plotValue * maxValue;
+                        tooltip.innerHTML = `
+                            <div class="tooltip-title">Filtered Value</div>
+                            <div class="tooltip-amp">Value: ${actualValue.toFixed(2)}</div>
+                            <div class="tooltip-pos">Position: ${dataIndex}</div>
+                        `;
+                    } else {
+                        // For other algorithms, just show the normalized plot value
+                        tooltip.innerHTML = `
+                            <div class="tooltip-title">Plot Value</div>
+                            <div class="tooltip-amp">Value: ${plotValue.toFixed(3)}</div>
+                            <div class="tooltip-pos">Position: ${dataIndex}</div>
+                        `;
+                    }
                 }
             }
         }
