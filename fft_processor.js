@@ -118,6 +118,34 @@ function calculateDerivativeFFT(data) {
     return fftResult;
 }
 
+// Combined derivative + half-wave rectification + FFT processor
+function calculateDiffRectFFT(data) {
+    if (!data || data.length <= 1) {
+        return data.length === 1 ? [0] : [];
+    }
+    
+    // First calculate the derivative
+    const derivative = calculateDerivative(data);
+    
+    // Apply half-wave rectification (keep only positive values, set negatives to 0)
+    const rectifiedDerivative = derivative.map(value => value > 0 ? value : 0);
+    
+    // Check if we have non-zero values after rectification
+    const maxRectValue = Math.max(...rectifiedDerivative);
+    if (maxRectValue <= 0) {
+        // If all values are zero or negative, return zeros
+        return new Array(Math.floor(data.length / 2)).fill(0);
+    }
+    
+    // Normalize the rectified derivative before FFT for better numerical stability
+    const normalizedRectDeriv = rectifiedDerivative.map(value => value / maxRectValue);
+    
+    // Then apply FFT to the normalized rectified derivative
+    const fftResult = calculateFFT(normalizedRectDeriv);
+    
+    return fftResult;
+}
+
 // Combined mod(derivative) + FFT processor
 function calculateModDerivativeFFT(data) {
     if (!data || data.length <= 1) {
@@ -168,4 +196,4 @@ function findFFTPeaks(fftData, numPeaks = 3, originalLength) {
             magnitude: Number(magnitudeValue.toFixed(1))
         };
     });
-} 
+}

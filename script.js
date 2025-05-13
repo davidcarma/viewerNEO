@@ -1480,7 +1480,7 @@ function displayProjection(horizontal, vertical, image) {
                 <button id="algo-btn-1" class="algo-btn">LPF</button>
                 <button id="algo-btn-2" class="algo-btn">Derivative</button>
                 <button id="algo-btn-3" class="algo-btn">Deriv + FFT</button>
-                <button id="algo-btn-4" class="algo-btn">Mod+FFT</button>
+                <button id="algo-btn-4" class="algo-btn">DiffRectFFT</button>
                 <button id="algo-btn-5" class="algo-btn">Algorithm 5</button>
                 <button id="algo-btn-6" class="algo-btn">Algorithm 6</button>
                 <button id="algo-btn-7" class="algo-btn">Algorithm 7</button>
@@ -2400,14 +2400,9 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
             }
             break;
         case 3: // Derivative + FFT
-        case 4: // Mod(Derivative) + FFT
             {
-                const isMod = algorithm === 4;
-                const titlePrefix = isMod ? "|Deriv|+FFT" : "Deriv+FFT";
-                const analysisText = isMod ? "|Derivative| + FFT analysis" : "Derivative + FFT analysis";
-
-                fftHorizontal = isMod ? calculateModDerivativeFFT(horizontalProfile) : calculateDerivativeFFT(horizontalProfile);
-                fftVertical = isMod ? calculateModDerivativeFFT(verticalProfile) : calculateDerivativeFFT(verticalProfile);
+                fftHorizontal = calculateDerivativeFFT(horizontalProfile);
+                fftVertical = calculateDerivativeFFT(verticalProfile);
                 
                 const originalHorizontalLength = horizontalProfile.length;
                 const originalVerticalLength = verticalProfile.length;
@@ -2431,9 +2426,9 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                     console.log(`${new Date().toISOString()} - Before rightPane.innerHTML set`);
                     rightPane.classList.remove('draggable-initialized');
                     rightPane.innerHTML = `
-                        <h3>Horizontal Projection ${titlePrefix} Analysis</h3>
+                        <h3>Horizontal Projection Deriv+FFT Analysis</h3>
                         <div class="analysis-content" style="padding: 15px; margin-top: 10px;">
-                            <p>${analysisText} of horizontal projection:</p>
+                            <p>Derivative + FFT analysis of horizontal projection:</p>
                             <table class="peak-table" style="margin-top: 10px; width: 100%;">
                                 <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
                                 ${horizontalPeaks.map((peak, i) => `
@@ -2495,9 +2490,9 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                     console.log(`${new Date().toISOString()} - Before bottomPane.innerHTML set`);
                     bottomPane.classList.remove('draggable-initialized');
                     bottomPane.innerHTML = `
-                        <h3>Vertical Projection ${titlePrefix} Analysis</h3>
+                        <h3>Vertical Projection Deriv+FFT Analysis</h3>
                         <div class="analysis-content" style="padding: 15px; margin-top: 10px;">
-                            <p>${analysisText} of vertical projection:</p>
+                            <p>Derivative + FFT analysis of vertical projection:</p>
                             <table class="peak-table" style="margin-top: 10px; width: 100%;">
                                 <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
                                 ${verticalPeaks.map((peak, i) => `
@@ -2553,6 +2548,105 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                     });
                 }
             }
+            break;
+        case 4: // Derivative + Rectify + FFT
+            console.log('Running Algorithm 4: Derivative + Half-Wave Rectification + FFT');
+            
+            // Call our new derivative + rectify + FFT function
+            fftHorizontal = calculateDiffRectFFT(horizontalProfile);
+            fftVertical = calculateDiffRectFFT(verticalProfile);
+            
+            // Store derivative data for visualization
+            rawDerivHorizontal = horizontalProfile.map((_, i, arr) => {
+                if (i === 0) return arr[1] - arr[0];
+                if (i === arr.length - 1) return arr[i] - arr[i-1];
+                return (arr[i+1] - arr[i-1]) / 2;
+            });
+            
+            rawDerivVertical = verticalProfile.map((_, i, arr) => {
+                if (i === 0) return arr[1] - arr[0];
+                if (i === arr.length - 1) return arr[i] - arr[i-1];
+                return (arr[i+1] - arr[i-1]) / 2;
+            });
+            
+            // Apply half-wave rectification and store for visualization
+            rawDerivHorizontal = rawDerivHorizontal.map(v => v > 0 ? v : 0);
+            rawDerivVertical = rawDerivVertical.map(v => v > 0 ? v : 0);
+            
+            // Find min/max values for proper scaling
+            minDerivHorizontal = 0; // For half-wave rectification, min is always 0
+            maxDerivHorizontal = Math.max(...rawDerivHorizontal, 0.001); // Avoid division by zero
+            minDerivVertical = 0; // For half-wave rectification, min is always 0
+            maxDerivVertical = Math.max(...rawDerivVertical, 0.001); // Avoid division by zero
+            
+            // Normalize for plotting
+            const normalizedDerivHorizontal = rawDerivHorizontal.map(v => v / maxDerivHorizontal);
+            const normalizedDerivVertical = rawDerivVertical.map(v => v / maxDerivVertical);
+            
+            // Use normalized FFT data for plotting
+            plotDataHorizontal = fftHorizontal.slice(0, Math.min(fftHorizontal.length, horizontalProfile.length / 2));
+            plotDataVertical = fftVertical.slice(0, Math.min(fftVertical.length, verticalProfile.length / 2));
+            
+            // Normalize FFT data properly for visualization
+            const maxFFTHorizontal = Math.max(...plotDataHorizontal, 0.001);
+            const maxFFTVertical = Math.max(...plotDataVertical, 0.001);
+            plotDataHorizontal = plotDataHorizontal.map(v => v / maxFFTHorizontal);
+            plotDataVertical = plotDataVertical.map(v => v / maxFFTVertical);
+            
+            // Analyze the FFT results
+            const horizontalPeaks = findFFTPeaks(fftHorizontal, 5, horizontalProfile.length);
+            const verticalPeaks = findFFTPeaks(fftVertical, 5, verticalProfile.length);
+            
+            // Update analysis panes with detailed information
+            if (rightPane) {
+                rightPane.querySelector('.analysis-content').innerHTML = `
+                    <h4>Derivative + Rectify + FFT Analysis (Horizontal)</h4>
+                    <p>Applied derivative calculation, then half-wave rectification (keeping only positive values), followed by FFT.</p>
+                    <div class="peaks-table">
+                        <h5>Dominant Frequencies:</h5>
+                        <table>
+                            <tr><th>Rank</th><th>Frequency</th><th>Wavelength (px)</th><th>Magnitude</th></tr>
+                            ${horizontalPeaks.map((peak, i) => `
+                                <tr>
+                                    <td>${i+1}</td>
+                                    <td>${peak.frequency.toFixed(4)}</td>
+                                    <td>${peak.wavelength.toFixed(1)}</td>
+                                    <td>${peak.magnitude.toFixed(1)}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    </div>
+                `;
+            }
+            
+            if (bottomPane) {
+                bottomPane.querySelector('.analysis-content').innerHTML = `
+                    <h4>Derivative + Rectify + FFT Analysis (Vertical)</h4>
+                    <p>Applied derivative calculation, then half-wave rectification (keeping only positive values), followed by FFT.</p>
+                    <div class="peaks-table">
+                        <h5>Dominant Frequencies:</h5>
+                        <table>
+                            <tr><th>Rank</th><th>Frequency</th><th>Wavelength (px)</th><th>Magnitude</th></tr>
+                            ${verticalPeaks.map((peak, i) => `
+                                <tr>
+                                    <td>${i+1}</td>
+                                    <td>${peak.frequency.toFixed(4)}</td>
+                                    <td>${peak.wavelength.toFixed(1)}</td>
+                                    <td>${peak.magnitude.toFixed(1)}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    </div>
+                `;
+            }
+            
+            // Setup tooltips for the graphs
+            setupGraphTooltips(horizCtx, horizWidth, horizHeight, true, algorithm, 
+                              horizontalProfile, plotDataHorizontal, fftHorizontal, rawDerivHorizontal);
+            setupGraphTooltips(vertCtx, vertWidth, vertHeight, false, algorithm, 
+                              verticalProfile, plotDataVertical, fftVertical, rawDerivVertical);
+            
+            isDerivativeMode = true;
             break;
         default: // Algorithmic patterns (sine, step, etc.)
             {
