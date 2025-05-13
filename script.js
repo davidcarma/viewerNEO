@@ -1430,44 +1430,44 @@ function displayProjection(horizontal, vertical, image) {
     projectionOverlay.id = 'projection-overlay';
     projectionOverlay.className = 'projection-layout';
     
-    // Create the HTML layout with EXACT matching dimensions
+    // Create the HTML layout with EXACT matching dimensions and improved titles
     projectionOverlay.innerHTML = `
         <div class="projection-main-area">
             <div class="projection-top-row">
                 <div class="primary-image-col">
-                    <div id="image-canvas-wrapper" data-drag-title="Image Preview">
+                    <div id="image-canvas-wrapper" data-drag-title="Main Image View">
                 <canvas id="image-canvas" width="${finalImageWidth}" height="${finalImageHeight}"></canvas>
                     </div>
-                    <div class="graph-container horizontal" data-drag-title="Primary Vertical Projection">
+                    <div class="graph-container horizontal" data-drag-title="Primary Vertical Projection (Bottom Graph)">
                 <canvas id="primary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Primary Vertical Projection</div>
             </div>
-                    <div class="graph-container horizontal" data-drag-title="Secondary Vertical Graph">
+                    <div class="graph-container horizontal" data-drag-title="Secondary Vertical Projection (Bottom Graph)">
                 <canvas id="secondary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Secondary Vertical Graph</div>
             </div>
-                    <div id="bottom-main-analysis-pane" class="analysis-pane" data-drag-title="Bottom Analysis">
-                        <h3>Bottom Analysis Pane</h3>
+                    <div id="bottom-main-analysis-pane" class="analysis-pane" data-drag-title="Vertical Analysis Results">
+                        <h3>Vertical Analysis Results</h3>
                         <div class="analysis-content">
-                            <p>Future analysis will appear here</p>
+                            <p>Analysis will appear here when you select an algorithm</p>
                         </div>
                     </div>
                 </div>
                 <div class="right-section">
                     <div class="horizontal-graphs-row">
-                        <div class="graph-container vertical" data-drag-title="Horizontal Projection">
+                        <div class="graph-container vertical" data-drag-title="Horizontal Projection (Right Graph)">
                 <canvas id="primary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Horizontal Projection</div>
             </div>
-                        <div class="graph-container vertical" data-drag-title="Secondary Horizontal Graph">
+                        <div class="graph-container vertical" data-drag-title="Secondary Horizontal Projection (Right Graph)">
                 <canvas id="secondary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Secondary Horizontal Graph</div>
             </div>
                     </div>
-                    <div id="right-analysis-pane" class="analysis-pane" data-drag-title="Right Analysis">
-                <h3>Right Analysis Pane</h3>
+                    <div id="right-analysis-pane" class="analysis-pane" data-drag-title="Horizontal Analysis Results">
+                <h3>Horizontal Analysis Results</h3>
                 <div class="analysis-content">
-                            <p>Future analysis will appear here</p>
+                            <p>Analysis will appear here when you select an algorithm</p>
                 </div>
             </div>
                 </div>
@@ -1688,6 +1688,45 @@ function displayProjection(horizontal, vertical, image) {
         
         .graph-container.horizontal {
             width: ${finalImageWidth}px !important; 
+        }
+        
+        /* Add specific styles for all canvases to ensure they clear the drag handles */
+        .graph-container canvas, #image-canvas-wrapper canvas {
+            margin-top: 36px; /* Space for the drag handle */
+        }
+        
+        /* Ensure graph labels are properly positioned */
+        .graph-label {
+            margin-top: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        /* Style for the drag handles */
+        .drag-handle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            cursor: move;
+        }
+        
+        /* Ensure analysis panes have proper internal spacing */
+        .analysis-pane {
+            padding-top: 40px; /* Space for header plus some extra */
+        }
+        
+        /* Make sure analysis content doesn't touch the edges */
+        .analysis-content {
+            padding: 10px;
+        }
+        
+        /* Ensure draggable elements have proper spacing */
+        .draggable {
+            padding-top: 36px; /* Ensure space for drag handle */
+            position: relative;
+            overflow: visible; /* Allow the drag handle to be visible */
         }
     `;
     document.head.appendChild(styleElement);
@@ -2363,10 +2402,10 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                     console.log(`${new Date().toISOString()} - Before rightPane.innerHTML set`);
                     rightPane.classList.remove('draggable-initialized');
                     rightPane.innerHTML = `
-                        <h3>Horizontal Proj. ${titlePrefix} Peaks</h3>
-                        <div class="analysis-content">
+                        <h3>Horizontal Projection ${titlePrefix} Analysis</h3>
+                        <div class="analysis-content" style="padding: 15px; margin-top: 10px;">
                             <p>${analysisText} of horizontal projection:</p>
-                            <table class="peak-table">
+                            <table class="peak-table" style="margin-top: 10px; width: 100%;">
                                 <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
                                 ${horizontalPeaks.map((peak, i) => `
                                     <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
@@ -2427,10 +2466,10 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                     console.log(`${new Date().toISOString()} - Before bottomPane.innerHTML set`);
                     bottomPane.classList.remove('draggable-initialized');
                     bottomPane.innerHTML = `
-                        <h3>Vertical Proj. ${titlePrefix} Peaks</h3>
-                        <div class="analysis-content">
+                        <h3>Vertical Projection ${titlePrefix} Analysis</h3>
+                        <div class="analysis-content" style="padding: 15px; margin-top: 10px;">
                             <p>${analysisText} of vertical projection:</p>
-                            <table class="peak-table">
+                            <table class="peak-table" style="margin-top: 10px; width: 100%;">
                                 <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
                                 ${verticalPeaks.map((peak, i) => `
                                     <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
@@ -3520,23 +3559,54 @@ function makeElementDraggable(element, container) {
     element.classList.add('draggable');
     }
     
+    // Determine drag handle title - enhance with more descriptive names based on element type/content
+    let title = '';
     
-    // Determine drag handle title
-    let title = element.querySelector('h3')?.textContent || 
-                element.dataset.dragTitle || // Use data-drag-title attribute
-                element.id || // Fallback to ID
-                'Draggable'; // Default
-    if (title.length > 25) title = title.substring(0,22) + "..."; // Truncate long titles
+    // Check for content type to assign better titles
+    if (element.id === 'image-canvas-wrapper') {
+        title = 'Main Image View';
+    } else if (element.id === 'right-analysis-pane') {
+        title = 'Horizontal Analysis Results';
+    } else if (element.id === 'bottom-main-analysis-pane') {
+        title = 'Vertical Analysis Results';
+    } else if (element.querySelector('#primary-horizontal-projection-graph')) {
+        title = 'Horizontal Projection (Primary)';
+    } else if (element.querySelector('#secondary-horizontal-projection-graph')) {
+        title = 'Horizontal Projection (Secondary)';
+    } else if (element.querySelector('#primary-vertical-projection-graph')) {
+        title = 'Vertical Projection (Primary)';
+    } else if (element.querySelector('#secondary-vertical-projection-graph')) {
+        title = 'Vertical Projection (Secondary)';
+    } else {
+        // Fallback to existing method
+        title = element.querySelector('h3')?.textContent || 
+                element.dataset.dragTitle || 
+                element.id || 
+                'Draggable';
+    }
+    
+    // Truncate long titles with ellipsis
+    if (title.length > 30) title = title.substring(0,27) + "...";
 
-    
-    // Create simple drag handle
+    // Create enhanced drag handle with more padding and better styling
     const dragHandle = document.createElement('div');
     dragHandle.className = 'drag-handle';
+    dragHandle.style.padding = '8px 12px'; // Increased padding even more
+    dragHandle.style.minHeight = '32px';   // Increased minimum height
+    dragHandle.style.display = 'flex';     // Use flexbox for alignment
+    dragHandle.style.alignItems = 'center';
+    dragHandle.style.justifyContent = 'space-between';
+    dragHandle.style.backgroundColor = 'rgba(30, 30, 30, 0.9)'; // Darker background
+    dragHandle.style.borderBottom = '2px solid rgba(255, 255, 255, 0.25)';
+    dragHandle.style.fontSize = '13px';    // Slightly larger font
+    
+    // Add a grip icon to make it more obvious it's draggable
     dragHandle.innerHTML = `
-        <span class="drag-handle-title">${title}</span>
+        <span class="drag-handle-title" style="font-weight: bold; font-size: 13px;">${title}</span>
+        <span class="drag-grip" style="font-size: 14px; opacity: 0.8;">☰</span>
     `;
     
-    // SIMPLIFIED DRAG HANDLER - No more transforms, simpler positioning
+    // Rest of the drag functionality remains the same
     dragHandle.addEventListener('mousedown', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -3607,7 +3677,40 @@ function makeElementDraggable(element, container) {
     });
     
     // Add handle to the element
-    element.appendChild(dragHandle);
+    if (element.firstChild) {
+        element.insertBefore(dragHandle, element.firstChild);
+    } else {
+        element.appendChild(dragHandle);
+    }
+    
+    // Add a subtle border to make the draggable element more obvious
+    element.style.border = '1px solid rgba(120, 120, 120, 0.35)';
+    element.style.borderRadius = '4px';
+    element.style.background = 'rgba(20, 20, 20, 0.7)';
+    
+    // Add padding to the top of the element's content to prevent overlap with the drag handle
+    // First, get all the direct children except the drag handle
+    const children = Array.from(element.children).filter(child => child !== dragHandle);
+    
+    // Add top padding/margin to the first content element to prevent it being covered by header
+    if (children.length > 0) {
+        // Get the drag handle height to use as padding
+        const handleHeight = dragHandle.offsetHeight || 32; // Fallback if not yet rendered
+        
+        // Apply margin to the first content element to push it below the header
+        children[0].style.marginTop = `${handleHeight + 5}px`; // Add 5px extra space
+        
+        // For canvas elements, need special handling
+        if (children[0].tagName === 'CANVAS' || children[0].querySelector('canvas')) {
+            const canvas = children[0].tagName === 'CANVAS' ? children[0] : children[0].querySelector('canvas');
+            if (canvas) {
+                // Ensure canvas container has proper padding
+                const canvasContainer = canvas.parentElement;
+                canvasContainer.style.paddingTop = `${handleHeight + 5}px`;
+                canvasContainer.style.boxSizing = 'border-box';
+            }
+        }
+    }
 }
 
 // Get elements to make draggable
