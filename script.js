@@ -2420,133 +2420,14 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 minDerivVertical = 0;
                 maxDerivVertical = Math.max(...fftVertical);
                 
-                // Update RIGHT analysis pane
-                if (rightPane) {
-                    console.log(`${new Date().toISOString()} - Updating rightPane (Algorithm ${algorithm})`);
-                    console.log(`${new Date().toISOString()} - Before rightPane.innerHTML set`);
-                    rightPane.classList.remove('draggable-initialized');
-                    rightPane.innerHTML = `
-                        <h3>Horizontal Projection Deriv+FFT Analysis</h3>
-                        <div class="analysis-content" style="padding: 15px; margin-top: 10px;">
-                            <p>Derivative + FFT analysis of horizontal projection:</p>
-                            <table class="peak-table" style="margin-top: 10px; width: 100%;">
-                                <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
-                                ${horizontalPeaks.map((peak, i) => `
-                                    <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
-                                `).join('')}
-                            </table>
-                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                        </div>
-                    `;
-                    console.log(`${new Date().toISOString()} - After rightPane.innerHTML set`);
-                    
-                    requestAnimationFrame(() => {
-                        console.log(`${new Date().toISOString()} - requestAnimationFrame for rightPane resize`);
-                        // Reset dimensions to allow content to determine natural size
-                        rightPane.style.width = '';
-                        rightPane.style.height = '';
-                        
-                        // Get content dimensions
-                        const content = rightPane.querySelector('.analysis-content');
-                        const contentWidth = content ? content.scrollWidth : 0;
-                        const rightScrollHeight = rightPane.scrollHeight;
-                        const rightScrollWidth = rightPane.scrollWidth;
-                        const rightClientHeight = rightPane.clientHeight;
-                        const rightClientWidth = rightPane.clientWidth;
-                        
-                        const rightComputedStyle = getComputedStyle(rightPane);
-                        console.log(`${new Date().toISOString()} - rightPane measurements: scrollW=${rightScrollWidth}, clientW=${rightClientWidth}, scrollH=${rightScrollHeight}, clientH=${rightClientHeight}`);
-                        
-                        // Set min width to accommodate table
-                        const minWidth = Math.max(350, contentWidth + 40); // Minimum 350px or content + padding
-                        
-                        // First set the width to ensure adequate space for content
-                        rightPane.style.width = `${minWidth}px`;
-                        
-                        // Then determine appropriate height
-                        let rightMaxHeightPixels = Infinity;
-                        if (rightComputedStyle.maxHeight && rightComputedStyle.maxHeight !== 'none') {
-                            const parsed = parseFloat(rightComputedStyle.maxHeight);
-                            if (!isNaN(parsed) && parsed > 0) {
-                                rightMaxHeightPixels = parsed;
-                            }
-                        }
-
-                        // Now adjust height based on content
-                        if (rightScrollHeight > rightClientHeight && !rightPane.classList.contains('dragging')) {
-                            const targetHeight = Math.min(rightScrollHeight + 20, rightMaxHeightPixels);
-                            rightPane.style.height = `${targetHeight}px`;
-                        }
-
-                        if (draggableContainer) {
-                            makeElementDraggable(rightPane, draggableContainer);
-                        }
-                    });
-                }
-                
-                // Update BOTTOM analysis pane
-                if (bottomPane) {
-                    console.log(`${new Date().toISOString()} - Updating bottomPane (Algorithm ${algorithm})`);
-                    console.log(`${new Date().toISOString()} - Before bottomPane.innerHTML set`);
-                    bottomPane.classList.remove('draggable-initialized');
-                    bottomPane.innerHTML = `
-                        <h3>Vertical Projection Deriv+FFT Analysis</h3>
-                        <div class="analysis-content" style="padding: 15px; margin-top: 10px;">
-                            <p>Derivative + FFT analysis of vertical projection:</p>
-                            <table class="peak-table" style="margin-top: 10px; width: 100%;">
-                                <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
-                                ${verticalPeaks.map((peak, i) => `
-                                    <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
-                                `).join('')}
-                            </table>
-                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                        </div>
-                    `;
-                    console.log(`${new Date().toISOString()} - After bottomPane.innerHTML set`);
-
-                    requestAnimationFrame(() => {
-                        console.log(`${new Date().toISOString()} - requestAnimationFrame for bottomPane resize`);
-                        // Reset dimensions to allow content to determine natural size
-                        bottomPane.style.width = '';
-                        bottomPane.style.height = '';
-                        
-                        // Get content dimensions
-                        const content = bottomPane.querySelector('.analysis-content');
-                        const contentWidth = content ? content.scrollWidth : 0;
-                        const bottomScrollHeight = bottomPane.scrollHeight;
-                        const bottomScrollWidth = bottomPane.scrollWidth;
-                        const bottomClientHeight = bottomPane.clientHeight;
-                        const bottomClientWidth = bottomPane.clientWidth;
-                        
-                        const bottomComputedStyle = getComputedStyle(bottomPane);
-                        console.log(`${new Date().toISOString()} - bottomPane measurements: scrollW=${bottomScrollWidth}, clientW=${bottomClientWidth}, scrollH=${bottomScrollHeight}, clientH=${bottomClientHeight}`);
-                        
-                        // Set min width to accommodate table
-                        const minWidth = Math.max(350, contentWidth + 40); // Minimum 350px or content + padding
-                        
-                        // First set the width to ensure adequate space for content
-                        bottomPane.style.width = `${minWidth}px`;
-                        
-                        // Then determine appropriate height
-                        let bottomMaxHeightPixels = Infinity;
-                        if (bottomComputedStyle.maxHeight && bottomComputedStyle.maxHeight !== 'none') {
-                            const parsed = parseFloat(bottomComputedStyle.maxHeight);
-                            if (!isNaN(parsed) && parsed > 0) {
-                                bottomMaxHeightPixels = parsed;
-                            }
-                        }
-
-                        // Now adjust height based on content
-                        if (bottomScrollHeight > bottomClientHeight && !bottomPane.classList.contains('dragging')) {
-                            const targetHeight = Math.min(bottomScrollHeight + 20, bottomMaxHeightPixels);
-                            bottomPane.style.height = `${targetHeight}px`;
-                        }
-
-                        if (draggableContainer) {
-                            makeElementDraggable(bottomPane, draggableContainer);
-                        }
-                    });
-                }
+                // Use our shared FFT analysis utility for consistent table format
+                updateFFTAnalysisPanes(
+                    rightPane, 
+                    bottomPane, 
+                    horizontalPeaks, 
+                    verticalPeaks, 
+                    "Deriv + FFT"
+                );
             }
             break;
         case 4: // Derivative + Rectify + FFT
@@ -2594,51 +2475,17 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
             plotDataVertical = plotDataVertical.map(v => v / maxFFTVertical);
             
             // Analyze the FFT results
-            const horizontalPeaks = findFFTPeaks(fftHorizontal, 5, horizontalProfile.length);
-            const verticalPeaks = findFFTPeaks(fftVertical, 5, verticalProfile.length);
+            const horizontalPeaks = findFFTPeaks(fftHorizontal, 8, horizontalProfile.length);
+            const verticalPeaks = findFFTPeaks(fftVertical, 8, verticalProfile.length);
             
-            // Update analysis panes with detailed information
-            if (rightPane) {
-                rightPane.querySelector('.analysis-content').innerHTML = `
-                    <h4>Derivative + Rectify + FFT Analysis (Horizontal)</h4>
-                    <p>Applied derivative calculation, then half-wave rectification (keeping only positive values), followed by FFT.</p>
-                    <div class="peaks-table">
-                        <h5>Dominant Frequencies:</h5>
-                        <table>
-                            <tr><th>Rank</th><th>Frequency</th><th>Wavelength (px)</th><th>Magnitude</th></tr>
-                            ${horizontalPeaks.map((peak, i) => `
-                                <tr>
-                                    <td>${i+1}</td>
-                                    <td>${peak.frequency.toFixed(4)}</td>
-                                    <td>${peak.wavelength.toFixed(1)}</td>
-                                    <td>${peak.magnitude.toFixed(1)}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                    </div>
-                `;
-            }
-            
-            if (bottomPane) {
-                bottomPane.querySelector('.analysis-content').innerHTML = `
-                    <h4>Derivative + Rectify + FFT Analysis (Vertical)</h4>
-                    <p>Applied derivative calculation, then half-wave rectification (keeping only positive values), followed by FFT.</p>
-                    <div class="peaks-table">
-                        <h5>Dominant Frequencies:</h5>
-                        <table>
-                            <tr><th>Rank</th><th>Frequency</th><th>Wavelength (px)</th><th>Magnitude</th></tr>
-                            ${verticalPeaks.map((peak, i) => `
-                                <tr>
-                                    <td>${i+1}</td>
-                                    <td>${peak.frequency.toFixed(4)}</td>
-                                    <td>${peak.wavelength.toFixed(1)}</td>
-                                    <td>${peak.magnitude.toFixed(1)}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                    </div>
-                `;
-            }
+            // Use our shared FFT analysis utility for consistent table format
+            updateFFTAnalysisPanes(
+                rightPane, 
+                bottomPane, 
+                horizontalPeaks, 
+                verticalPeaks, 
+                "DiffRectFFT"
+            );
             
             // Setup tooltips for the graphs
             setupGraphTooltips(horizCtx, horizWidth, horizHeight, true, algorithm, 

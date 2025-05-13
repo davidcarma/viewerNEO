@@ -130,18 +130,8 @@ function calculateDiffRectFFT(data) {
     // Apply half-wave rectification (keep only positive values, set negatives to 0)
     const rectifiedDerivative = derivative.map(value => value > 0 ? value : 0);
     
-    // Check if we have non-zero values after rectification
-    const maxRectValue = Math.max(...rectifiedDerivative);
-    if (maxRectValue <= 0) {
-        // If all values are zero or negative, return zeros
-        return new Array(Math.floor(data.length / 2)).fill(0);
-    }
-    
-    // Normalize the rectified derivative before FFT for better numerical stability
-    const normalizedRectDeriv = rectifiedDerivative.map(value => value / maxRectValue);
-    
-    // Then apply FFT to the normalized rectified derivative
-    const fftResult = calculateFFT(normalizedRectDeriv);
+    // Then apply FFT to the rectified derivative
+    const fftResult = calculateFFT(rectifiedDerivative);
     
     return fftResult;
 }
