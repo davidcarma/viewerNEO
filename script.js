@@ -529,7 +529,7 @@ function handleThumbnailDragStart(e, file, index) {
     try {
         // Standard file transfer (works in some browsers)
         e.dataTransfer.items.add(file);
-    } catch (err) {
+        } catch (err) {
         // Not supported in all browsers
     }
     
@@ -537,7 +537,7 @@ function handleThumbnailDragStart(e, file, index) {
     try {
         e.dataTransfer.setData('text/plain', file.name);
         e.dataTransfer.setData('text/uri-list', URL.createObjectURL(file));
-    } catch (err) {
+        } catch (err) {
         console.error('Error setting drag data:', err);
     }
     
@@ -806,27 +806,27 @@ document.addEventListener('DOMContentLoaded', addThumbnailContextMenu);
 function selectImageByIndex(index) {
     if (index < 0 || index >= imageFiles.length) return;
     
-    // Update selected index
-    selectedImageIndex = index;
-    
+        // Update selected index
+        selectedImageIndex = index;
+        
     // Update thumbnail selection in UI
-    const thumbnails = document.querySelectorAll('.thumbnail-item');
-    thumbnails.forEach(thumbnail => {
-        thumbnail.classList.remove('active');
-    });
-    
-    const selectedThumbnail = document.querySelector(`.thumbnail-item[data-index="${index}"]`);
-    if (selectedThumbnail) {
-        selectedThumbnail.classList.add('active');
+        const thumbnails = document.querySelectorAll('.thumbnail-item');
+        thumbnails.forEach(thumbnail => {
+            thumbnail.classList.remove('active');
+        });
+        
+        const selectedThumbnail = document.querySelector(`.thumbnail-item[data-index="${index}"]`);
+        if (selectedThumbnail) {
+            selectedThumbnail.classList.add('active');
         
         // Scroll into view if not visible
         if (isThumbnailPanelVisible) {
             selectedThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-    }
-    
-    // Load the selected image
-    loadImage(imageFiles[index]);
+        }
+        
+        // Load the selected image
+        loadImage(imageFiles[index]);
 }
 
 // Toggle thumbnail panel visibility
@@ -1148,7 +1148,7 @@ async function loadTiffImage(file) {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext('2d');
+                const ctx = canvas.getContext('2d');
         
         // Get RGBA data from TIFF
         const rgba = tiffData.readRGBAImage();
@@ -1158,26 +1158,26 @@ async function loadTiffImage(file) {
         ctx.putImageData(imageData, 0, 0);
         
         // Create image from canvas
-        image = new Image();
-        image.onload = () => {
-            resetView();
-            loadingDiv.style.display = 'none';
-            updateInfo();
-        };
+            image = new Image();
+            image.onload = () => {
+                resetView();
+                loadingDiv.style.display = 'none';
+                updateInfo();
+            };
         image.onerror = () => {
-            loadingDiv.style.display = 'none';
-            alert('Failed to load image from TIFF data');
-        };
+                loadingDiv.style.display = 'none';
+                alert('Failed to load image from TIFF data');
+            };
         
-        // Convert canvas to data URL and set as image source
-        image.src = canvas.toDataURL('image/png');
+            // Convert canvas to data URL and set as image source
+                image.src = canvas.toDataURL('image/png');
         
         // Clean up
         tiff.destroy();
     } catch (error) {
-        console.error('Failed to load TIFF file:', error);
-        loadingDiv.style.display = 'none';
-        alert('Failed to load TIFF file: ' + error.message);
+            console.error('Failed to load TIFF file:', error);
+            loadingDiv.style.display = 'none';
+            alert('Failed to load TIFF file: ' + error.message);
     }
 }
 
@@ -1436,16 +1436,16 @@ function displayProjection(horizontal, vertical, image) {
             <div class="projection-top-row">
                 <div class="primary-image-col">
                     <div id="image-canvas-wrapper" data-drag-title="Image Preview">
-                        <canvas id="image-canvas" width="${finalImageWidth}" height="${finalImageHeight}"></canvas>
+                <canvas id="image-canvas" width="${finalImageWidth}" height="${finalImageHeight}"></canvas>
                     </div>
                     <div class="graph-container horizontal" data-drag-title="Primary Vertical Projection">
-                        <canvas id="primary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
+                <canvas id="primary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Primary Vertical Projection</div>
-                    </div>
+            </div>
                     <div class="graph-container horizontal" data-drag-title="Secondary Vertical Graph">
-                        <canvas id="secondary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
+                <canvas id="secondary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Secondary Vertical Graph</div>
-                    </div>
+            </div>
                     <div id="bottom-main-analysis-pane" class="analysis-pane" data-drag-title="Bottom Analysis">
                         <h3>Bottom Analysis Pane</h3>
                         <div class="analysis-content">
@@ -1456,20 +1456,20 @@ function displayProjection(horizontal, vertical, image) {
                 <div class="right-section">
                     <div class="horizontal-graphs-row">
                         <div class="graph-container vertical" data-drag-title="Horizontal Projection">
-                            <canvas id="primary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
+                <canvas id="primary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Horizontal Projection</div>
-                        </div>
+            </div>
                         <div class="graph-container vertical" data-drag-title="Secondary Horizontal Graph">
-                            <canvas id="secondary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
+                <canvas id="secondary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Secondary Horizontal Graph</div>
-                        </div>
+            </div>
                     </div>
                     <div id="right-analysis-pane" class="analysis-pane" data-drag-title="Right Analysis">
-                        <h3>Right Analysis Pane</h3>
-                        <div class="analysis-content">
+                <h3>Right Analysis Pane</h3>
+                <div class="analysis-content">
                             <p>Future analysis will appear here</p>
-                        </div>
-                    </div>
+                </div>
+            </div>
                 </div>
             </div>
         </div>
@@ -1978,13 +1978,13 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 if (rightPane) {
                     rightPane.classList.remove('draggable-initialized'); // Allow re-init
                     rightPane.innerHTML = `
-                        <h3>Low Pass Filter Results</h3>
-                        <div class="analysis-content">
-                            <p>Applied moving average filter with window size: ${lpfWindowSize}</p>
-                            <p>This filter smooths the signal by reducing high-frequency components.</p>
-                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                        </div>
-                    `;
+                    <h3>Low Pass Filter Results</h3>
+                    <div class="analysis-content">
+                        <p>Applied moving average filter with window size: ${lpfWindowSize}</p>
+                        <p>This filter smooths the signal by reducing high-frequency components.</p>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
                     if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
                 }
                  if (bottomPane) {
@@ -2020,15 +2020,15 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 if (rightPane) {
                     rightPane.classList.remove('draggable-initialized');
                     rightPane.innerHTML = `
-                        <h3>Derivative Results</h3>
-                        <div class="analysis-content">
-                            <p>First derivative shows rate of change at each point.</p>
-                            <p>Horizontal Derivative: Min=${minDerivHorizontal.toFixed(2)}, Max=${maxDerivHorizontal.toFixed(2)}</p>
-                            <p>Vertical Derivative: Min=${minDerivVertical.toFixed(2)}, Max=${maxDerivVertical.toFixed(2)}</p>
-                            <p>Zero-crossings indicate local maxima and minima in the original signal.</p>
-                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                        </div>
-                    `;
+                    <h3>Derivative Results</h3>
+                    <div class="analysis-content">
+                        <p>First derivative shows rate of change at each point.</p>
+                        <p>Horizontal Derivative: Min=${minDerivHorizontal.toFixed(2)}, Max=${maxDerivHorizontal.toFixed(2)}</p>
+                        <p>Vertical Derivative: Min=${minDerivVertical.toFixed(2)}, Max=${maxDerivVertical.toFixed(2)}</p>
+                        <p>Zero-crossings indicate local maxima and minima in the original signal.</p>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
                      if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
                 }
                  if (bottomPane) {
@@ -2053,7 +2053,7 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
 
                 let horizontalPeaks = findFFTPeaks(fftHorizontal, 8, originalHorizontalLength);
                 let verticalPeaks = findFFTPeaks(fftVertical, 8, originalVerticalLength);
-                
+
                 plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
                 plotDataVertical = normalize(fftVertical, Math.max(...fftVertical));
                 
@@ -2069,18 +2069,47 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                     rightPane.classList.remove('draggable-initialized');
                     rightPane.innerHTML = `
                         <h3>Horizontal Proj. ${titlePrefix} Peaks</h3>
-                        <div class="analysis-content">
+                    <div class="analysis-content">
                             <p>${analysisText} of horizontal projection:</p>
-                            <table class="peak-table">
+                        <table class="peak-table">
                                 <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
-                                ${horizontalPeaks.map((peak, i) => `
+                            ${horizontalPeaks.map((peak, i) => `
                                     <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
-                                `).join('')}
-                            </table>
-                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                        </div>
-                    `;
-                    if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
+                            `).join('')}
+                        </table>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
+                
+                    // Auto-resize height AFTER rendering
+                    requestAnimationFrame(() => {
+                        rightPane.style.height = ''; // Reset height first to get accurate scrollHeight
+                        const rightScrollHeight = rightPane.scrollHeight;
+                        const rightComputedStyle = getComputedStyle(rightPane);
+                        let rightMaxHeight = rightComputedStyle.maxHeight;
+                        let rightMaxHeightPixels = Infinity; 
+                        if (rightMaxHeight && rightMaxHeight !== 'none' && rightMaxHeight.endsWith('px')) {
+                            rightMaxHeightPixels = parseFloat(rightMaxHeight);
+                        } else {
+                            rightMaxHeightPixels = 400; // Fallback to default from CSS
+                            console.warn('Could not parse maxHeight for rightPane:', rightMaxHeight);
+                        }
+                        const rightCurrentHeight = rightPane.clientHeight;
+                        
+                        // Check if scrollHeight > clientHeight and if element is not currently being dragged
+                        if (rightScrollHeight > rightCurrentHeight && !rightPane.classList.contains('dragging')) {
+                             const targetHeight = Math.min(rightScrollHeight + 10, rightMaxHeightPixels); // Add 10px buffer
+                             rightPane.style.height = `${targetHeight}px`;
+                             console.log(`Resized rightPane height to fit content: ${targetHeight}px`);
+                        }
+
+                        // Re-apply draggable AFTER resizing
+                        if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
+                    });
+
+                } else {
+                     // Still need to re-apply draggable if pane exists but wasn't resized
+                     if (rightPane && draggableContainer) makeElementDraggable(rightPane, draggableContainer);
                 }
                 
                 // Update BOTTOM analysis pane
@@ -2088,18 +2117,46 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                     bottomPane.classList.remove('draggable-initialized');
                     bottomPane.innerHTML = `
                         <h3>Vertical Proj. ${titlePrefix} Peaks</h3>
-                        <div class="analysis-content">
+                    <div class="analysis-content">
                             <p>${analysisText} of vertical projection:</p>
-                            <table class="peak-table">
+                        <table class="peak-table">
                                 <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
-                                ${verticalPeaks.map((peak, i) => `
+                            ${verticalPeaks.map((peak, i) => `
                                     <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
-                                `).join('')}
-                            </table>
-                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                        </div>
-                    `;
-                    if (draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
+                            `).join('')}
+                        </table>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
+
+                    // Auto-resize height AFTER rendering
+                    requestAnimationFrame(() => {
+                        bottomPane.style.height = ''; // Reset height
+                        const bottomScrollHeight = bottomPane.scrollHeight;
+                        const bottomComputedStyle = getComputedStyle(bottomPane);
+                        let bottomMaxHeight = bottomComputedStyle.maxHeight;
+                        let bottomMaxHeightPixels = Infinity;
+                        if (bottomMaxHeight && bottomMaxHeight !== 'none' && bottomMaxHeight.endsWith('px')) {
+                           bottomMaxHeightPixels = parseFloat(bottomMaxHeight);
+                        } else {
+                           bottomMaxHeightPixels = 250; // Fallback to default from CSS
+                           console.warn('Could not parse maxHeight for bottomPane:', bottomMaxHeight);
+                        }
+                        const bottomCurrentHeight = bottomPane.clientHeight;
+
+                        // Check if scrollHeight > clientHeight and if element is not currently being dragged
+                        if (bottomScrollHeight > bottomCurrentHeight && !bottomPane.classList.contains('dragging')) {
+                            const targetHeight = Math.min(bottomScrollHeight + 10, bottomMaxHeightPixels); // Add 10px buffer
+                            bottomPane.style.height = `${targetHeight}px`;
+                            console.log(`Resized bottomPane height to fit content: ${targetHeight}px`);
+                        }
+
+                        // Re-apply draggable AFTER resizing
+                        if (draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
+                    });
+                } else {
+                    // Still need to re-apply draggable if pane exists but wasn't resized
+                    if (bottomPane && draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
                 }
             }
             break;
@@ -2123,12 +2180,12 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                  if (rightPane) {
                     rightPane.classList.remove('draggable-initialized');
                     rightPane.innerHTML = `
-                        <h3>Algorithm ${algorithm} Results</h3>
-                        <div class="analysis-content">
-                            <p>Demonstrating pattern generation algorithm ${algorithm}.</p>
-                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                        </div>
-                    `;
+                    <h3>Algorithm ${algorithm} Results</h3>
+                    <div class="analysis-content">
+                        <p>Demonstrating pattern generation algorithm ${algorithm}.</p>
+                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                `;
                     if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
                 }
                  if (bottomPane) {
@@ -2422,10 +2479,7 @@ function drawDerivativeGrid(ctx, width, height, isVertical, minValue, maxValue, 
 }
 
 // Main canvas drag functionality for OCR
-function setupCanvasDragForOCR() {
-    // Remove the line that sets the main canvas draggable attribute permanently
-    // canvas.setAttribute('draggable', 'true'); // REMOVED
-
+function setupMainCanvasDrag() {
     canvas.addEventListener('dragstart', (e) => {
         // Check if image is loaded
         if (!image) {
@@ -2664,8 +2718,8 @@ window.addEventListener('load', () => {
         document.body.style.cursor = 'col-resize';
     });
     
-    // Set up OCR dragging
-    setupCanvasDragForOCR();
+    // Set up Main Canvas dragging
+    setupMainCanvasDrag();
     
     // Set up clipboard paste
     setupClipboardPaste();
@@ -2784,9 +2838,9 @@ function showPasteTip() {
     document.body.appendChild(tip);
     
     // Auto-hide after 3 seconds
-    setTimeout(() => {
-        tip.classList.add('fade-out');
         setTimeout(() => {
+        tip.classList.add('fade-out');
+            setTimeout(() => {
             document.body.removeChild(tip);
         }, 500);
     }, 3000);
@@ -2945,10 +2999,7 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
     
     // Make sure tooltip exists
     const tooltip = createTooltip();
-    
-    console.log(`Setting up tooltip for canvas ID: ${canvas.id || 'unnamed'}, type: ${isVertical ? 'Vertical' : 'Horizontal'}`);
-    console.log(`Canvas dimensions: ${canvas.width}x${canvas.height}, DOM size: ${canvas.clientWidth}x${canvas.clientHeight}`);
-    
+  
     // Remove any existing event listeners to avoid duplicates
     canvas.removeEventListener('mousemove', canvas._tooltipMoveHandler);
     canvas.removeEventListener('mouseleave', canvas._tooltipLeaveHandler);
@@ -3124,15 +3175,12 @@ function setupGraphTooltips(ctx, width, height, isVertical, algorithm, originalD
     // Define mouseleave handler
     canvas._tooltipLeaveHandler = function() {
         tooltip.style.display = 'none';
-        console.log('Hiding tooltip (mouseleave)');
     };
     
     // Add the event listeners
     canvas.addEventListener('mousemove', canvas._tooltipMoveHandler);
     canvas.addEventListener('mouseleave', canvas._tooltipLeaveHandler);
     
-    // Log that we've set up the tooltip
-    console.log(`Tooltip setup complete for ${isVertical ? 'Vertical' : 'Horizontal'} projection, canvas: ${canvas.id || 'unnamed'}`);
 }
 
 // Simple implementation to make an element draggable and resizable
@@ -3143,10 +3191,9 @@ function makeElementDraggable(element, container) {
     element.classList.add('draggable-initialized');
     // Ensure .draggable class is present for CSS rules to apply
     if (!element.classList.contains('draggable')) {
-        element.classList.add('draggable');
+    element.classList.add('draggable');
     }
     
-    console.log('INIT: Making element draggable:', element.id || element.className);
     
     // Determine drag handle title
     let title = element.querySelector('h3')?.textContent || 
@@ -3155,7 +3202,7 @@ function makeElementDraggable(element, container) {
                 'Draggable'; // Default
     if (title.length > 25) title = title.substring(0,22) + "..."; // Truncate long titles
 
-
+    
     // Create simple drag handle
     const dragHandle = document.createElement('div');
     dragHandle.className = 'drag-handle';
@@ -3168,10 +3215,6 @@ function makeElementDraggable(element, container) {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('DRAG START: ======= NEW DRAG OPERATION =======');
-        console.log('DRAG START: Element:', element.id || element.className);
-        console.log('DRAG START: Container:', container.id || container.className);
-        
         // Get initial positions
         const elementRect = element.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
@@ -3179,11 +3222,7 @@ function makeElementDraggable(element, container) {
         // Calculate mouse offset from element corner
         const mouseOffsetX = e.clientX - elementRect.left;
         const mouseOffsetY = e.clientY - elementRect.top;
-        
-        console.log('DRAG START: Element rect:', elementRect);
-        console.log('DRAG START: Container rect:', containerRect);
-        console.log('DRAG START: Mouse offset from corner:', { mouseOffsetX, mouseOffsetY });
-        
+     
         // Make sure element has absolute positioning
         if (getComputedStyle(element).position !== 'absolute') {
             element.style.position = 'absolute';
@@ -3197,11 +3236,7 @@ function makeElementDraggable(element, container) {
             element.style.top = currentTop + 'px';
             element.style.width = elementRect.width + 'px';
             element.style.height = elementRect.height + 'px';
-            
-            console.log('DRAG START: Set initial position:', { 
-                left: element.style.left, 
-                top: element.style.top 
-            });
+        
         }
         
         element.classList.add('dragging');
@@ -3230,11 +3265,7 @@ function makeElementDraggable(element, container) {
             element.style.left = constrainedLeft + 'px';
             element.style.top = constrainedTop + 'px';
             
-            console.log('DRAG MOVE: Position:', { 
-                rawLeft: newLeft, 
-                rawTop: newTop,
-                constrained: { left: constrainedLeft, top: constrainedTop }
-            });
+         
         }
         
         function stopDrag() {
@@ -3242,12 +3273,7 @@ function makeElementDraggable(element, container) {
             document.removeEventListener('mouseup', stopDrag);
             element.classList.remove('dragging');
             
-            console.log('DRAG END: Final position:', { 
-                left: element.style.left, 
-                top: element.style.top
-            });
-            
-            console.log('DRAG END: ======= END DRAG OPERATION =======');
+           
         }
         
         document.addEventListener('mousemove', handleDrag);
@@ -3256,7 +3282,6 @@ function makeElementDraggable(element, container) {
     
     // Add handle to the element
     element.appendChild(dragHandle);
-    console.log('INIT: Element is now draggable');
 }
 
 // Get elements to make draggable
