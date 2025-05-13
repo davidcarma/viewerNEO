@@ -1438,11 +1438,11 @@ function displayProjection(horizontal, vertical, image) {
                     <div id="image-canvas-wrapper" data-drag-title="Image Preview">
                 <canvas id="image-canvas" width="${finalImageWidth}" height="${finalImageHeight}"></canvas>
                     </div>
-                    <div class="graph-container horizontal" data-drag-title="Primary Vertical Projection">
+                    <div id="primary-vertical-container" class="graph-container horizontal" data-drag-title="Primary Vertical Projection">
                 <canvas id="primary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Primary Vertical Projection</div>
             </div>
-                    <div class="graph-container horizontal" data-drag-title="Secondary Vertical Graph">
+                    <div id="secondary-vertical-container" class="graph-container horizontal" data-drag-title="Secondary Vertical Graph">
                 <canvas id="secondary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Secondary Vertical Graph</div>
             </div>
@@ -1455,11 +1455,11 @@ function displayProjection(horizontal, vertical, image) {
                 </div>
                 <div class="right-section">
                     <div class="horizontal-graphs-row">
-                        <div class="graph-container vertical" data-drag-title="Horizontal Projection">
+                        <div id="primary-horizontal-container" class="graph-container vertical" data-drag-title="Horizontal Projection">
                 <canvas id="primary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Horizontal Projection</div>
             </div>
-                        <div class="graph-container vertical" data-drag-title="Secondary Horizontal Graph">
+                        <div id="secondary-horizontal-container" class="graph-container vertical" data-drag-title="Secondary Horizontal Graph">
                 <canvas id="secondary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Secondary Horizontal Graph</div>
             </div>
@@ -1490,12 +1490,13 @@ function displayProjection(horizontal, vertical, image) {
             </div>
             <div class="view-controls">
                 <button id="full-screen-projection">Full Screen</button>
+                <button id="save-layout">Save Layout</button>
                 <button id="close-projection">Close</button>
             </div>
         </div>
     `;
     
-    // Add the overlay to the document
+    // Add the overlay to the document BEFORE initializing draggable elements
     document.body.appendChild(projectionOverlay);
     
     // Make all elements draggable by default
@@ -1531,6 +1532,11 @@ function displayProjection(horizontal, vertical, image) {
             
             this.textContent = 'Full Screen';
         }
+    });
+    
+    // Add save layout button handler
+    document.getElementById('save-layout').addEventListener('click', function() {
+        saveLayout();
     });
     
     // Initialize the layout manager to make components draggable and resizable
@@ -1758,25 +1764,20 @@ function displayProjection(horizontal, vertical, image) {
         console.log('Using existing projection-content container');
     }
     
-    // Find all elements that need to be draggable using their IDs or a common class if applicable
+    // Find all elements that need to be draggable using their IDs
     const draggableElements = [
-        document.getElementById('image-canvas-wrapper'), // The new wrapper for the image canvas
+        document.getElementById('image-canvas-wrapper'),
         document.getElementById('right-analysis-pane'),
         document.getElementById('bottom-main-analysis-pane'),
-        // Use querySelectorAll for graph containers as they share a class
-        // but ensure they are direct children of the projection-main-area or right-section to avoid nesting issues.
-        // This example assumes graph containers are identifiable and directly within the draggable area.
-    ];
-
-    // Add graph containers. We select them by their common class or structure.
-    // Ensure these selectors are precise to avoid making unintended elements draggable.
-    projectionOverlay.querySelectorAll('.graph-container').forEach(gc => draggableElements.push(gc));
-    
-    // Filter out any null elements if some IDs don't exist
-    const validDraggableElements = draggableElements.filter(el => el);
+        // Graph containers with explicit IDs
+        document.getElementById('primary-vertical-container'),
+        document.getElementById('secondary-vertical-container'),
+        document.getElementById('primary-horizontal-container'),
+        document.getElementById('secondary-horizontal-container')
+    ].filter(el => el); // Filter out any null elements
     
     // Initialize each element with our simplified draggable function
-    validDraggableElements.forEach(element => {
+    draggableElements.forEach(element => {
         // Remove any existing draggable initialization
         element.classList.remove('draggable-initialized');
         
@@ -1834,6 +1835,11 @@ function displayProjection(horizontal, vertical, image) {
         
         // Apply draggable behavior
         makeElementDraggable(element, projectionArea);
+    });
+
+    // Apply saved layout if it exists
+    requestAnimationFrame(() => {
+        applyLayout();
     });
     
     // Set up algorithm button handlers
@@ -3306,30 +3312,257 @@ function makeElementDraggable(element, container) {
     element.appendChild(dragHandle);
 }
 
-// Get elements to make draggable
-const draggables = [
+// Function to save the layout of draggable elements
+function saveLayout() {
+    const imageWrapper = document.getElementById('image-canvas-wrapper');
+    const primaryHorizGraph = document.getElementById('primary-horizontal-projection-graph').closest('.graph-container');
+    const secondaryHorizGraph = document.getElementById('secondary-horizontal-projection-graph').closest('.graph-container');
+    const primaryVertGraph = document.getElementById('primary-vertical-projection-graph').closest('.graph-container');
+    const secondaryVertGraph = document.getElementById('secondary-vertical-projection-graph').closest('.graph-container');
+    const rightPane = document.getElementById('right-analysis-pane');
+    const bottomPane = document.getElementById('bottom-main-analysis-pane');
+
+    // Get container reference
+    const container = document.getElementById('projection-content') || document.getElementById('projection-overlay');
+    const containerRect = container.getBoundingClientRect();
+
+    // Get base positions
+    const imageRect = imageWrapper.getBoundingClientRect();
+
+    const layout = {
+        // 1. Image canvas wrapper absolute position relative to container
+        imageCanvas: {
+            left: imageRect.left - containerRect.left,
+            top: imageRect.top - containerRect.top
+        },
+
+        // 2. Primary horizontal graph relative to image right edge
+        primaryHorizontal: {
+            rightOffset: primaryHorizGraph.getBoundingClientRect().left - imageRect.right,
+            topOffset: primaryHorizGraph.getBoundingClientRect().top - imageRect.top
+        },
+
+        // 3. Secondary horizontal graph relative to primary
+        secondaryHorizontal: {
+            rightOffset: secondaryHorizGraph.getBoundingClientRect().left - primaryHorizGraph.getBoundingClientRect().right,
+            topOffset: secondaryHorizGraph.getBoundingClientRect().top - primaryHorizGraph.getBoundingClientRect().top
+        },
+
+        // 4. Primary vertical graph relative to image bottom
+        primaryVertical: {
+            bottomOffset: primaryVertGraph.getBoundingClientRect().top - imageRect.bottom,
+            leftOffset: primaryVertGraph.getBoundingClientRect().left - imageRect.left
+        },
+
+        // 5. Secondary vertical graph relative to primary
+        secondaryVertical: {
+            bottomOffset: secondaryVertGraph.getBoundingClientRect().top - primaryVertGraph.getBoundingClientRect().bottom,
+            leftOffset: secondaryVertGraph.getBoundingClientRect().left - primaryVertGraph.getBoundingClientRect().left
+        },
+
+        // 6 & 7. Analysis panes absolute positions
+        rightPane: {
+            left: rightPane.getBoundingClientRect().left - containerRect.left,
+            top: rightPane.getBoundingClientRect().top - containerRect.top
+        },
+        bottomPane: {
+            left: bottomPane.getBoundingClientRect().left - containerRect.left,
+            top: bottomPane.getBoundingClientRect().top - containerRect.top
+        }
+    };
+
+    // Save to localStorage
+    localStorage.setItem('projectionLayout', JSON.stringify(layout));
+    showNotification('Layout saved successfully');
+}
+
+// Function to apply the saved layout
+function applyLayout() {
+    const savedLayout = localStorage.getItem('projectionLayout');
+    if (!savedLayout) return;
+
+    const layout = JSON.parse(savedLayout);
+    const container = document.getElementById('projection-content') || document.getElementById('projection-overlay');
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const padding = 20;
+
+    // Get all elements
+    const imageWrapper = document.getElementById('image-canvas-wrapper');
+    const graphs = [
+        document.getElementById('primary-vertical-container'),
+        document.getElementById('secondary-vertical-container'),
+        document.getElementById('primary-horizontal-container'),
+        document.getElementById('secondary-horizontal-container')
+    ].filter(Boolean);
+    
+    const panes = [
     document.getElementById('right-analysis-pane'),
-    document.getElementById('bottom-main-analysis-pane'),
-    // Graph containers
-    ...document.querySelectorAll('.graph-container'),
-    ...document.querySelectorAll('.primary-image-col > *'),
-    ...document.querySelectorAll('.horizontal-graphs-row > *'),
-    ...document.querySelectorAll('.vertical-graph-section > *')
-].filter(el => el); // Filter out null elements
+        document.getElementById('bottom-main-analysis-pane')
+    ].filter(Boolean);
 
-// Find a suitable container for draggable elements
-const draggableContainer = document.getElementById('projection-content') || 
-                           document.querySelector('.projection-main-area') ||
-                           projectionOverlay;
-
-console.log(`Found ${draggables.length} elements to make draggable in container: ${draggableContainer.className}`);
-
-// Make all elements draggable
-draggables.forEach(element => {
-    // Make sure element is visible
-    if (element.offsetWidth > 30 && element.offsetHeight > 30) {
-        makeElementDraggable(element, draggableContainer);
-        console.log(`Made element draggable: ${element.id || element.className}`);
+    // If any required element is missing, initialize default layout
+    if (!imageWrapper || graphs.length < 4 || panes.length < 2) {
+        console.warn('Some elements missing, using default layout');
+        initializeDefaultLayout(container, imageWrapper, graphs, panes);
+        return;
     }
-});
+
+    try {
+        // Apply saved positions with validation
+        const validatePosition = (pos, size, max) => Math.min(Math.max(padding, pos), max - size - padding);
+
+        // Position image wrapper
+        imageWrapper.style.position = 'absolute';
+        imageWrapper.style.left = `${validatePosition(layout.imageCanvas.left, imageWrapper.offsetWidth, containerRect.width)}px`;
+        imageWrapper.style.top = `${validatePosition(layout.imageCanvas.top, imageWrapper.offsetHeight, containerRect.height)}px`;
+
+        // Wait for image to be positioned
+        requestAnimationFrame(() => {
+            const imageRect = imageWrapper.getBoundingClientRect();
+
+            // Position graphs relative to image
+            const primaryVertical = document.getElementById('primary-vertical-container');
+            if (primaryVertical) {
+                primaryVertical.style.position = 'absolute';
+                primaryVertical.style.top = `${validatePosition(imageRect.bottom + layout.primaryVertical.bottomOffset, 
+                                                             primaryVertical.offsetHeight, containerRect.height)}px`;
+                primaryVertical.style.left = `${validatePosition(imageRect.left + layout.primaryVertical.leftOffset,
+                                                             primaryVertical.offsetWidth, containerRect.width)}px`;
+            }
+
+            const secondaryVertical = document.getElementById('secondary-vertical-container');
+            if (secondaryVertical && primaryVertical) {
+                const primaryVertRect = primaryVertical.getBoundingClientRect();
+                secondaryVertical.style.position = 'absolute';
+                secondaryVertical.style.top = `${validatePosition(primaryVertRect.bottom + layout.secondaryVertical.bottomOffset,
+                                                               secondaryVertical.offsetHeight, containerRect.height)}px`;
+                secondaryVertical.style.left = `${validatePosition(primaryVertRect.left + layout.secondaryVertical.leftOffset,
+                                                               secondaryVertical.offsetWidth, containerRect.width)}px`;
+            }
+
+            const primaryHorizontal = document.getElementById('primary-horizontal-container');
+            if (primaryHorizontal) {
+                primaryHorizontal.style.position = 'absolute';
+                primaryHorizontal.style.left = `${validatePosition(imageRect.right + layout.primaryHorizontal.rightOffset,
+                                                               primaryHorizontal.offsetWidth, containerRect.width)}px`;
+                primaryHorizontal.style.top = `${validatePosition(imageRect.top + layout.primaryHorizontal.topOffset,
+                                                              primaryHorizontal.offsetHeight, containerRect.height)}px`;
+            }
+
+            const secondaryHorizontal = document.getElementById('secondary-horizontal-container');
+            if (secondaryHorizontal && primaryHorizontal) {
+                const primaryHorizRect = primaryHorizontal.getBoundingClientRect();
+                secondaryHorizontal.style.position = 'absolute';
+                secondaryHorizontal.style.left = `${validatePosition(primaryHorizRect.right + layout.secondaryHorizontal.rightOffset,
+                                                                 secondaryHorizontal.offsetWidth, containerRect.width)}px`;
+                secondaryHorizontal.style.top = `${validatePosition(primaryHorizRect.top + layout.secondaryHorizontal.topOffset,
+                                                                secondaryHorizontal.offsetHeight, containerRect.height)}px`;
+            }
+
+            // Position analysis panes
+            const rightPane = document.getElementById('right-analysis-pane');
+            if (rightPane) {
+                rightPane.style.position = 'absolute';
+                rightPane.style.left = `${validatePosition(layout.rightPane.left, rightPane.offsetWidth, containerRect.width)}px`;
+                rightPane.style.top = `${validatePosition(layout.rightPane.top, rightPane.offsetHeight, containerRect.height)}px`;
+            }
+
+            const bottomPane = document.getElementById('bottom-main-analysis-pane');
+            if (bottomPane) {
+                bottomPane.style.position = 'absolute';
+                bottomPane.style.left = `${validatePosition(layout.bottomPane.left, bottomPane.offsetWidth, containerRect.width)}px`;
+                bottomPane.style.top = `${validatePosition(layout.bottomPane.top, bottomPane.offsetHeight, containerRect.height)}px`;
+            }
+        });
+    } catch (error) {
+        console.error('Error applying layout:', error);
+        // Fall back to default layout if there's an error
+        initializeDefaultLayout(container, imageWrapper, graphs, panes);
+    }
+}
+
+// Add this function before displayProjection
+function initializeDefaultLayout(container, imageWrapper, graphs, panes) {
+    const containerRect = container.getBoundingClientRect();
+    const imageRect = imageWrapper.getBoundingClientRect();
+    const padding = 20;
+
+    // Position image wrapper in the top-left with some padding
+    imageWrapper.style.position = 'absolute';
+    imageWrapper.style.left = `${padding}px`;
+    imageWrapper.style.top = `${padding}px`;
+
+    // Position horizontal graphs (vertical projection) below the image
+    const primaryVertical = graphs.find(g => g.id === 'primary-vertical-container');
+    const secondaryVertical = graphs.find(g => g.id === 'secondary-vertical-container');
+    
+    if (primaryVertical) {
+        primaryVertical.style.position = 'absolute';
+        primaryVertical.style.left = `${padding}px`;
+        primaryVertical.style.top = `${imageRect.height + padding * 2}px`;
+    }
+    
+    if (secondaryVertical) {
+        secondaryVertical.style.position = 'absolute';
+        secondaryVertical.style.left = `${padding}px`;
+        secondaryVertical.style.top = `${imageRect.height + primaryVertical.offsetHeight + padding * 3}px`;
+    }
+
+    // Position vertical graphs (horizontal projection) to the right of the image
+    const primaryHorizontal = graphs.find(g => g.id === 'primary-horizontal-container');
+    const secondaryHorizontal = graphs.find(g => g.id === 'secondary-horizontal-container');
+    
+    if (primaryHorizontal) {
+        primaryHorizontal.style.position = 'absolute';
+        primaryHorizontal.style.left = `${imageRect.width + padding * 2}px`;
+        primaryHorizontal.style.top = `${padding}px`;
+    }
+    
+    if (secondaryHorizontal) {
+        secondaryHorizontal.style.position = 'absolute';
+        secondaryHorizontal.style.left = `${imageRect.width + primaryHorizontal.offsetWidth + padding * 3}px`;
+        secondaryHorizontal.style.top = `${padding}px`;
+    }
+
+    // Position analysis panes
+    const rightPane = panes.find(p => p.id === 'right-analysis-pane');
+    const bottomPane = panes.find(p => p.id === 'bottom-main-analysis-pane');
+    
+    if (rightPane) {
+        rightPane.style.position = 'absolute';
+        rightPane.style.right = `${padding}px`;
+        rightPane.style.top = `${padding}px`;
+        rightPane.style.width = '250px';
+    }
+    
+    if (bottomPane) {
+        bottomPane.style.position = 'absolute';
+        bottomPane.style.left = `${padding}px`;
+        bottomPane.style.bottom = `${padding + 60}px`; // Extra space for controls
+        bottomPane.style.width = `${containerRect.width - padding * 2}px`;
+    }
+}
+
+// After adding the overlay to document
+document.body.appendChild(projectionOverlay);
+
+// Initialize default layout or apply saved layout
+if (!localStorage.getItem('projectionLayout')) {
+    const imageWrapper = document.getElementById('image-canvas-wrapper');
+    const graphs = [
+        document.getElementById('primary-vertical-container'),
+        document.getElementById('secondary-vertical-container'),
+        document.getElementById('primary-horizontal-container'),
+        document.getElementById('secondary-horizontal-container')
+    ].filter(Boolean);
+    const panes = [
+        document.getElementById('right-analysis-pane'),
+        document.getElementById('bottom-main-analysis-pane')
+    ].filter(Boolean);
+    initializeDefaultLayout(projectionOverlay, imageWrapper, graphs, panes);
+} else {
+    applyLayout();
+}
         

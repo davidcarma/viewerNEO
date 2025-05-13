@@ -1375,3 +1375,18 @@ button.disabled {
     outline: 2px dashed #4a90e2 !important;
     opacity: 0.8 !important;
 }
+
+#save-layout {
+    background: #72c02c;  /* Green background */
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 0 10px;
+}
+
+#save-layout:hover {
+    background: #63a725;
+}
