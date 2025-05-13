@@ -2379,41 +2379,46 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                     
                     requestAnimationFrame(() => {
                         console.log(`${new Date().toISOString()} - requestAnimationFrame for rightPane resize`);
-                        rightPane.style.height = ''; // Reset height first
-                        const rightScrollHeight = rightPane.scrollHeight;
-                        const rightComputedStyle = getComputedStyle(rightPane);
+                        // Reset dimensions to allow content to determine natural size
+                        rightPane.style.width = '';
+                        rightPane.style.height = '';
                         
-                        let rightMaxHeightPixels = Infinity; // Default to no limit
+                        // Get content dimensions
+                        const content = rightPane.querySelector('.analysis-content');
+                        const contentWidth = content ? content.scrollWidth : 0;
+                        const rightScrollHeight = rightPane.scrollHeight;
+                        const rightScrollWidth = rightPane.scrollWidth;
+                        const rightClientHeight = rightPane.clientHeight;
+                        const rightClientWidth = rightPane.clientWidth;
+                        
+                        const rightComputedStyle = getComputedStyle(rightPane);
+                        console.log(`${new Date().toISOString()} - rightPane measurements: scrollW=${rightScrollWidth}, clientW=${rightClientWidth}, scrollH=${rightScrollHeight}, clientH=${rightClientHeight}`);
+                        
+                        // Set min width to accommodate table
+                        const minWidth = Math.max(350, contentWidth + 40); // Minimum 350px or content + padding
+                        
+                        // First set the width to ensure adequate space for content
+                        rightPane.style.width = `${minWidth}px`;
+                        
+                        // Then determine appropriate height
+                        let rightMaxHeightPixels = Infinity;
                         if (rightComputedStyle.maxHeight && rightComputedStyle.maxHeight !== 'none') {
                             const parsed = parseFloat(rightComputedStyle.maxHeight);
-                            if (!isNaN(parsed) && parsed > 0) { // Check if it's a valid positive number
+                            if (!isNaN(parsed) && parsed > 0) {
                                 rightMaxHeightPixels = parsed;
-                            } else {
-                                console.warn(`${new Date().toISOString()} - rightPane: Could not parse valid number from maxHeight '${rightComputedStyle.maxHeight}'. Using Infinity.`);
                             }
                         }
 
-                        const rightClientHeight = rightPane.clientHeight;
-                        console.log(`${new Date().toISOString()} - rightPane measurements: scrollH=${rightScrollHeight}, clientH=${rightClientHeight}, computedH=${rightComputedStyle.height}, computedMaxH=${rightComputedStyle.maxHeight}(${rightMaxHeightPixels}px)`);
-                        
+                        // Now adjust height based on content
                         if (rightScrollHeight > rightClientHeight && !rightPane.classList.contains('dragging')) {
-                             const targetHeight = Math.min(rightScrollHeight + 10, rightMaxHeightPixels);
-                             console.log(`${new Date().toISOString()} - rightPane targetHeight=${targetHeight}`);
-                             rightPane.style.height = `${targetHeight}px`;
-                             console.log(`${new Date().toISOString()} - rightPane style.height set to: ${rightPane.style.height}`);
+                            const targetHeight = Math.min(rightScrollHeight + 20, rightMaxHeightPixels);
+                            rightPane.style.height = `${targetHeight}px`;
                         }
 
                         if (draggableContainer) {
-                            console.log(`${new Date().toISOString()} - Calling makeElementDraggable for rightPane`);
                             makeElementDraggable(rightPane, draggableContainer);
                         }
                     });
-
-                } else {
-                     if (rightPane && draggableContainer) {
-                        console.log(`${new Date().toISOString()} - rightPane exists but no resize, calling makeElementDraggable`);
-                        makeElementDraggable(rightPane, draggableContainer);
-                     }
                 }
                 
                 // Update BOTTOM analysis pane
@@ -2438,38 +2443,46 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
 
                     requestAnimationFrame(() => {
                         console.log(`${new Date().toISOString()} - requestAnimationFrame for bottomPane resize`);
-                        bottomPane.style.height = ''; // Reset height
-                        const bottomScrollHeight = bottomPane.scrollHeight;
-                        const bottomComputedStyle = getComputedStyle(bottomPane);
+                        // Reset dimensions to allow content to determine natural size
+                        bottomPane.style.width = '';
+                        bottomPane.style.height = '';
                         
-                        let bottomMaxHeightPixels = Infinity; // Default to no limit
+                        // Get content dimensions
+                        const content = bottomPane.querySelector('.analysis-content');
+                        const contentWidth = content ? content.scrollWidth : 0;
+                        const bottomScrollHeight = bottomPane.scrollHeight;
+                        const bottomScrollWidth = bottomPane.scrollWidth;
+                        const bottomClientHeight = bottomPane.clientHeight;
+                        const bottomClientWidth = bottomPane.clientWidth;
+                        
+                        const bottomComputedStyle = getComputedStyle(bottomPane);
+                        console.log(`${new Date().toISOString()} - bottomPane measurements: scrollW=${bottomScrollWidth}, clientW=${bottomClientWidth}, scrollH=${bottomScrollHeight}, clientH=${bottomClientHeight}`);
+                        
+                        // Set min width to accommodate table
+                        const minWidth = Math.max(350, contentWidth + 40); // Minimum 350px or content + padding
+                        
+                        // First set the width to ensure adequate space for content
+                        bottomPane.style.width = `${minWidth}px`;
+                        
+                        // Then determine appropriate height
+                        let bottomMaxHeightPixels = Infinity;
                         if (bottomComputedStyle.maxHeight && bottomComputedStyle.maxHeight !== 'none') {
                             const parsed = parseFloat(bottomComputedStyle.maxHeight);
-                            if (!isNaN(parsed) && parsed > 0) { // Check if it's a valid positive number
+                            if (!isNaN(parsed) && parsed > 0) {
                                 bottomMaxHeightPixels = parsed;
-                            } else {
-                                console.warn(`${new Date().toISOString()} - bottomPane: Could not parse valid number from maxHeight '${bottomComputedStyle.maxHeight}'. Using Infinity.`);
                             }
                         }
-                        
-                        const bottomClientHeight = bottomPane.clientHeight;
-                        console.log(`${new Date().toISOString()} - bottomPane measurements: scrollH=${bottomScrollHeight}, clientH=${bottomClientHeight}, computedH=${bottomComputedStyle.height}, computedMaxH=${bottomComputedStyle.maxHeight}(${bottomMaxHeightPixels}px)`);
 
+                        // Now adjust height based on content
                         if (bottomScrollHeight > bottomClientHeight && !bottomPane.classList.contains('dragging')) {
-                            const targetHeight = Math.min(bottomScrollHeight + 10, bottomMaxHeightPixels);
-                            console.log(`${new Date().toISOString()} - bottomPane targetHeight=${targetHeight}`);
+                            const targetHeight = Math.min(bottomScrollHeight + 20, bottomMaxHeightPixels);
                             bottomPane.style.height = `${targetHeight}px`;
-                            console.log(`${new Date().toISOString()} - bottomPane style.height set to: ${bottomPane.style.height}`);
                         }
 
                         if (draggableContainer) {
-                             console.log(`${new Date().toISOString()} - Calling makeElementDraggable for bottomPane`);
                             makeElementDraggable(bottomPane, draggableContainer);
                         }
                     });
-                } else if (bottomPane && draggableContainer) {
-                    console.log(`${new Date().toISOString()} - bottomPane exists but no resize, calling makeElementDraggable`);
-                    makeElementDraggable(bottomPane, draggableContainer);
                 }
             }
             break;
