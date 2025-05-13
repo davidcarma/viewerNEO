@@ -1166,7 +1166,7 @@ button.disabled {
 
 /* Add a title to the projection overlay */
 .projection-layout::before {
-    content: "Image Frequency Analysis";
+    content: "Projection Analysis";
     display: block;
     text-align: center;
     font-size: 1.2em;
@@ -1198,7 +1198,7 @@ button.disabled {
     z-index: 9000;
 }
 
-/* Base styles for draggable elements */
+/* Base styles for draggable elements - always active */
 .draggable {
     position: absolute !important;
     z-index: 10000; /* Make sure draggables are always on top */
@@ -1355,26 +1355,27 @@ button.disabled {
     width: 100% !important;
     height: 100% !important;
     overflow: visible !important;
+    display: block !important; /* Override flex display */
 }
 
+/* IMPORTANT: Don't break the structure when in custom layout mode */
 .projection-layout.custom-layout .projection-main-area {
     position: relative !important;
     width: 100% !important;
-    height: 100% !important;
+    height: calc(100% - 150px) !important; /* Leave room for controls */
     overflow: visible !important;
-    background: rgba(0, 0, 0, 0.3);
-    min-height: 500px;
+    display: block !important; /* Override flex display */
 }
 
 /* Override flex layout when in custom layout mode */
 .projection-layout.custom-layout .projection-top-row,
 .projection-layout.custom-layout .right-section,
 .projection-layout.custom-layout .primary-image-col {
-    display: block !important;
     position: static !important;
     width: auto !important;
     height: auto !important;
     flex: none !important;
+    display: block !important;
 }
 
 /* Make .analysis-pane in custom layout mode have absolute positioning */
