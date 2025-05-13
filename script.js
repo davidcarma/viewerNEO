@@ -24,10 +24,10 @@ const gridSettings = {
     size: 100,
     color: '#ff0000',
     opacity: 0.5,
-    isFixed: false // Added for fixed grid functionality
+    isFixed: false
 };
 
-// New state variables for thumbnails
+// Thumbnail panel state variables
 let imageFiles = [];
 let selectedImageIndex = -1;
 let isThumbnailPanelVisible = false;
@@ -41,14 +41,14 @@ const toggleThumbnailsBtn = document.getElementById('toggle-thumbnails');
 const closeThumbnailsBtn = document.getElementById('close-thumbnails');
 const thumbnailToggleHandle = document.getElementById('thumbnail-toggle-handle');
 
-// Update file input references
+// Input elements
 const fileInput = document.getElementById('file-input');
 const directoryInput = document.getElementById('directory-input');
 
-// Modify drop overlay text to indicate folder drop capability
+// Set drop overlay text
 dropOverlay.textContent = 'Drop image or folder here';
 
-// Set canvas size
+// Set canvas size to match container dimensions with proper DPI scaling
 function resizeCanvas() {
     // Store current center position relative to the image
     let centerX, centerY;
@@ -60,7 +60,7 @@ function resizeCanvas() {
         centerY = (oldHeight / 2 - offsetY) / zoomLevel;
     }
     
-    // Get current container dimensions, not canvas dimensions
+    // Get current container dimensions
     const containerRect = container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     
@@ -211,7 +211,11 @@ async function getAllFilesFromDirectoryHandle(dirHandle) {
     for await (const entry of dirHandle.values()) {
         if (entry.kind === 'file') {
             const file = await entry.getFile();
-            if (file.type.startsWith('image/')) files.push(file);
+            if (file.type.startsWith('image/') || 
+               file.name.toLowerCase().endsWith('.tif') || 
+               file.name.toLowerCase().endsWith('.tiff')) {
+                files.push(file);
+            }
         } else if (entry.kind === 'directory') {
             files = files.concat(await getAllFilesFromDirectoryHandle(entry));
         }
@@ -224,27 +228,22 @@ async function getAllImageFilesFromEntries(entries) {
     let files = [];
     for (const entry of entries) {
         if (entry.isFile) {
-            console.log('[ENTRY] isFile:', entry.name);
             files.push(await getFileFromEntry(entry));
         } else if (entry.isDirectory) {
-            console.log('[ENTRY] isDirectory:', entry.name);
             files = files.concat(await getFilesFromDirectory(entry));
-        } else {
-            console.log('[ENTRY] Unknown entry type:', entry);
         }
     }
-    // Only keep image files
-    const imageFiles = files.filter(f => f && f.type && f.type.startsWith('image/'));
-    console.log('[ENTRY] Filtered image files:', imageFiles);
-    return imageFiles;
+    // Filter for image files
+    return files.filter(f => f && f.type && (
+        f.type.startsWith('image/') || 
+        f.name.toLowerCase().endsWith('.tif') || 
+        f.name.toLowerCase().endsWith('.tiff')
+    ));
 }
 
 function getFileFromEntry(entry) {
     return new Promise(resolve => {
-        entry.file(file => {
-            console.log('[getFileFromEntry] Got file:', file);
-            resolve(file);
-        });
+        entry.file(file => resolve(file));
     });
 }
 
@@ -254,21 +253,16 @@ function getFilesFromDirectory(directoryEntry) {
         let fileList = [];
         function readEntries() {
             reader.readEntries(async entries => {
-                console.log(`[getFilesFromDirectory] Read ${entries.length} entries from ${directoryEntry.name}`);
                 if (!entries.length) {
                     resolve(fileList);
                     return;
                 }
                 for (const entry of entries) {
                     if (entry.isFile) {
-                        console.log('[getFilesFromDirectory] isFile:', entry.name);
                         fileList.push(await getFileFromEntry(entry));
                     } else if (entry.isDirectory) {
-                        console.log('[getFilesFromDirectory] isDirectory:', entry.name);
                         const nestedFiles = await getFilesFromDirectory(entry);
                         fileList = fileList.concat(nestedFiles);
-                    } else {
-                        console.log('[getFilesFromDirectory] Unknown entry type:', entry);
                     }
                 }
                 readEntries();
@@ -278,7 +272,7 @@ function getFilesFromDirectory(directoryEntry) {
     });
 }
 
-// Process multiple image files
+// Process multiple image files - sorts, adds thumbnails, and loads the first image
 function processImageFiles(files) {
     // Sort files using natural sort order for filenames with numbers
     files.sort((a, b) => {
@@ -341,7 +335,7 @@ async function createThumbnails(files) {
         const thumbnailItem = document.createElement('div');
         thumbnailItem.className = 'thumbnail-item';
         thumbnailItem.dataset.index = i;
-        thumbnailItem.draggable = true; // Make it draggable
+        thumbnailItem.draggable = true;
         
         // Use the full file name for the label
         const fileName = file.name;
@@ -448,7 +442,7 @@ async function createThumbnails(files) {
     }
 }
 
-// New function to remove an image by index
+// Remove an image by index
 function removeImageByIndex(index) {
     if (index < 0 || index >= imageFiles.length) return;
     
@@ -498,111 +492,56 @@ function removeImageByIndex(index) {
     }
 }
 
-// Handle drag start from thumbnails
+// Handle thumbnail drag start event
 function handleThumbnailDragStart(e, file, index) {
-    // Add visual feedback
-    e.currentTarget.classList.add('dragging');
+    // Mark the item being dragged
+    e.target.classList.add('dragging');
     
-    // Set dragged data
-    e.dataTransfer.effectAllowed = 'copyMove';
-    
-    // Create a drag image from the thumbnail
-    const img = e.currentTarget.querySelector('img');
-    if (img && img.complete) {
-        // Use the thumbnail as the drag image
-        const rect = img.getBoundingClientRect();
-        e.dataTransfer.setDragImage(img, rect.width / 2, rect.height / 2);
+    // Set custom drag image (optional enhancement)
+    const dragImage = e.target.querySelector('img');
+    if (dragImage && dragImage.complete) {
+        e.dataTransfer.setDragImage(dragImage, 50, 50);
     }
     
-    // Create a blob URL that can be shared with other websites
-    const blobUrl = URL.createObjectURL(file);
+    // Clear any existing data
+    e.dataTransfer.clearData();
     
-    // For cross-application transfers, we need to create a data URL
-    // that can be embedded in the HTML
-    createCrossAppCompatibleData(file, (dataUrl) => {
-        // CROSS-ORIGIN COMPATIBLE FORMATS FOR WEB-TO-WEB DRAG:
-        
-        // 1. HTML format with embedded data URL (most compatible for cross-app)
-        let imageHtml;
-        if (dataUrl) {
-            // If we have a data URL, use it directly in the HTML
-            imageHtml = `<img src="${dataUrl}" alt="${file.name}" title="${file.name}">`;
-            console.log('Added HTML format with embedded data URL for cross-app drag');
-        } else {
-            // Fallback to blob URL
-            imageHtml = `<img src="${blobUrl}" alt="${file.name}" title="${file.name}">`;
-            console.log('Added HTML format with blob URL for same-origin drag');
-        }
-        e.dataTransfer.setData('text/html', imageHtml);
-        
-        // 2. Plain text data URL as a fallback
-        if (dataUrl) {
-            e.dataTransfer.setData('text/plain', dataUrl);
-            console.log('Added data URL as plain text for cross-app drag');
-        } else {
-            e.dataTransfer.setData('text/plain', blobUrl);
-        }
-        
-        // 3. URI List format (less reliable for cross-app but works in same origin)
-        if (dataUrl) {
-            e.dataTransfer.setData('text/uri-list', dataUrl);
-        } else {
-            e.dataTransfer.setData('text/uri-list', blobUrl);
-        }
-        
-        // 4. For local file system drag still attempt download URL format
-        try {
-            const downloadUrl = `${file.type}:${file.name}:${blobUrl}`;
-            e.dataTransfer.setData('DownloadURL', downloadUrl);
-        } catch (err) {
-            console.warn('Browser doesn\'t support DownloadURL format:', err);
-        }
-        
-        // 5. Special handling for in-browser transfers
-        try {
-            // Store file data in sessionStorage for other web pages to access
-            const transferKey = `image_transfer_${Date.now()}`;
-            e.dataTransfer.setData('application/x-image-transfer-key', transferKey);
-            
-            // Store reference to this file with dataUrl included
-            const fileInfo = {
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                url: blobUrl,
-                dataUrl: dataUrl, // Include the data URL if available
-                timestamp: Date.now()
-            };
-            
-            // Store in sessionStorage for cross-page communication
-            sessionStorage.setItem(transferKey, JSON.stringify(fileInfo));
-            console.log('Stored file reference for cross-app transfer:', transferKey);
-            
-            // Schedule cleanup of this storage after some time
-            setTimeout(() => {
-                sessionStorage.removeItem(transferKey);
-            }, 60000); // Remove after 1 minute
-        } catch (err) {
-            console.warn('Failed to set up cross-app file transfer:', err);
-        }
+    // Set up compatibility data for cross-app/platform drags
+    createCrossAppCompatibleData(file, () => {
+        // This is a success callback - nothing needed here
     });
     
-    // Store blob URL to revoke later
-    const thumbnailItem = e.currentTarget;
-    thumbnailItem.dataset.blobUrl = blobUrl;
+    // Handle file creation from TIFF data if needed
+    if (file.name.toLowerCase().endsWith('.tif') || file.name.toLowerCase().endsWith('.tiff')) {
+        // For TIFF files, we need special handling - default back to just text for now
+        e.dataTransfer.setData('text/plain', file.name);
+        e.dataTransfer.effectAllowed = 'copy';
+        return;
+    }
     
-    // Clean up event listener and blob URL after drag ends
-    thumbnailItem.addEventListener('dragend', () => {
-        thumbnailItem.classList.remove('dragging');
-        
-        // Only revoke after a delay to allow the drop target to use the URL
-        setTimeout(() => {
-            if (thumbnailItem.dataset.blobUrl) {
-                URL.revokeObjectURL(thumbnailItem.dataset.blobUrl);
-                delete thumbnailItem.dataset.blobUrl;
-            }
-        }, 5000); // Keep URL alive for 5 seconds after drag ends
-    }, { once: true });
+    // Set compatible data formats
+    try {
+        e.dataTransfer.setData('application/x-moz-file', file);
+    } catch (err) {
+        // Firefox-specific API, may fail in other browsers
+    }
+    
+    try {
+        // Standard file transfer (works in some browsers)
+        e.dataTransfer.items.add(file);
+    } catch (err) {
+        // Not supported in all browsers
+    }
+    
+    // Fallback: text and URL
+    try {
+        e.dataTransfer.setData('text/plain', file.name);
+        e.dataTransfer.setData('text/uri-list', URL.createObjectURL(file));
+    } catch (err) {
+        console.error('Error setting drag data:', err);
+    }
+    
+    e.dataTransfer.effectAllowed = 'copyMove';
 }
 
 // Helper function to create cross-application compatible data
@@ -863,37 +802,34 @@ function showNotification(message) {
 // Call this after page load
 document.addEventListener('DOMContentLoaded', addThumbnailContextMenu);
 
-// Select and load an image by its index
+// Select an image by its index in the imageFiles array
 function selectImageByIndex(index) {
-    if (index >= 0 && index < imageFiles.length) {
-        // Update selected index
-        selectedImageIndex = index;
+    if (index < 0 || index >= imageFiles.length) return;
+    
+    // Update selected index
+    selectedImageIndex = index;
+    
+    // Update thumbnail selection in UI
+    const thumbnails = document.querySelectorAll('.thumbnail-item');
+    thumbnails.forEach(thumbnail => {
+        thumbnail.classList.remove('active');
+    });
+    
+    const selectedThumbnail = document.querySelector(`.thumbnail-item[data-index="${index}"]`);
+    if (selectedThumbnail) {
+        selectedThumbnail.classList.add('active');
         
-        // Update thumbnail selection UI
-        const thumbnails = document.querySelectorAll('.thumbnail-item');
-        thumbnails.forEach(thumbnail => {
-            thumbnail.classList.remove('active');
-        });
-        
-        const selectedThumbnail = document.querySelector(`.thumbnail-item[data-index="${index}"]`);
-        if (selectedThumbnail) {
-            selectedThumbnail.classList.add('active');
-            // Scroll to the selected thumbnail
+        // Scroll into view if not visible
+        if (isThumbnailPanelVisible) {
             selectedThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-        
-        // Load the selected image
-        loadImage(imageFiles[index]);
     }
+    
+    // Load the selected image
+    loadImage(imageFiles[index]);
 }
 
-// Toggle thumbnail panel
-toggleThumbnailsBtn.addEventListener('click', toggleThumbnailPanel);
-closeThumbnailsBtn.addEventListener('click', () => {
-    hideThumbnailPanel();
-});
-thumbnailToggleHandle.addEventListener('click', toggleThumbnailPanel);
-
+// Toggle thumbnail panel visibility
 function toggleThumbnailPanel() {
     if (isThumbnailPanelVisible) {
         hideThumbnailPanel();
@@ -902,143 +838,134 @@ function toggleThumbnailPanel() {
     }
 }
 
+// Show the thumbnail panel
 function showThumbnailPanel() {
+    if (imageFiles.length === 0) return;
+    
+    // Update state
+    isThumbnailPanelVisible = true;
+    
+    // Show panel
     thumbnailPanel.classList.add('active');
     container.classList.add('with-thumbnails');
-    isThumbnailPanelVisible = true;
-    toggleThumbnailsBtn.textContent = 'Hide Thumbnails';
-    toggleThumbnailsBtn.classList.add('active');
+    
+    // Update toggle handle
     thumbnailToggleHandle.classList.remove('hidden');
     
-    // Apply current width
-    thumbnailPanel.style.width = `${thumbnailPanelWidth}px`;
-    thumbnailToggleHandle.style.left = `${thumbnailPanelWidth}px`;
-    container.style.marginLeft = `${thumbnailPanelWidth}px`;
+    // Set width
+    thumbnailPanel.style.width = thumbnailPanelWidth + 'px';
+    thumbnailPanel.style.transform = 'translateX(0)';
+    container.style.marginLeft = thumbnailPanelWidth + 'px';
     container.style.width = `calc(100vw - ${thumbnailPanelWidth}px)`;
     
-    // Ensure canvas resizes to new container dimensions
-    setTimeout(resizeCanvas, 50); // Short delay to allow CSS transitions to apply
+    // Redraw canvas to adapt to new size
+    resizeCanvas();
 }
 
+// Hide the thumbnail panel
 function hideThumbnailPanel() {
+    // Update state
+    isThumbnailPanelVisible = false;
+    
+    // Hide panel
     thumbnailPanel.classList.remove('active');
     container.classList.remove('with-thumbnails');
-    isThumbnailPanelVisible = false;
-    toggleThumbnailsBtn.textContent = 'Show Thumbnails';
-    toggleThumbnailsBtn.classList.remove('active');
     
-    // Add the hidden class first, then update left position to ensure proper transition
+    // Update toggle handle
     thumbnailToggleHandle.classList.add('hidden');
-    thumbnailToggleHandle.style.left = '0';
     
-    // Reset container styles
-    container.style.marginLeft = '';
-    container.style.width = '';
+    // Reset container
+    container.style.marginLeft = '0';
+    container.style.width = '100vw';
     
-    // Ensure canvas resizes to new container dimensions
-    setTimeout(resizeCanvas, 50); // Short delay to allow CSS transitions to apply
+    // Redraw canvas to adapt to new size
+    resizeCanvas();
 }
 
-// Thumbnail panel resize functionality
-thumbnailToggleHandle.addEventListener('mousedown', (e) => {
-    if (thumbnailToggleHandle.classList.contains('hidden')) {
-        // If the toggle is hidden, treat as a click to show panel
-        toggleThumbnailPanel();
-        return;
-    }
+// Reset view to fit image to screen
+function resetView() {
+    if (!image) return;
     
-    e.preventDefault();
-    isResizingPanel = true;
-    lastX = e.clientX;
-    document.body.style.cursor = 'col-resize';
-});
-
-document.addEventListener('mousemove', (e) => {
-    // Handle panel resizing
-    if (isResizingPanel && isThumbnailPanelVisible) {
-        const newWidth = Math.max(150, Math.min(500, e.clientX));
-        thumbnailPanelWidth = newWidth;
-        
-        // Apply new width to panel and related elements
-        thumbnailPanel.style.width = `${newWidth}px`;
-        thumbnailToggleHandle.style.left = `${newWidth}px`;
-        container.style.marginLeft = `${newWidth}px`;
-        container.style.width = `calc(100vw - ${newWidth}px)`;
-        
-        // Resize canvas to match new container size
-        resizeCanvas();
-    }
+    // Calculate zoom level to fit image to canvas
+    const dpr = window.devicePixelRatio || 1;
+    const containerWidth = canvas.width / dpr;
+    const containerHeight = canvas.height / dpr;
     
-    // Existing code for canvas dragging
-    if (!isDragging || isDraggingFile) return;
-    const deltaX = e.clientX - lastX;
-    const deltaY = e.clientY - lastY;
-    offsetX += deltaX;
-    offsetY += deltaY;
-    lastX = e.clientX;
-    lastY = e.clientY;
+    const hZoom = containerWidth / image.width;
+    const vZoom = containerHeight / image.height;
+    zoomLevel = Math.min(hZoom, vZoom) * 0.9; // 90% of fit-to-screen
+    
+    // Center image
+    offsetX = (containerWidth - image.width * zoomLevel) / 2;
+    offsetY = (containerHeight - image.height * zoomLevel) / 2;
+    
+    // Update UI
     render();
     updateInfo();
-});
+}
 
-window.addEventListener('mouseup', () => {
-    isDragging = false;
-    canvas.classList.remove('dragging');
+// Draw grid overlay on the canvas
+function drawGrid() {
+    if (!showGrid) return;
     
-    // Release resize handle
-    if (isResizingPanel) {
-        isResizingPanel = false;
-        document.body.style.cursor = '';
-    }
-});
-
-// Mouse controls
-canvas.addEventListener('mousedown', (e) => {
-    if (isDraggingFile) return;
-    isDragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    canvas.classList.add('dragging');
-});
-
-canvas.addEventListener('mousemove', (e) => {
-    if (!isDragging || isDraggingFile) return;
-    const deltaX = e.clientX - lastX;
-    const deltaY = e.clientY - lastY;
-    offsetX += deltaX;
-    offsetY += deltaY;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    render();
-    updateInfo();
-});
-
-window.addEventListener('mouseup', () => {
-    isDragging = false;
-    canvas.classList.remove('dragging');
-});
-
-canvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const imageX = (mouseX - offsetX) / zoomLevel;
-    const imageY = (mouseY - offsetY) / zoomLevel;
-
-    if (e.deltaY < 0) {
-        zoomLevel *= 1.1;
+    // Get current canvas dimensions
+    const canvasWidth = canvas.width / (window.devicePixelRatio || 1);
+    const canvasHeight = canvas.height / (window.devicePixelRatio || 1);
+    
+    // Set grid properties based on settings
+    ctx.strokeStyle = gridSettings.color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = gridSettings.opacity;
+    
+    // Draw based on whether grid is fixed or scrolls with image
+    if (gridSettings.isFixed) {
+        // Fixed grid (stays in place when image moves)
+        const cellSize = gridSettings.size;
+        
+        // Draw vertical lines
+        for (let x = 0; x < canvasWidth; x += cellSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvasHeight);
+            ctx.stroke();
+        }
+        
+        // Draw horizontal lines
+        for (let y = 0; y < canvasHeight; y += cellSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvasWidth, y);
+            ctx.stroke();
+        }
     } else {
-        zoomLevel *= 0.9;
+        // Scrollable grid (moves with the image)
+        // Calculate grid cell size in screen pixels
+        const cellSize = gridSettings.size * zoomLevel;
+        
+        // Calculate grid offset based on image offset
+        const offsetGridX = offsetX % cellSize;
+        const offsetGridY = offsetY % cellSize;
+        
+        // Draw vertical lines
+        for (let x = offsetGridX; x < canvasWidth; x += cellSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvasHeight);
+            ctx.stroke();
+        }
+        
+        // Draw horizontal lines
+        for (let y = offsetGridY; y < canvasHeight; y += cellSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvasWidth, y);
+            ctx.stroke();
+        }
     }
-
-    offsetX = mouseX - imageX * zoomLevel;
-    offsetY = mouseY - imageY * zoomLevel;
-
-    render();
-    updateInfo();
-});
+    
+    // Reset alpha
+    ctx.globalAlpha = 1.0;
+}
 
 // Load button should trigger a menu to choose file or directory
 document.getElementById('load-btn').addEventListener('click', () => {
@@ -1128,27 +1055,6 @@ document.getElementById('zoom-out').addEventListener('click', () => {
 
 document.getElementById('reset').addEventListener('click', resetView);
 
-function resetView() {
-    if (!image) return;
-
-    // Calculate the zoom level to fit the image within the canvas
-    const dpr = window.devicePixelRatio || 1;
-    const canvasWidth = canvas.width / dpr;
-    const canvasHeight = canvas.height / dpr;
-    
-    // Calculate the zoom level to fit the image in both dimensions
-    const zoomX = canvasWidth / image.width;
-    const zoomY = canvasHeight / image.height;
-    zoomLevel = Math.min(zoomX, zoomY) * 0.95; // 95% to add a slight margin
-    
-    // Center the image
-    offsetX = (canvasWidth - (image.width * zoomLevel)) / 2;
-    offsetY = (canvasHeight - (image.height * zoomLevel)) / 2;
-
-    render();
-    updateInfo();
-}
-
 function drawGrid() {
     if (!showGrid || !image) return;
 
@@ -1223,101 +1129,71 @@ function drawGrid() {
     ctx.restore(); // Restore context to remove clipping
 }
 
-// Add function to handle TIFF files
+// Load TIFF image using the TIFF.js library
 async function loadTiffImage(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                // Use the UTIF.js library to process the TIFF file
-                const buffer = e.target.result;
-                const ifds = UTIF.decode(buffer);
-                if (!ifds || ifds.length === 0) {
-                    reject(new Error('No valid TIFF image found in file'));
-                    return;
-                }
-                
-                // Get the first image from the TIFF file
-                const tiffImg = ifds[0];
-                UTIF.decodeImage(buffer, tiffImg);
-                
-                // Create a canvas to render the TIFF image
-                const canvas = document.createElement('canvas');
-                canvas.width = tiffImg.width;
-                canvas.height = tiffImg.height;
-                
-                // Get RGBA data from TIFF image
-                const rgba = UTIF.toRGBA8(tiffImg);
-                
-                // Draw the image data to the canvas
-                const ctx = canvas.getContext('2d');
-                const imgData = ctx.createImageData(tiffImg.width, tiffImg.height);
-                
-                // Copy the RGBA data to the canvas image data
-                for (let i = 0; i < rgba.length; i++) {
-                    imgData.data[i] = rgba[i];
-                }
-                
-                ctx.putImageData(imgData, 0, 0);
-                resolve(canvas);
-            } catch (error) {
-                console.error('Error processing TIFF file:', error);
-                reject(error);
-            }
+    loadingDiv.style.display = 'block';
+    try {
+        // Initialize TIFF.js
+        const tiff = await Tiff.initialize({locateFile: () => 'lib/tiff.wasm'});
+        
+        // Read file data
+        const buffer = await file.arrayBuffer();
+        const tiffData = tiff.readFromBuffer(new Uint8Array(buffer));
+        
+        // Get image dimensions
+        const width = tiffData.getWidth();
+        const height = tiffData.getHeight();
+        
+        // Create a canvas to render the TIFF
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        // Get RGBA data from TIFF
+        const rgba = tiffData.readRGBAImage();
+        imageData = new ImageData(new Uint8ClampedArray(rgba), width, height);
+        
+        // Draw to canvas
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Create image from canvas
+        image = new Image();
+        image.onload = () => {
+            resetView();
+            loadingDiv.style.display = 'none';
+            updateInfo();
         };
-        reader.onerror = function() {
-            reject(new Error('Failed to read TIFF file'));
+        image.onerror = () => {
+            loadingDiv.style.display = 'none';
+            alert('Failed to load image from TIFF data');
         };
-        reader.readAsArrayBuffer(file);
-    });
+        
+        // Convert canvas to data URL and set as image source
+        image.src = canvas.toDataURL('image/png');
+        
+        // Clean up
+        tiff.destroy();
+    } catch (error) {
+        console.error('Failed to load TIFF file:', error);
+        loadingDiv.style.display = 'none';
+        alert('Failed to load TIFF file: ' + error.message);
+    }
 }
 
-// Modify the loadImage function to handle TIFF files
+// Load an image file and display it on the canvas
 function loadImage(file) {
     loadingDiv.style.display = 'block';
     
-    // Check if the file is a TIFF file
-    const filename = file.name.toLowerCase();
-    if (filename.endsWith('.tif') || filename.endsWith('.tiff')) {
-        // Handle TIFF files
-        loadTiffImage(file).then(canvas => {
-            // Create an image from the canvas
-            image = new Image();
-            image.onload = () => {
-                const offscreenCanvas = document.createElement('canvas');
-                offscreenCanvas.width = image.width;
-                offscreenCanvas.height = image.height;
-                const offscreenCtx = offscreenCanvas.getContext('2d');
-                offscreenCtx.drawImage(image, 0, 0);
-                imageData = offscreenCtx.getImageData(0, 0, image.width, image.height);
-                
-                resetView();
-                loadingDiv.style.display = 'none';
-                updateInfo();
-            };
-            image.onerror = (err) => {
-                console.error('Failed to load image from TIFF canvas:', err);
-                loadingDiv.style.display = 'none';
-                alert('Failed to load image from TIFF data');
-            };
-            // Convert canvas to data URL and set as image source
-            try {
-                image.src = canvas.toDataURL('image/png');
-            } catch (e) {
-                console.error('Error converting canvas to data URL:', e);
-                loadingDiv.style.display = 'none';
-                alert('Error converting TIFF data to displayable format');
-            }
-        }).catch(error => {
-            console.error('Failed to load TIFF file:', error);
-            loadingDiv.style.display = 'none';
-            alert('Failed to load TIFF file: ' + error.message);
-        });
+    // Check if this is a TIFF file
+    if (file.name.toLowerCase().endsWith('.tif') || file.name.toLowerCase().endsWith('.tiff')) {
+        loadTiffImage(file);
     } else {
-        // Handle other image formats with the existing code
+        // Handle standard image formats
         const url = URL.createObjectURL(file);
         image = new Image();
         image.onload = () => {
+            // Create an offscreen canvas for image data processing
             const offscreenCanvas = document.createElement('canvas');
             offscreenCanvas.width = image.width;
             offscreenCanvas.height = image.height;
@@ -1338,7 +1214,7 @@ function loadImage(file) {
     }
 }
 
-// Function to wrap the original loadImage with thumbnail selection
+// Load image and update thumbnail selection
 function loadImageWithThumbnails(file) {
     // Call the original function
     loadImage(file);
@@ -1360,6 +1236,7 @@ function loadImageWithThumbnails(file) {
     }
 }
 
+// Render the current image to the canvas
 function render() {
     if (!image) return;
 
@@ -1382,6 +1259,7 @@ function render() {
     drawGrid();
 }
 
+// Update the information panel
 function updateInfo() {
     if (!image) return;
     infoPanel.innerHTML = `
@@ -2607,11 +2485,11 @@ function drawDerivativeGrid(ctx, width, height, isVertical, minValue, maxValue, 
     ctx.restore();
 }
 
-// Main canvas drag functionality
+// Main canvas drag functionality for OCR
 function setupCanvasDragForOCR() {
-    // Make canvas draggable, but only when Ctrl or Cmd key is pressed (to avoid interfering with pan)
-    canvas.setAttribute('draggable', 'true');
-    
+    // Remove the line that sets the main canvas draggable attribute permanently
+    // canvas.setAttribute('draggable', 'true'); // REMOVED
+
     canvas.addEventListener('dragstart', (e) => {
         // Check if image is loaded
         if (!image) {
@@ -2736,9 +2614,130 @@ function setupCanvasDragForOCR() {
 
 // Call this setup function after initialization
 window.addEventListener('load', () => {
+    // Set up canvas size
+    resizeCanvas();
+    
+    // Add event listeners for panning (dragging)
+    canvas.addEventListener('mousedown', (e) => {
+        // Only handle left mouse button
+        if (e.button !== 0) return;
+        
+        // Don't start drag if Ctrl/Cmd is pressed (used for OCR drag)
+        if (e.ctrlKey || e.metaKey) return;
+        
+        // Start dragging
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        canvas.classList.add('dragging');
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        // Handle thumbnail panel resizing
+        if (isResizingPanel && isThumbnailPanelVisible) {
+            const newWidth = Math.max(150, Math.min(500, e.clientX));
+            thumbnailPanelWidth = newWidth;
+            
+            // Apply new width to panel and related elements
+            thumbnailPanel.style.width = `${newWidth}px`;
+            thumbnailToggleHandle.style.left = `${newWidth}px`;
+            container.style.marginLeft = `${newWidth}px`;
+            container.style.width = `calc(100vw - ${newWidth}px)`;
+            
+            // Resize canvas to match new container size
+            resizeCanvas();
+            return;
+        }
+        
+        // Handle image panning
+        if (!isDragging || isDraggingFile) return;
+        
+        // Calculate distance moved
+        const deltaX = e.clientX - lastX;
+        const deltaY = e.clientY - lastY;
+        
+        // Update position
+        offsetX += deltaX;
+        offsetY += deltaY;
+        
+        // Update last position
+        lastX = e.clientX;
+        lastY = e.clientY;
+        
+        // Re-render
+        render();
+        updateInfo();
+    });
+    
+    document.addEventListener('mouseup', () => {
+        // End image dragging
+        isDragging = false;
+        canvas.classList.remove('dragging');
+        
+        // End thumbnail panel resizing
+        if (isResizingPanel) {
+            isResizingPanel = false;
+            document.body.style.cursor = '';
+        }
+    });
+    
+    // Add event listener for zooming (wheel)
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        
+        // Get mouse position
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Calculate position in image space
+        const imageX = (mouseX - offsetX) / zoomLevel;
+        const imageY = (mouseY - offsetY) / zoomLevel;
+        
+        // Calculate zoom delta
+        const delta = -Math.sign(e.deltaY) * 0.1;
+        const newZoom = Math.max(0.1, Math.min(10, zoomLevel * (1 + delta)));
+        
+        // Apply zoom
+        zoomLevel = newZoom;
+        
+        // Adjust offset to zoom around mouse position
+        offsetX = mouseX - imageX * zoomLevel;
+        offsetY = mouseY - imageY * zoomLevel;
+        
+        // Re-render
+        render();
+        updateInfo();
+    });
+    
+    // Handle thumbnail panel toggle buttons
+    toggleThumbnailsBtn.addEventListener('click', toggleThumbnailPanel);
+    closeThumbnailsBtn.addEventListener('click', hideThumbnailPanel);
+    
+    // Thumbnail panel resize functionality
+    thumbnailToggleHandle.addEventListener('mousedown', (e) => {
+        if (thumbnailToggleHandle.classList.contains('hidden')) {
+            // If the toggle is hidden, treat as a click to show panel
+            toggleThumbnailPanel();
+            return;
+        }
+        
+        e.preventDefault();
+        isResizingPanel = true;
+        lastX = e.clientX;
+        document.body.style.cursor = 'col-resize';
+    });
+    
+    // Set up OCR dragging
     setupCanvasDragForOCR();
+    
+    // Set up clipboard paste
     setupClipboardPaste();
-    console.log('Viewer app initialized with OCR drag and clipboard paste support');
+    
+    // Initialize thumbnail context menu
+    addThumbnailContextMenu();
+    
+    console.log('Viewer app initialized with drag, zoom, OCR and clipboard support');
 });
 
 // Create a paste overlay to show visual feedback
@@ -2797,105 +2796,64 @@ function setupClipboardPaste() {
     // Add a keyboard event listener to show paste overlay when Ctrl or Cmd is pressed
     document.addEventListener('keydown', (e) => {
         // If Ctrl or Cmd is pressed, show the paste overlay
-        if ((e.ctrlKey || e.metaKey) && e.key !== 'v') { // Not when V is already pressed
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
             showPasteOverlay();
-        }
-    });
-    
-    // Hide overlay when keys are released
-    document.addEventListener('keyup', (e) => {
-        // If Ctrl or Cmd is released, hide the paste overlay
-        if (!e.ctrlKey && !e.metaKey) {
-            hidePasteOverlay();
         }
     });
     
     // Add paste event listener to the document
     document.addEventListener('paste', (e) => {
-        console.log('Paste event detected');
-        
         // Hide paste overlay
         hidePasteOverlay();
         
-        // Check if clipboard contains any images
-        const items = e.clipboardData.items;
-        let imageFound = false;
+        // Check if there are any items to paste
+        if (!e.clipboardData || !e.clipboardData.items) return;
         
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            
-            // Check if the item is an image
+        // Look for an image in the clipboard
+        for (const item of e.clipboardData.items) {
             if (item.type.startsWith('image/')) {
-                imageFound = true;
-                
-                // Get the image as a File object
+                // Get the image file
                 const file = item.getAsFile();
                 if (!file) continue;
                 
-                // Generate a unique filename for the pasted image
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const extension = file.type.split('/')[1] || 'png';
-                const newFile = new File([file], `pasted_image_${timestamp}.${extension}`, { type: file.type });
+                // Give the file a name based on timestamp if it doesn't have one
+                if (!file.name || file.name === 'image.png') {
+                    const now = new Date();
+                    file.name = `clipboard_${now.getFullYear()}-${(now.getMonth() + 1)
+                        .toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now
+                        .getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}.png`;
+                }
                 
-                // Add the image to our gallery
-                processImageFiles([newFile]);
+                // Process the image file
+                processImageFiles([file]);
                 
-                // Show notification
-                showNotification('Image pasted to gallery');
-                
-                // Only process the first image
-                break;
+                // Prevent default browser handling
+                e.preventDefault();
+                return;
             }
         }
         
-        if (!imageFound) {
-            // Check if we should show a message that no image was found
-            if (items.length > 0) {
-                console.log('No image found in clipboard data');
-                showNotification('No image found in clipboard');
-            }
-        }
+        // If we get here, no image was found in the clipboard
+        // Display a tip about pasting images
+        showPasteTip();
     });
-    
-    // Add "Paste Image" button to controls
-    const controlsPanel = document.getElementById('controls');
-    const pasteButton = document.createElement('button');
-    pasteButton.id = 'paste-btn';
-    pasteButton.textContent = 'Paste Image';
-    pasteButton.addEventListener('click', () => {
-        showPasteOverlay();
-        showNotification('Press Ctrl+V / Cmd+V to paste');
-    });
-    
-    // Add button before toggle thumbnails button
-    const toggleThumbnailsBtn = document.getElementById('toggle-thumbnails');
-    if (toggleThumbnailsBtn) {
-        controlsPanel.insertBefore(pasteButton, toggleThumbnailsBtn);
-    } else {
-        controlsPanel.appendChild(pasteButton);
-    }
 }
 
 // Update the app UI with paste instructions
 function showPasteTip() {
-    const pasteTip = document.createElement('div');
-    pasteTip.className = 'paste-tip';
-    pasteTip.innerHTML = 'Tip: Ctrl+V or Cmd+V to paste image';
+    const tip = document.createElement('div');
+    tip.className = 'paste-tip';
+    tip.textContent = 'Copy an image first, then paste here';
     
-    // Add to container, if not already present
-    if (!document.querySelector('.paste-tip')) {
-        container.appendChild(pasteTip);
-        
-        // Auto-hide tip after 5 seconds
+    document.body.appendChild(tip);
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        tip.classList.add('fade-out');
         setTimeout(() => {
-            pasteTip.classList.add('fade-out');
-            setTimeout(() => {
-                if (pasteTip.parentNode) {
-                    pasteTip.parentNode.removeChild(pasteTip);
-                }
-            }, 1000);
-        }, 5000);
-    }
+            document.body.removeChild(tip);
+        }, 500);
+    }, 3000);
 }
 
 // Call showPasteTip after initial setup
