@@ -344,12 +344,19 @@ button.disabled {
     transition: box-shadow 0.2s ease;
     margin: 0 !important;
     transform: none !important;
+    background-color: rgba(20, 20, 20, 0.8);
+    border: 1px solid rgba(100, 100, 100, 0.5);
+    border-radius: 4px;
+    padding: 8px;
+    margin: 8px 0;
+    /* max-height: 250px; */ /* Commented out */
+    overflow-y: auto;
 }
 
 #bottom-main-analysis-pane {
     height: 200px; /* Increased from 120px */
     min-height: 180px; /* Increased from 120px */
-    max-height: 250px; /* Increased from 180px */
+    /* max-height: 250px; */ /* Commented out */
     margin-top: 5px;
     flex-shrink: 0;
     overflow-y: auto;
@@ -358,7 +365,7 @@ button.disabled {
 #right-analysis-pane {
     flex: 1;
     min-height: 300px; /* Increased from 150px */
-    max-height: 400px; /* Increased from 200px */
+    /* max-height: 400px; */ /* Commented out */
     overflow-y: auto;
 }
 
@@ -1024,7 +1031,7 @@ button.disabled {
     border-radius: 4px;
     padding: 8px;
     margin: 8px 0;
-    max-height: 250px;
+    /* max-height: 250px; */ /* Re-commenting this line */
     overflow-y: auto;
 }
 

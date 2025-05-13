@@ -2066,24 +2066,27 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 
                 // Update RIGHT analysis pane
                 if (rightPane) {
+                    console.log(`${new Date().toISOString()} - Updating rightPane (Algorithm ${algorithm})`);
+                    console.log(`${new Date().toISOString()} - Before rightPane.innerHTML set`);
                     rightPane.classList.remove('draggable-initialized');
                     rightPane.innerHTML = `
                         <h3>Horizontal Proj. ${titlePrefix} Peaks</h3>
-                    <div class="analysis-content">
+                        <div class="analysis-content">
                             <p>${analysisText} of horizontal projection:</p>
-                        <table class="peak-table">
+                            <table class="peak-table">
                                 <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
-                            ${horizontalPeaks.map((peak, i) => `
+                                ${horizontalPeaks.map((peak, i) => `
                                     <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
-                            `).join('')}
-                        </table>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
-                
-                    // Auto-resize height AFTER rendering
+                                `).join('')}
+                            </table>
+                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                        </div>
+                    `;
+                    console.log(`${new Date().toISOString()} - After rightPane.innerHTML set`);
+                    
                     requestAnimationFrame(() => {
-                        rightPane.style.height = ''; // Reset height first to get accurate scrollHeight
+                        console.log(`${new Date().toISOString()} - requestAnimationFrame for rightPane resize`);
+                        rightPane.style.height = ''; // Reset height first
                         const rightScrollHeight = rightPane.scrollHeight;
                         const rightComputedStyle = getComputedStyle(rightPane);
                         let rightMaxHeight = rightComputedStyle.maxHeight;
@@ -2091,46 +2094,54 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                         if (rightMaxHeight && rightMaxHeight !== 'none' && rightMaxHeight.endsWith('px')) {
                             rightMaxHeightPixels = parseFloat(rightMaxHeight);
                         } else {
-                            rightMaxHeightPixels = 400; // Fallback to default from CSS
-                            console.warn('Could not parse maxHeight for rightPane:', rightMaxHeight);
+                            rightMaxHeightPixels = 400; // Fallback
+                            console.warn(`${new Date().toISOString()} - Could not parse maxHeight for rightPane: ${rightMaxHeight}. Using fallback: ${rightMaxHeightPixels}px`);
                         }
-                        const rightCurrentHeight = rightPane.clientHeight;
+                        const rightClientHeight = rightPane.clientHeight;
+                        console.log(`${new Date().toISOString()} - rightPane measurements: scrollH=${rightScrollHeight}, clientH=${rightClientHeight}, computedH=${rightComputedStyle.height}, computedMaxH=${rightMaxHeight}(${rightMaxHeightPixels}px)`);
                         
-                        // Check if scrollHeight > clientHeight and if element is not currently being dragged
-                        if (rightScrollHeight > rightCurrentHeight && !rightPane.classList.contains('dragging')) {
+                        if (rightScrollHeight > rightClientHeight && !rightPane.classList.contains('dragging')) {
                              const targetHeight = Math.min(rightScrollHeight + 10, rightMaxHeightPixels); // Add 10px buffer
+                             console.log(`${new Date().toISOString()} - rightPane targetHeight=${targetHeight}`);
                              rightPane.style.height = `${targetHeight}px`;
-                             console.log(`Resized rightPane height to fit content: ${targetHeight}px`);
+                             console.log(`${new Date().toISOString()} - rightPane style.height set to: ${rightPane.style.height}`);
                         }
 
-                        // Re-apply draggable AFTER resizing
-                        if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
+                        if (draggableContainer) {
+                            console.log(`${new Date().toISOString()} - Calling makeElementDraggable for rightPane`);
+                            makeElementDraggable(rightPane, draggableContainer);
+                        }
                     });
 
                 } else {
-                     // Still need to re-apply draggable if pane exists but wasn't resized
-                     if (rightPane && draggableContainer) makeElementDraggable(rightPane, draggableContainer);
+                     if (rightPane && draggableContainer) {
+                        console.log(`${new Date().toISOString()} - rightPane exists but no resize, calling makeElementDraggable`);
+                        makeElementDraggable(rightPane, draggableContainer);
+                     }
                 }
                 
                 // Update BOTTOM analysis pane
                 if (bottomPane) {
+                    console.log(`${new Date().toISOString()} - Updating bottomPane (Algorithm ${algorithm})`);
+                    console.log(`${new Date().toISOString()} - Before bottomPane.innerHTML set`);
                     bottomPane.classList.remove('draggable-initialized');
                     bottomPane.innerHTML = `
                         <h3>Vertical Proj. ${titlePrefix} Peaks</h3>
-                    <div class="analysis-content">
+                        <div class="analysis-content">
                             <p>${analysisText} of vertical projection:</p>
-                        <table class="peak-table">
+                            <table class="peak-table">
                                 <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
-                            ${verticalPeaks.map((peak, i) => `
+                                ${verticalPeaks.map((peak, i) => `
                                     <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
-                            `).join('')}
-                        </table>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
+                                `).join('')}
+                            </table>
+                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                        </div>
+                    `;
+                    console.log(`${new Date().toISOString()} - After bottomPane.innerHTML set`);
 
-                    // Auto-resize height AFTER rendering
                     requestAnimationFrame(() => {
+                        console.log(`${new Date().toISOString()} - requestAnimationFrame for bottomPane resize`);
                         bottomPane.style.height = ''; // Reset height
                         const bottomScrollHeight = bottomPane.scrollHeight;
                         const bottomComputedStyle = getComputedStyle(bottomPane);
@@ -2139,24 +2150,29 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                         if (bottomMaxHeight && bottomMaxHeight !== 'none' && bottomMaxHeight.endsWith('px')) {
                            bottomMaxHeightPixels = parseFloat(bottomMaxHeight);
                         } else {
-                           bottomMaxHeightPixels = 250; // Fallback to default from CSS
-                           console.warn('Could not parse maxHeight for bottomPane:', bottomMaxHeight);
+                           bottomMaxHeightPixels = 250; // Fallback
+                           console.warn(`${new Date().toISOString()} - Could not parse maxHeight for bottomPane: ${bottomMaxHeight}. Using fallback: ${bottomMaxHeightPixels}px`);
                         }
-                        const bottomCurrentHeight = bottomPane.clientHeight;
+                        const bottomClientHeight = bottomPane.clientHeight;
+                        console.log(`${new Date().toISOString()} - bottomPane measurements: scrollH=${bottomScrollHeight}, clientH=${bottomClientHeight}, computedH=${bottomComputedStyle.height}, computedMaxH=${bottomMaxHeight}(${bottomMaxHeightPixels}px)`);
 
-                        // Check if scrollHeight > clientHeight and if element is not currently being dragged
-                        if (bottomScrollHeight > bottomCurrentHeight && !bottomPane.classList.contains('dragging')) {
+                        if (bottomScrollHeight > bottomClientHeight && !bottomPane.classList.contains('dragging')) {
                             const targetHeight = Math.min(bottomScrollHeight + 10, bottomMaxHeightPixels); // Add 10px buffer
+                            console.log(`${new Date().toISOString()} - bottomPane targetHeight=${targetHeight}`);
                             bottomPane.style.height = `${targetHeight}px`;
-                            console.log(`Resized bottomPane height to fit content: ${targetHeight}px`);
+                            console.log(`${new Date().toISOString()} - bottomPane style.height set to: ${bottomPane.style.height}`);
                         }
 
-                        // Re-apply draggable AFTER resizing
-                        if (draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
+                        if (draggableContainer) {
+                             console.log(`${new Date().toISOString()} - Calling makeElementDraggable for bottomPane`);
+                            makeElementDraggable(bottomPane, draggableContainer);
+                        }
                     });
                 } else {
-                    // Still need to re-apply draggable if pane exists but wasn't resized
-                    if (bottomPane && draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
+                    if (bottomPane && draggableContainer) {
+                        console.log(`${new Date().toISOString()} - bottomPane exists but no resize, calling makeElementDraggable`);
+                        makeElementDraggable(bottomPane, draggableContainer);
+                    }
                 }
             }
             break;
