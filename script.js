@@ -2089,19 +2089,22 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                         rightPane.style.height = ''; // Reset height first
                         const rightScrollHeight = rightPane.scrollHeight;
                         const rightComputedStyle = getComputedStyle(rightPane);
-                        let rightMaxHeight = rightComputedStyle.maxHeight;
-                        let rightMaxHeightPixels = Infinity; 
-                        if (rightMaxHeight && rightMaxHeight !== 'none' && rightMaxHeight.endsWith('px')) {
-                            rightMaxHeightPixels = parseFloat(rightMaxHeight);
-                        } else {
-                            rightMaxHeightPixels = 400; // Fallback
-                            console.warn(`${new Date().toISOString()} - Could not parse maxHeight for rightPane: ${rightMaxHeight}. Using fallback: ${rightMaxHeightPixels}px`);
+                        
+                        let rightMaxHeightPixels = Infinity; // Default to no limit
+                        if (rightComputedStyle.maxHeight && rightComputedStyle.maxHeight !== 'none') {
+                            const parsed = parseFloat(rightComputedStyle.maxHeight);
+                            if (!isNaN(parsed) && parsed > 0) { // Check if it's a valid positive number
+                                rightMaxHeightPixels = parsed;
+                            } else {
+                                console.warn(`${new Date().toISOString()} - rightPane: Could not parse valid number from maxHeight '${rightComputedStyle.maxHeight}'. Using Infinity.`);
+                            }
                         }
+
                         const rightClientHeight = rightPane.clientHeight;
-                        console.log(`${new Date().toISOString()} - rightPane measurements: scrollH=${rightScrollHeight}, clientH=${rightClientHeight}, computedH=${rightComputedStyle.height}, computedMaxH=${rightMaxHeight}(${rightMaxHeightPixels}px)`);
+                        console.log(`${new Date().toISOString()} - rightPane measurements: scrollH=${rightScrollHeight}, clientH=${rightClientHeight}, computedH=${rightComputedStyle.height}, computedMaxH=${rightComputedStyle.maxHeight}(${rightMaxHeightPixels}px)`);
                         
                         if (rightScrollHeight > rightClientHeight && !rightPane.classList.contains('dragging')) {
-                             const targetHeight = Math.min(rightScrollHeight + 10, rightMaxHeightPixels); // Add 10px buffer
+                             const targetHeight = Math.min(rightScrollHeight + 10, rightMaxHeightPixels);
                              console.log(`${new Date().toISOString()} - rightPane targetHeight=${targetHeight}`);
                              rightPane.style.height = `${targetHeight}px`;
                              console.log(`${new Date().toISOString()} - rightPane style.height set to: ${rightPane.style.height}`);
@@ -2145,19 +2148,22 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                         bottomPane.style.height = ''; // Reset height
                         const bottomScrollHeight = bottomPane.scrollHeight;
                         const bottomComputedStyle = getComputedStyle(bottomPane);
-                        let bottomMaxHeight = bottomComputedStyle.maxHeight;
-                        let bottomMaxHeightPixels = Infinity;
-                        if (bottomMaxHeight && bottomMaxHeight !== 'none' && bottomMaxHeight.endsWith('px')) {
-                           bottomMaxHeightPixels = parseFloat(bottomMaxHeight);
-                        } else {
-                           bottomMaxHeightPixels = 250; // Fallback
-                           console.warn(`${new Date().toISOString()} - Could not parse maxHeight for bottomPane: ${bottomMaxHeight}. Using fallback: ${bottomMaxHeightPixels}px`);
+                        
+                        let bottomMaxHeightPixels = Infinity; // Default to no limit
+                        if (bottomComputedStyle.maxHeight && bottomComputedStyle.maxHeight !== 'none') {
+                            const parsed = parseFloat(bottomComputedStyle.maxHeight);
+                            if (!isNaN(parsed) && parsed > 0) { // Check if it's a valid positive number
+                                bottomMaxHeightPixels = parsed;
+                            } else {
+                                console.warn(`${new Date().toISOString()} - bottomPane: Could not parse valid number from maxHeight '${bottomComputedStyle.maxHeight}'. Using Infinity.`);
+                            }
                         }
+                        
                         const bottomClientHeight = bottomPane.clientHeight;
-                        console.log(`${new Date().toISOString()} - bottomPane measurements: scrollH=${bottomScrollHeight}, clientH=${bottomClientHeight}, computedH=${bottomComputedStyle.height}, computedMaxH=${bottomMaxHeight}(${bottomMaxHeightPixels}px)`);
+                        console.log(`${new Date().toISOString()} - bottomPane measurements: scrollH=${bottomScrollHeight}, clientH=${bottomClientHeight}, computedH=${bottomComputedStyle.height}, computedMaxH=${bottomComputedStyle.maxHeight}(${bottomMaxHeightPixels}px)`);
 
                         if (bottomScrollHeight > bottomClientHeight && !bottomPane.classList.contains('dragging')) {
-                            const targetHeight = Math.min(bottomScrollHeight + 10, bottomMaxHeightPixels); // Add 10px buffer
+                            const targetHeight = Math.min(bottomScrollHeight + 10, bottomMaxHeightPixels);
                             console.log(`${new Date().toISOString()} - bottomPane targetHeight=${targetHeight}`);
                             bottomPane.style.height = `${targetHeight}px`;
                             console.log(`${new Date().toISOString()} - bottomPane style.height set to: ${bottomPane.style.height}`);
