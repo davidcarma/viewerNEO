@@ -331,56 +331,58 @@ button.disabled {
     margin-top: -5px;
 }
 
+/* Consolidated Analysis Pane Styles */
 .analysis-pane {
+    /* Base Draggable/Layout Styles */
     position: absolute !important;
-    background: rgba(30, 30, 40, 0.8);
-    border-radius: 5px;
-    padding: 10px;
-    color: white;
-    overflow: auto;
-    border: 1px solid #444;
-    padding-top: 35px;
-    min-height: 150px;
-    transition: box-shadow 0.2s ease;
+    z-index: 10000;
+    box-sizing: border-box;
+    padding: 0 !important; /* Padding managed internally */
     margin: 0 !important;
     transform: none !important;
-    background-color: rgba(20, 20, 20, 0.8);
+    min-width: 100px;
+    overflow: visible !important; /* Ensure drag handle is visible */
+    touch-action: none; /* Prevent touch scrolling during drag */
+    will-change: left, top; /* Optimize for animation */
+    user-select: text;
+
+    /* Visual Styles */
+    background: rgba(20, 20, 20, 0.8);
     border: 1px solid rgba(100, 100, 100, 0.5);
     border-radius: 4px;
-    padding: 8px;
-    margin: 8px 0;
-    /* max-height: 250px; */ /* Commented out */
-    overflow-y: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    color: white;
+    transition: box-shadow 0.3s;
+    padding-top: 30px !important; /* Space for drag handle */
+    overflow-y: auto; /* Allow vertical scroll if needed, JS handles height */
 }
 
+/* ID Specific Styles */
 #bottom-main-analysis-pane {
-    height: 200px; /* Increased from 120px */
-    min-height: 180px; /* Increased from 120px */
-    /* max-height: 250px; */ /* Commented out */
-    margin-top: 5px;
+    min-height: 180px; /* Original min-height */
+    /* height: 200px; */ /* Removed fixed height, JS will manage */
+    margin-top: 5px !important; /* Keep margin override */
     flex-shrink: 0;
-    overflow-y: auto;
 }
 
 #right-analysis-pane {
-    flex: 1;
-    min-height: 300px; /* Increased from 150px */
-    /* max-height: 400px; */ /* Commented out */
-    overflow-y: auto;
+    min-height: 300px; /* Original min-height */
+    flex: 1; /* Keep flex property */
 }
 
+/* Content Styles */
 .analysis-pane h3 {
-    margin-top: 0;
+    margin: 0 0 5px 0;
     padding-bottom: 5px;
-    border-bottom: 1px solid #666;
-    font-size: 16px;
-    color: #72c02c; /* Changed from #d0d0d0 to match the updated styling */
+    border-bottom: 1px solid rgba(100, 100, 100, 0.2); /* Use the more subtle border */
+    font-size: 16px; /* Keep consistent size */
+    color: #72c02c;
     font-weight: bold;
 }
 
 .analysis-content {
     padding: 10px;
-    font-size: 14px;
+    font-size: 14px; /* Keep consistent size */
     line-height: 1.4;
     color: #f0f0f0;
 }
@@ -390,11 +392,70 @@ button.disabled {
 }
 
 .algorithm-timestamp {
-    font-size: 12px;
+    font-size: 12px; /* Keep consistent size */
     color: #aaa;
     margin-top: 15px;
     text-align: right;
     font-style: italic;
+    opacity: 0.7;
+}
+
+/* Consolidated Peak Table Styles */
+.peak-table, /* Apply base styles outside .analysis-pane context too */
+.analysis-pane .peak-table { 
+    width: 100%; 
+    margin: 10px auto; 
+    border-collapse: collapse;
+    font-size: 1em; 
+    border: 1px solid #555; /* Use a slightly less strong border */
+}
+
+.peak-table th,
+.analysis-pane .peak-table th { 
+    background-color: #2a4d69; 
+    color: white;
+    font-weight: bold;
+    text-transform: uppercase; 
+    font-size: 0.9em;
+    padding: 8px 10px; 
+    text-align: center; 
+    border: 1px solid #555;
+}
+
+.peak-table td,
+.analysis-pane .peak-table td {
+    border: 1px solid #555;
+    padding: 8px 10px; 
+    text-align: center; 
+}
+
+.peak-table tr:nth-child(even),
+.analysis-pane .peak-table tr:nth-child(even) { 
+    background-color: #2f2f2f;
+}
+
+.peak-table tr:hover,
+.analysis-pane .peak-table tr:hover { 
+    background-color: #3a6186; 
+}
+
+.peak-table tr:first-child,
+.analysis-pane .peak-table tr:first-child { 
+    background-color: rgba(60, 179, 113, 0.3); 
+    font-weight: bold;
+}
+
+/* Highlight specific columns */
+.peak-table td:nth-child(4),
+.analysis-pane .peak-table td:nth-child(4) { /* λ column */
+    font-weight: bold;
+    color: #72c02c; 
+}
+
+.peak-table td:nth-child(5),
+.analysis-pane .peak-table td:nth-child(5) { /* Magnitude column */
+    font-weight: bold;
+    color: #e74c3c; 
 }
 
 .projection-controls {
@@ -1022,166 +1083,6 @@ button.disabled {
 
 .peak-table tr:hover {
     background-color: rgba(70, 130, 180, 0.2);
-}
-
-/* Styling for analysis panes */
-.analysis-pane {
-    background-color: rgba(20, 20, 20, 0.8);
-    border: 1px solid rgba(100, 100, 100, 0.5);
-    border-radius: 4px;
-    padding: 8px;
-    margin: 8px 0;
-    /* max-height: 250px; */ /* Re-commenting this line */
-    overflow-y: auto;
-}
-
-.analysis-pane h3 {
-    margin: 0 0 5px 0;
-    color: #72c02c;
-    font-size: 0.9em;
-    border-bottom: 1px solid rgba(100, 100, 100, 0.2);
-    padding-bottom: 5px;
-}
-
-.analysis-content {
-    font-size: 0.85em;
-}
-
-.algorithm-timestamp {
-    font-size: 0.8em;
-    opacity: 0.7;
-    text-align: right;
-    margin-top: 5px;
-    font-style: italic;
-}
-
-/* Graph tooltip styling - updated for better visibility */
-.graph-tooltip {
-    position: absolute;
-    background: rgba(20, 20, 30, 0.95);
-    color: white;
-    padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    z-index: 20000;
-    pointer-events: none;
-    display: none;
-    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(100, 100, 180, 0.5);
-    max-width: 220px;
-    min-width: 180px;
-    white-space: nowrap;
-    backdrop-filter: blur(2px);
-    transform: translateZ(0);
-}
-
-.graph-tooltip div {
-    margin: 4px 0;
-    line-height: 1.3;
-}
-
-.tooltip-title {
-    color: #ffffff;
-    font-weight: bold;
-    font-size: 14px;
-    border-bottom: 1px solid rgba(120, 120, 200, 0.4);
-    padding-bottom: 4px;
-    margin-bottom: 6px !important;
-}
-
-/* Style specific frequency values */
-.tooltip-freq {
-    color: #4a90e2; /* Blue for frequency */
-    font-weight: bold;
-}
-
-.tooltip-lambda {
-    color: #72c02c; /* Green for wavelength */
-    font-weight: bold;
-}
-
-.tooltip-mag {
-    color: #e74c3c; /* Red for magnitude */
-}
-
-.tooltip-bin {
-    font-size: 11px;
-    color: #aaaaaa;
-    font-style: italic;
-    margin-top: 6px !important;
-}
-
-.tooltip-amp {
-    color: #f39c12; /* Orange for amplitude */
-    font-weight: bold;
-}
-
-.tooltip-pos {
-    color: #ccc;
-}
-
-/* Enhanced Peak Table Styles */
-.analysis-pane .peak-table {
-    width: 100%; /* Increased from 95% */
-    margin: 10px auto; /* Reduced from 15px */
-    border-collapse: collapse;
-    font-size: 1em; /* Increased from 0.9em */
-    border: 2px solid #555; /* Added stronger border */
-}
-
-.analysis-pane .peak-table th,
-.analysis-pane .peak-table td {
-    border: 1px solid #555;
-    padding: 8px 10px; /* Increased padding */
-    text-align: center; /* Changed from left to center */
-}
-
-.analysis-pane .peak-table th {
-    background-color: #2a4d69; /* Changed from #383838 to a blue shade */
-    color: white;
-    font-weight: bold;
-    text-transform: uppercase; /* Added uppercase for emphasis */
-    font-size: 0.9em;
-}
-
-.analysis-pane .peak-table tr:first-child {
-    background-color: rgba(60, 179, 113, 0.3); /* Highlight first peak with more obvious color */
-    font-weight: bold;
-}
-
-.analysis-pane .peak-table tr:nth-child(even) {
-    background-color: #2f2f2f;
-}
-
-.analysis-pane .peak-table tr:hover {
-    background-color: #3a6186; /* Changed to a blue shade on hover */
-}
-
-/* Make the wavelength and magnitude columns stand out */
-.analysis-pane .peak-table td:nth-child(4), /* λ column */
-.analysis-pane .peak-table td:nth-child(5) { /* Magnitude column */
-    font-weight: bold;
-}
-
-.analysis-pane .peak-table td:nth-child(4) { /* λ column */
-    color: #72c02c; /* Green for wavelength */
-}
-
-.analysis-pane .peak-table td:nth-child(5) { /* Magnitude column */
-    color: #e74c3c; /* Red for magnitude */
-}
-
-/* Add a title to the projection overlay */
-.projection-layout::before {
-    content: "Projection Analysis";
-    display: block;
-    text-align: center;
-    font-size: 1.2em;
-    color: white;
-    margin-bottom: 15px;
-    font-weight: bold;
-    border-bottom: 1px solid #555;
-    padding-bottom: 8px;
 }
 
 /* ===== LAYOUT MANAGER STYLES ===== */
