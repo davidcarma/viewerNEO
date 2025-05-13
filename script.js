@@ -1435,16 +1435,18 @@ function displayProjection(horizontal, vertical, image) {
         <div class="projection-main-area">
             <div class="projection-top-row">
                 <div class="primary-image-col">
-                <canvas id="image-canvas" width="${finalImageWidth}" height="${finalImageHeight}"></canvas>
-                    <div class="graph-container horizontal">
-                <canvas id="primary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
+                    <div id="image-canvas-wrapper" data-drag-title="Image Preview">
+                        <canvas id="image-canvas" width="${finalImageWidth}" height="${finalImageHeight}"></canvas>
+                    </div>
+                    <div class="graph-container horizontal" data-drag-title="Primary Vertical Projection">
+                        <canvas id="primary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Primary Vertical Projection</div>
-            </div>
-                    <div class="graph-container horizontal">
-                <canvas id="secondary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
+                    </div>
+                    <div class="graph-container horizontal" data-drag-title="Secondary Vertical Graph">
+                        <canvas id="secondary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Secondary Vertical Graph</div>
-            </div>
-                    <div id="bottom-main-analysis-pane" class="analysis-pane">
+                    </div>
+                    <div id="bottom-main-analysis-pane" class="analysis-pane" data-drag-title="Bottom Analysis">
                         <h3>Bottom Analysis Pane</h3>
                         <div class="analysis-content">
                             <p>Future analysis will appear here</p>
@@ -1453,21 +1455,21 @@ function displayProjection(horizontal, vertical, image) {
                 </div>
                 <div class="right-section">
                     <div class="horizontal-graphs-row">
-                        <div class="graph-container vertical">
-                <canvas id="primary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
+                        <div class="graph-container vertical" data-drag-title="Horizontal Projection">
+                            <canvas id="primary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Horizontal Projection</div>
-            </div>
-                        <div class="graph-container vertical">
-                <canvas id="secondary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
+                        </div>
+                        <div class="graph-container vertical" data-drag-title="Secondary Horizontal Graph">
+                            <canvas id="secondary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Secondary Horizontal Graph</div>
-            </div>
+                        </div>
                     </div>
-                    <div id="right-analysis-pane" class="analysis-pane">
-                <h3>Right Analysis Pane</h3>
-                <div class="analysis-content">
+                    <div id="right-analysis-pane" class="analysis-pane" data-drag-title="Right Analysis">
+                        <h3>Right Analysis Pane</h3>
+                        <div class="analysis-content">
                             <p>Future analysis will appear here</p>
-                </div>
-            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1756,20 +1758,25 @@ function displayProjection(horizontal, vertical, image) {
         console.log('Using existing projection-content container');
     }
     
-    // Find all analysis panes that need to be draggable
+    // Find all elements that need to be draggable using their IDs or a common class if applicable
     const draggableElements = [
+        document.getElementById('image-canvas-wrapper'), // The new wrapper for the image canvas
         document.getElementById('right-analysis-pane'),
         document.getElementById('bottom-main-analysis-pane'),
-        // Add all graph containers
-        document.getElementById('vertical-projection-container'),
-        document.getElementById('secondary-vertical-projection-container'),
-        document.getElementById('horizontal-projection-container'),
-        document.getElementById('secondary-horizontal-projection-container'),
-        document.getElementById('image-container')
-    ].filter(el => el); // Filter out null elements
+        // Use querySelectorAll for graph containers as they share a class
+        // but ensure they are direct children of the projection-main-area or right-section to avoid nesting issues.
+        // This example assumes graph containers are identifiable and directly within the draggable area.
+    ];
+
+    // Add graph containers. We select them by their common class or structure.
+    // Ensure these selectors are precise to avoid making unintended elements draggable.
+    projectionOverlay.querySelectorAll('.graph-container').forEach(gc => draggableElements.push(gc));
+    
+    // Filter out any null elements if some IDs don't exist
+    const validDraggableElements = draggableElements.filter(el => el);
     
     // Initialize each element with our simplified draggable function
-    draggableElements.forEach(element => {
+    validDraggableElements.forEach(element => {
         // Remove any existing draggable initialization
         element.classList.remove('draggable-initialized');
         
@@ -1780,7 +1787,12 @@ function displayProjection(horizontal, vertical, image) {
         element.dataset.originalLeft = (rect.left - containerRect.left) + 'px';
         element.dataset.originalTop = (rect.top - containerRect.top) + 'px';
         
-        console.log(`Making ${element.id} draggable within ${draggableContainer.id || 'unnamed-container'}`);
+        // Add .draggable class if not already present, ensure it's applied for styling
+        if (!element.classList.contains('draggable')) {
+             element.classList.add('draggable');
+        }
+        
+        console.log(`Making ${element.id || element.className} draggable within ${draggableContainer.id || 'unnamed-container'}`);
         
         // Apply draggable behavior
         makeElementDraggable(element, draggableContainer);
@@ -3205,15 +3217,26 @@ function makeElementDraggable(element, container) {
     
     // Mark as initialized
     element.classList.add('draggable-initialized');
-    element.classList.add('draggable');
+    // Ensure .draggable class is present for CSS rules to apply
+    if (!element.classList.contains('draggable')) {
+        element.classList.add('draggable');
+    }
     
     console.log('INIT: Making element draggable:', element.id || element.className);
     
+    // Determine drag handle title
+    let title = element.querySelector('h3')?.textContent || 
+                element.dataset.dragTitle || // Use data-drag-title attribute
+                element.id || // Fallback to ID
+                'Draggable'; // Default
+    if (title.length > 25) title = title.substring(0,22) + "..."; // Truncate long titles
+
+
     // Create simple drag handle
     const dragHandle = document.createElement('div');
     dragHandle.className = 'drag-handle';
     dragHandle.innerHTML = `
-        <span class="drag-handle-title">${element.querySelector('h3')?.textContent || 'Draggable'}</span>
+        <span class="drag-handle-title">${title}</span>
     `;
     
     // SIMPLIFIED DRAG HANDLER - No more transforms, simpler positioning
