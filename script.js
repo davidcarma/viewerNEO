@@ -1539,7 +1539,7 @@ function displayProjection(horizontal, vertical, image) {
     const finalImageHeight = Math.round(imgCanvasRenderHeight);
 
     console.log(`Final image dimensions: ${finalImageWidth}x${finalImageHeight}`);
-    
+
     // Fixed sizes for the graph dimensions that don't match the image
     const horizontalGraphWidth = 100; // Width of the horizontal projection graphs
     const verticalGraphHeight = 80;   // Height of the vertical projection graphs
@@ -1551,21 +1551,21 @@ function displayProjection(horizontal, vertical, image) {
     const projectionOverlay = document.createElement('div');
     projectionOverlay.id = 'projection-overlay';
     projectionOverlay.className = 'projection-layout';
-
+    
     // Create the HTML layout with EXACT matching dimensions
     projectionOverlay.innerHTML = `
         <div class="projection-main-area">
             <div class="projection-top-row">
                 <div class="primary-image-col">
-                    <canvas id="image-canvas" width="${finalImageWidth}" height="${finalImageHeight}"></canvas>
+                <canvas id="image-canvas" width="${finalImageWidth}" height="${finalImageHeight}"></canvas>
                     <div class="graph-container horizontal">
-                        <canvas id="primary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
+                <canvas id="primary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Primary Vertical Projection</div>
-                    </div>
+            </div>
                     <div class="graph-container horizontal">
-                        <canvas id="secondary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
+                <canvas id="secondary-vertical-projection-graph" width="${finalImageWidth}" height="${verticalGraphHeight}"></canvas>
                         <div class="graph-label">Secondary Vertical Graph</div>
-                    </div>
+            </div>
                     <div id="bottom-main-analysis-pane" class="analysis-pane">
                         <h3>Bottom Analysis Pane</h3>
                         <div class="analysis-content">
@@ -1576,20 +1576,20 @@ function displayProjection(horizontal, vertical, image) {
                 <div class="right-section">
                     <div class="horizontal-graphs-row">
                         <div class="graph-container vertical">
-                            <canvas id="primary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
+                <canvas id="primary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Horizontal Projection</div>
-                        </div>
+            </div>
                         <div class="graph-container vertical">
-                            <canvas id="secondary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
+                <canvas id="secondary-horizontal-projection-graph" width="${horizontalGraphWidth}" height="${finalImageHeight}"></canvas>
                             <div class="graph-label">Secondary Horizontal Graph</div>
-                        </div>
+            </div>
                     </div>
                     <div id="right-analysis-pane" class="analysis-pane">
-                        <h3>Right Analysis Pane</h3>
-                        <div class="analysis-content">
+                <h3>Right Analysis Pane</h3>
+                <div class="analysis-content">
                             <p>Future analysis will appear here</p>
-                        </div>
-                    </div>
+                </div>
+            </div>
                 </div>
             </div>
         </div>
@@ -1639,15 +1639,13 @@ function displayProjection(horizontal, vertical, image) {
                 this.textContent = 'Enable Custom Layout';
                 
                 // Get all draggable elements and reset their positions
-                const draggableElements = layout.querySelectorAll('.draggable');
+                const draggableElements = document.querySelectorAll('.draggable');
                 draggableElements.forEach(element => {
-                    // Reset positioning
-                    element.style.position = '';
-                    element.style.left = '';
-                    element.style.top = '';
-                    element.style.width = '';
-                    element.style.height = '';
-                    element.style.flex = '';
+                    // Only reset if we have stored original positions
+                    if (element.dataset.originalLeft && element.dataset.originalTop) {
+                        element.style.left = element.dataset.originalLeft;
+                        element.style.top = element.dataset.originalTop;
+                    }
                 });
                 
                 console.log('Reverted to fixed layout');
@@ -1657,31 +1655,9 @@ function displayProjection(horizontal, vertical, image) {
                 layout.classList.add('custom-layout');
                 this.textContent = 'Reset to Fixed Layout';
                 
-                console.log('Switched to custom layout');
+                console.log('Switched to custom layout - draggable already initialized');
                 
-                // Initialize layout manager using a simpler approach
-                try {
-                    const container = layout.querySelector('.projection-main-area');
-                    if (!container) {
-                        console.error('Could not find projection-main-area');
-                        return;
-                    }
-                    
-                    const elements = [
-                        ...container.querySelectorAll('.analysis-pane'),
-                        ...container.querySelectorAll('.graph-container')
-                    ];
-                    
-                    console.log(`Found ${elements.length} elements to make draggable`);
-                    
-                    // Make each element draggable with a simpler implementation
-                    elements.forEach(element => {
-                        makeElementDraggable(element, container);
-                    });
-                    
-                } catch (err) {
-                    console.error('Error setting up draggable elements:', err);
-                }
+                // No need to re-initialize draggable elements - this is now handled at creation time
             }
         });
     }
@@ -1860,6 +1836,71 @@ function displayProjection(horizontal, vertical, image) {
         console.log('Projection display cleaned up');
     };
     
+    // STEP 7: Initialize draggable elements with proper container
+    console.log('Initializing draggable elements with enhanced container detection');
+    
+    // Ensure we have a proper container
+    let draggableContainer = projectionOverlay;
+    
+    // Check if we need to create a content container
+    if (!document.getElementById('projection-content')) {
+        // Create a container for all draggable content
+        const contentContainer = document.createElement('div');
+        contentContainer.id = 'projection-content';
+        contentContainer.style.position = 'relative'; 
+        contentContainer.style.width = '100%';
+        contentContainer.style.height = 'calc(100% - 100px)'; // Leave room for controls
+        contentContainer.style.overflow = 'hidden';
+        
+        // Extract controls so we can position them at the bottom
+        const controls = projectionOverlay.querySelector('.projection-controls');
+        
+        // Move all elements except controls into the content container
+        Array.from(projectionOverlay.children).forEach(child => {
+            if (child !== controls) {
+                contentContainer.appendChild(child);
+            }
+        });
+        
+        // Add content container back to the main overlay
+        if (controls) {
+            projectionOverlay.insertBefore(contentContainer, controls);
+        } else {
+            projectionOverlay.appendChild(contentContainer);
+        }
+        
+        // Set this as our draggable container
+        draggableContainer = contentContainer;
+        console.log('Created projection-content container for draggables');
+    } else {
+        draggableContainer = document.getElementById('projection-content');
+        console.log('Using existing projection-content container');
+    }
+    
+    // Find all analysis panes that need to be draggable
+    const draggableElements = [
+        document.getElementById('right-analysis-pane'),
+        document.getElementById('bottom-main-analysis-pane')
+    ].filter(el => el); // Filter out null elements
+    
+    // Initialize each element with our simplified draggable function
+    draggableElements.forEach(element => {
+        // Remove any existing draggable initialization
+        element.classList.remove('draggable-initialized');
+        
+        // Store original position for reset
+        const rect = element.getBoundingClientRect();
+        const containerRect = draggableContainer.getBoundingClientRect();
+        
+        element.dataset.originalLeft = (rect.left - containerRect.left) + 'px';
+        element.dataset.originalTop = (rect.top - containerRect.top) + 'px';
+        
+        console.log(`Making ${element.id} draggable within ${draggableContainer.id || 'unnamed-container'}`);
+        
+        // Apply draggable behavior
+        makeElementDraggable(element, draggableContainer);
+    });
+    
     // Set up algorithm button handlers
     setupAlgorithmButtons(horizontal, vertical, 
                          primaryHorizontalProjectionGraphCtx, primaryVerticalProjectionGraphCtx,
@@ -1902,30 +1943,120 @@ function displayProjection(horizontal, vertical, image) {
     document.getElementById('toggle-layout-mode').addEventListener('click', function() {
         const layout = document.querySelector('.projection-layout');
         
-        if (layout.classList.contains('custom-layout')) {
+        if (layout && layout.classList.contains('custom-layout')) {
             // Switch to fixed layout
             layout.classList.remove('custom-layout');
             this.textContent = 'Enable Custom Layout';
             
             // Reset positions of all draggable elements
-            if (window.projectionLayoutManager) {
-                window.projectionLayoutManager.draggableElements.forEach(item => {
-                    window.projectionLayoutManager.resetElementPosition(item.element);
-                });
-            }
+            document.querySelectorAll('.draggable').forEach(element => {
+                if (element.dataset.originalLeft && element.dataset.originalTop) {
+                    element.style.left = element.dataset.originalLeft;
+                    element.style.top = element.dataset.originalTop;
+                }
+            });
+            
+            console.log('Reverted to fixed layout');
         } else {
             // Switch to custom layout
-            layout.classList.add('custom-layout');
+            if (layout) layout.classList.add('custom-layout');
             this.textContent = 'Reset to Fixed Layout';
             
-            // Initialize layout manager if not already done
-            if (window.projectionLayoutManager) {
-                window.projectionLayoutManager.init();
-            } else if (typeof initLayoutManager === 'function') {
-                initLayoutManager();
+            console.log('Switched to custom layout');
+            
+            // Find a suitable container for draggable elements
+            let container = document.getElementById('projection-content');
+            
+            // If not found, try other selectors
+            if (!container) {
+                container = document.getElementById('projection-overlay');
+                if (!container) {
+                    container = document.querySelector('.projection-layout');
+                }
             }
+            
+            // If we still don't have a container, create one
+            if (!container) {
+                const projectionOverlay = document.getElementById('projection-overlay');
+                if (projectionOverlay) {
+                    container = document.createElement('div');
+                    container.id = 'projection-content';
+                    container.className = 'projection-content layout-container';
+                    container.style.position = 'relative';
+                    container.style.width = '100%';
+                    container.style.height = 'calc(100% - 100px)'; // Leave room for controls at bottom
+                    container.style.overflow = 'hidden';
+                    
+                    // Move all direct children of projectionOverlay into container
+                    // except for the projection-controls div
+                    Array.from(projectionOverlay.children).forEach(child => {
+                        if (!child.classList.contains('projection-controls')) {
+                            container.appendChild(child);
+                        }
+                    });
+                    
+                    // Add container to projectionOverlay before projection-controls
+                    const controls = projectionOverlay.querySelector('.projection-controls');
+                    if (controls) {
+                        projectionOverlay.insertBefore(container, controls);
+                    } else {
+                        projectionOverlay.appendChild(container);
+                    }
+                    
+                    console.log('Created new container for draggable elements');
+                } else {
+                    console.error('Could not find or create a suitable container');
+                    return;
+                }
+            }
+            
+            // Make sure we work with the right elements
+            const draggables = [
+                document.getElementById('right-analysis-pane'), 
+                document.getElementById('bottom-main-analysis-pane')
+            ].filter(e => e); // Filter out null values
+            
+            // Make sure each element starts with absolute positioning and stores original position
+            draggables.forEach((element, index) => {
+                if (!element) return;
+                
+                const rect = element.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                // Save the original position if not already saved
+                if (!element.dataset.originalLeft || !element.dataset.originalTop) {
+                    if (element.style.left && element.style.top) {
+                        element.dataset.originalLeft = element.style.left;
+                        element.dataset.originalTop = element.style.top;
+                    } else {
+                        // Calculate position relative to container
+                        const left = rect.left - containerRect.left;
+                        const top = rect.top - containerRect.top;
+                        
+                        element.dataset.originalLeft = left + 'px';
+                        element.dataset.originalTop = top + 'px';
+                    }
+                }
+                
+                // Clear any existing positioning and reinitialize
+                element.classList.remove('draggable-initialized');
+                
+                // Add a delay to ensure position is calculated after the layout change
+                setTimeout(() => {
+                    makeElementDraggable(element, container);
+                }, 50);
+            });
         }
     });
+    
+    // After algorithm buttons, create the layout toggle button
+    addLayoutToggle(projectionLayout);
+    
+    // Remove any old toggle layout button
+    const oldToggleBtn = projectionLayout.querySelector('.layout-toggle');
+    if (oldToggleBtn) {
+        oldToggleBtn.remove();
+    }
     
     // Return the cleanup function in case it's needed elsewhere
     return cleanup;
@@ -3193,165 +3324,355 @@ function makeElementDraggable(element, container) {
     element.classList.add('draggable-initialized');
     element.classList.add('draggable');
     
-    // Create drag handle
+    console.log('INIT: Making element draggable:', element.id || element.className);
+    
+    // Create simple drag handle
     const dragHandle = document.createElement('div');
     dragHandle.className = 'drag-handle';
     dragHandle.innerHTML = `
-        <span class="drag-handle-grip">|||</span>
         <span class="drag-handle-title">${element.querySelector('h3')?.textContent || 'Draggable'}</span>
-        <div class="drag-handle-controls">
-            <button title="Reset Position">&#8634;</button>
-        </div>
     `;
     
-    // Add resize handles
-    const positions = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-    positions.forEach(pos => {
-        const handle = document.createElement('div');
-        handle.className = `resize-handle ${pos}`;
-        handle.dataset.direction = pos;
-        element.appendChild(handle);
-        
-        // Resize logic
-        handle.addEventListener('mousedown', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const startX = e.clientX;
-            const startY = e.clientY;
-            const startRect = element.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-            
-            const startLeft = startRect.left - containerRect.left;
-            const startTop = startRect.top - containerRect.top;
-            const startWidth = startRect.width;
-            const startHeight = startRect.height;
-            
-            // Position element absolutely if not already
-            if (getComputedStyle(element).position !== 'absolute') {
-                element.style.position = 'absolute';
-                element.style.left = startLeft + 'px';
-                element.style.top = startTop + 'px';
-                element.style.width = startWidth + 'px';
-                element.style.height = startHeight + 'px';
-                element.style.flex = 'none';
-            }
-            
-            element.classList.add('dragging');
-            
-            function handleResize(moveEvent) {
-                const deltaX = moveEvent.clientX - startX;
-                const deltaY = moveEvent.clientY - startY;
-                
-                let newLeft = startLeft;
-                let newTop = startTop;
-                let newWidth = startWidth;
-                let newHeight = startHeight;
-                
-                // Apply resize based on direction
-                switch (pos) {
-                    case 'top-left':
-                        newLeft = startLeft + deltaX;
-                        newTop = startTop + deltaY;
-                        newWidth = startWidth - deltaX;
-                        newHeight = startHeight - deltaY;
-                        break;
-                    case 'top-right':
-                        newTop = startTop + deltaY;
-                        newWidth = startWidth + deltaX;
-                        newHeight = startHeight - deltaY;
-                        break;
-                    case 'bottom-left':
-                        newLeft = startLeft + deltaX;
-                        newWidth = startWidth - deltaX;
-                        newHeight = startHeight + deltaY;
-                        break;
-                    case 'bottom-right':
-                        newWidth = startWidth + deltaX;
-                        newHeight = startHeight + deltaY;
-                        break;
-                }
-                
-                // Enforce minimum size
-                if (newWidth < 100) newWidth = 100;
-                if (newHeight < 100) newHeight = 100;
-                
-                // Apply the new position and size
-                element.style.left = newLeft + 'px';
-                element.style.top = newTop + 'px';
-                element.style.width = newWidth + 'px';
-                element.style.height = newHeight + 'px';
-            }
-            
-            function stopResize() {
-                document.removeEventListener('mousemove', handleResize);
-                document.removeEventListener('mouseup', stopResize);
-                element.classList.remove('dragging');
-            }
-            
-            document.addEventListener('mousemove', handleResize);
-            document.addEventListener('mouseup', stopResize);
-        });
-    });
-    
-    // Add reset button functionality
-    const resetBtn = dragHandle.querySelector('button');
-    resetBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        element.style.position = '';
-        element.style.left = '';
-        element.style.top = '';
-        element.style.width = '';
-        element.style.height = '';
-        element.style.flex = '';
-    });
-    
-    // Add drag functionality to the handle
+    // SIMPLIFIED DRAG HANDLER - No more transforms, simpler positioning
     dragHandle.addEventListener('mousedown', function(e) {
-        if (e.target.tagName === 'BUTTON') return; // Don't drag when clicking buttons
-        
         e.preventDefault();
         e.stopPropagation();
         
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const rect = element.getBoundingClientRect();
+        console.log('DRAG START: ======= NEW DRAG OPERATION =======');
+        console.log('DRAG START: Element:', element.id || element.className);
+        console.log('DRAG START: Container:', container.id || container.className);
+        
+        // Get initial positions
+        const elementRect = element.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         
-        const startLeft = rect.left - containerRect.left;
-        const startTop = rect.top - containerRect.top;
+        // Calculate mouse offset from element corner
+        const mouseOffsetX = e.clientX - elementRect.left;
+        const mouseOffsetY = e.clientY - elementRect.top;
         
-        // Position element absolutely if not already
+        console.log('DRAG START: Element rect:', elementRect);
+        console.log('DRAG START: Container rect:', containerRect);
+        console.log('DRAG START: Mouse offset from corner:', { mouseOffsetX, mouseOffsetY });
+        
+        // Make sure element has absolute positioning
         if (getComputedStyle(element).position !== 'absolute') {
             element.style.position = 'absolute';
-            element.style.left = startLeft + 'px';
-            element.style.top = startTop + 'px';
-            element.style.width = rect.width + 'px';
-            element.style.height = rect.height + 'px';
-            element.style.flex = 'none';
+            
+            // Get current position relative to container
+            const currentLeft = elementRect.left - containerRect.left;
+            const currentTop = elementRect.top - containerRect.top;
+            
+            // Set initial position
+            element.style.left = currentLeft + 'px';
+            element.style.top = currentTop + 'px';
+            element.style.width = elementRect.width + 'px';
+            element.style.height = elementRect.height + 'px';
+            
+            console.log('DRAG START: Set initial position:', { 
+                left: element.style.left, 
+                top: element.style.top 
+            });
         }
         
         element.classList.add('dragging');
         
+        // Simple drag handler
         function handleDrag(moveEvent) {
-            const deltaX = moveEvent.clientX - startX;
-            const deltaY = moveEvent.clientY - startY;
+            // Get current container position
+            const currentContainerRect = container.getBoundingClientRect();
             
-            element.style.left = (startLeft + deltaX) + 'px';
-            element.style.top = (startTop + deltaY) + 'px';
+            // Calculate new position: mouse position - container position - mouse offset
+            const newLeft = moveEvent.clientX - currentContainerRect.left - mouseOffsetX;
+            const newTop = moveEvent.clientY - currentContainerRect.top - mouseOffsetY;
+            
+            // Get element dimensions for boundary checking
+            const elemWidth = element.offsetWidth;
+            const elemHeight = element.offsetHeight;
+            
+            // Constrain to container boundaries
+            const maxLeft = currentContainerRect.width - elemWidth;
+            const maxTop = currentContainerRect.height - elemHeight;
+            
+            const constrainedLeft = Math.max(0, Math.min(maxLeft, newLeft));
+            const constrainedTop = Math.max(0, Math.min(maxTop, newTop));
+            
+            // Apply position
+            element.style.left = constrainedLeft + 'px';
+            element.style.top = constrainedTop + 'px';
+            
+            console.log('DRAG MOVE: Position:', { 
+                rawLeft: newLeft, 
+                rawTop: newTop,
+                constrained: { left: constrainedLeft, top: constrainedTop }
+            });
         }
         
         function stopDrag() {
             document.removeEventListener('mousemove', handleDrag);
             document.removeEventListener('mouseup', stopDrag);
             element.classList.remove('dragging');
+            
+            console.log('DRAG END: Final position:', { 
+                left: element.style.left, 
+                top: element.style.top
+            });
+            
+            console.log('DRAG END: ======= END DRAG OPERATION =======');
         }
         
         document.addEventListener('mousemove', handleDrag);
         document.addEventListener('mouseup', stopDrag);
     });
     
+    // Add handle to the element
     element.appendChild(dragHandle);
-    console.log('Made element draggable:', element);
+    console.log('INIT: Element is now draggable');
 }
 
+// Add toggle layout button
+function addLayoutToggle(projectionLayout) {
+    const toggleLayoutBtn = document.createElement('button');
+    toggleLayoutBtn.textContent = 'Custom Layout';
+    toggleLayoutBtn.classList.add('algo-btn');
+    toggleLayoutBtn.style.marginLeft = 'auto';
+    
+    toggleLayoutBtn.addEventListener('click', function() {
+        const layout = projectionLayout;
+        
+        if (layout.classList.contains('custom-layout')) {
+            // Switch back to fixed layout
+            layout.classList.remove('custom-layout');
+            this.textContent = 'Custom Layout';
+            
+            // Clean up draggable elements
+            const elements = layout.querySelectorAll('.draggable');
+            elements.forEach(element => {
+                // Remove draggable class and attribute
+                element.classList.remove('draggable', 'draggable-initialized');
+                element.removeAttribute('data-draggable-initialized');
+                
+                // Remove drag handle
+                const dragHandle = element.querySelector('.drag-handle');
+                if (dragHandle) {
+                    dragHandle.remove();
+                }
+                
+                // Remove resize handles
+                const resizeHandles = element.querySelectorAll('.resize-handle');
+                resizeHandles.forEach(handle => handle.remove());
+                
+                // Reset styling to default
+                element.style.position = '';
+                element.style.left = '';
+                element.style.top = '';
+                element.style.width = '';
+                element.style.height = '';
+                element.style.flex = '';
+            });
+            
+            console.log('Reverted to fixed layout');
+            
+        } else {
+            // Switch to custom layout
+            layout.classList.add('custom-layout');
+            this.textContent = 'Reset to Fixed Layout';
+            
+            console.log('Switched to custom layout');
+            
+            // Initialize layout manager using a simpler approach
+            try {
+                // Create a debug container to show which containers we're checking
+                const debugOverlay = document.createElement('div');
+                debugOverlay.style.position = 'fixed';
+                debugOverlay.style.zIndex = '99999';
+                debugOverlay.style.background = 'rgba(0,0,0,0.7)';
+                debugOverlay.style.color = 'white';
+                debugOverlay.style.padding = '10px';
+                debugOverlay.style.top = '10px';
+                debugOverlay.style.right = '10px';
+                debugOverlay.style.maxWidth = '300px';
+                debugOverlay.style.maxHeight = '400px';
+                debugOverlay.style.overflowY = 'auto';
+                debugOverlay.style.pointerEvents = 'none';
+                debugOverlay.innerHTML = '<h3>Container Debug Info</h3>';
+                document.body.appendChild(debugOverlay);
+                
+                // STEP 1: Find the best container for draggable elements
+                // Start with specific candidates
+                const containerCandidates = [
+                    layout.querySelector('.projection-main-area'),
+                    layout.querySelector('.projection-top-row'),
+                    layout.querySelector('.primary-image-col'),
+                    layout
+                ];
+                
+                // Add each potential candidate to the debug overlay
+                let container = null;
+                const appendDebugInfo = (msg) => {
+                    debugOverlay.innerHTML += `<div>${msg}</div>`;
+                };
+                
+                appendDebugInfo('Checking container candidates:');
+                
+                for (let i = 0; i < containerCandidates.length; i++) {
+                    const candidate = containerCandidates[i];
+                    if (candidate) {
+                        // Get some info about this candidate
+                        const rect = candidate.getBoundingClientRect();
+                        const position = getComputedStyle(candidate).position;
+                        const className = candidate.className;
+                        const id = candidate.id || '[no id]';
+                        
+                        appendDebugInfo(`Candidate ${i+1}: ${className} (${id})<br>
+                                        Size: ${rect.width}x${rect.height}<br>
+                                        Position: ${position}`);
+                        
+                        // Try to highlight this candidate
+                        const originalOutline = candidate.style.outline;
+                        candidate.style.outline = `3px solid rgba(${i*50},100,255,0.8)`;
+                        
+                        // Set our container to the first valid candidate
+                        if (!container && rect.width > 100 && rect.height > 100) {
+                            container = candidate;
+                            appendDebugInfo(`=> Selected as container ✓`);
+                        }
+                        
+                        // Restore outline after delay
+                        setTimeout(() => {
+                            candidate.style.outline = originalOutline;
+                        }, 5000);
+                    }
+                }
+                
+                // If we still don't have a container, try more general selectors
+                if (!container) {
+                    appendDebugInfo('No specific container found, trying generic selectors...');
+                    
+                    // Try any element with layout-container class first
+                    container = layout.querySelector('.layout-container') || 
+                                document.querySelector('.layout-container');
+                    
+                    // Try the projection overlay itself as a last resort
+                    if (!container) {
+                        container = document.getElementById('projection-overlay');
+                        appendDebugInfo('Using projection-overlay as a fallback');
+                    }
+                }
+                
+                // Final sanity check on the container
+                if (!container) {
+                    appendDebugInfo('ERROR: No suitable container found!');
+                    console.error('Could not find suitable container for draggable elements');
+                    return;
+                }
+                
+                // Log container info
+                const finalRect = container.getBoundingClientRect();
+                appendDebugInfo(`FINAL CONTAINER: ${container.className} (${container.id})<br>
+                               Size: ${finalRect.width}x${finalRect.height}<br>
+                               Position: ${getComputedStyle(container).position}`);
+                
+                // Container preparation
+                container.id = container.id || 'projection-container-' + Date.now();
+                container.dataset.layoutContainer = 'true';
+                container.classList.add('layout-container');
+                
+                // Ensure container has a non-static position to serve as relative parent
+                if (getComputedStyle(container).position === 'static') {
+                    container.style.position = 'relative';
+                    appendDebugInfo('Set container position to relative');
+                }
+                
+                // Set a high z-index for the container
+                container.style.zIndex = '10';
+                
+                // Force visible outline on container (keep it visible)
+                container.style.outline = '3px dashed rgba(255, 100, 100, 0.8)';
+                
+                // Force container to have explicit dimensions if needed
+                if (finalRect.width < 100 || finalRect.height < 100) {
+                    container.style.width = '100%';
+                    container.style.height = '600px';
+                    container.style.minHeight = '600px';
+                    appendDebugInfo('Force-set container dimensions');
+                }
+                
+                // Remove debug overlay after delay
+                setTimeout(() => {
+                    if (document.body.contains(debugOverlay)) {
+                        document.body.removeChild(debugOverlay);
+                    }
+                    container.style.outline = '1px dashed rgba(255, 100, 100, 0.4)';
+                }, 10000);
+                
+                // STEP 2: Find and prepare elements to make draggable
+                // Find all elements to make draggable
+                const elements = [
+                    ...container.querySelectorAll('.analysis-pane'),
+                    ...container.querySelectorAll('.graph-container')
+                ];
+                
+                appendDebugInfo(`Found ${elements.length} draggable elements`);
+                
+                // Stagger the positioning of elements
+                let xOffset = 50;
+                let yOffset = 50;
+                const staggerStep = 30;
+                
+                // First apply positions and ensure they're in the container
+                elements.forEach((element, index) => {
+                    // Check if element is actually a child of the container
+                    if (!container.contains(element)) {
+                        appendDebugInfo(`Element ${index+1} not in container, will fix`);
+                        // Move the element to the container if needed
+                        container.appendChild(element);
+                    }
+                    
+                    // Get current position
+                    const rect = element.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    
+                    // Set initial position using staggering
+                    element.style.position = 'absolute';
+                    element.style.left = (xOffset + (index * staggerStep)) + 'px';
+                    element.style.top = (yOffset + (index * staggerStep)) + 'px';
+                    
+                    // Preserve original dimensions
+                    element.style.width = rect.width + 'px';
+                    element.style.height = rect.height + 'px';
+                    element.style.flex = 'none';
+                    element.style.margin = '0';
+                    
+                    // Save original position for reset functionality
+                    element.dataset.originalLeft = element.style.left;
+                    element.dataset.originalTop = element.style.top;
+                    
+                    // Ensure it's visible with a higher z-index
+                    element.style.zIndex = (20 + index).toString();
+                    
+                    // Add a visual indicator
+                    element.style.boxShadow = '0 0 10px rgba(100, 255, 100, 0.7)';
+                    setTimeout(() => {
+                        element.style.boxShadow = '';
+                    }, 5000);
+                });
+                
+                // Then make them draggable
+                elements.forEach(element => {
+                    makeElementDraggable(element, container);
+                });
+                
+            } catch (err) {
+                console.error('Error setting up draggable elements:', err);
+            }
+        }
+    });
+    
+    // Add the button to the layout
+    const buttonContainer = projectionLayout.querySelector('.algorithm-buttons') || projectionLayout;
+    buttonContainer.appendChild(toggleLayoutBtn);
+    
+    return toggleLayoutBtn;
+}
+
+        

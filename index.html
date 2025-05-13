@@ -32,6 +32,24 @@
             <button id="projection-btn">Show Projection</button> 
             <button id="toggle-thumbnails">Show Thumbnails</button>
         </div>
+        
+        <!-- Test draggable elements -->
+        <div class="analysis-pane" data-title="Test Panel 1" style="left: 100px; top: 100px; width: 300px; height: 200px;">
+            <h3>Test Draggable Panel</h3>
+            <div class="analysis-content">
+                This is a test panel to verify that the layout manager is working correctly.
+                Try dragging this panel by its header.
+            </div>
+        </div>
+        
+        <div class="analysis-pane" data-title="Test Panel 2" style="left: 500px; top: 150px; width: 250px; height: 180px;">
+            <h3>Another Test Panel</h3>
+            <div class="analysis-content">
+                This is another test panel. Both panels should be draggable without "hopping".
+            </div>
+        </div>
+        <!-- End test elements -->
+        
         <div id="grid-controls">
             <label>
                 Size (px):
