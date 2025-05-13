@@ -1955,6 +1955,15 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
     let fftHorizontal = null;
     let fftVertical = null;
 
+    // Find the container for draggables - needed for re-initialization
+    const draggableContainer = document.getElementById('projection-content') || 
+                               document.querySelector('.projection-main-area') ||
+                               document.getElementById('projection-overlay');
+
+    // Get references to the analysis panes
+    const rightPane = document.getElementById('right-analysis-pane');
+    const bottomPane = document.getElementById('bottom-main-analysis-pane');
+
     switch(algorithm) {
         case 1: // LPF button
             {
@@ -1966,14 +1975,23 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 plotDataVertical = normalize(filteredVertical, Math.max(...filteredVertical));
                 
                 // Update analysis pane with LPF information
-                document.getElementById('right-analysis-pane').innerHTML = `
-                    <h3>Low Pass Filter Results</h3>
-                    <div class="analysis-content">
-                        <p>Applied moving average filter with window size: ${lpfWindowSize}</p>
-                        <p>This filter smooths the signal by reducing high-frequency components.</p>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
+                if (rightPane) {
+                    rightPane.classList.remove('draggable-initialized'); // Allow re-init
+                    rightPane.innerHTML = `
+                        <h3>Low Pass Filter Results</h3>
+                        <div class="analysis-content">
+                            <p>Applied moving average filter with window size: ${lpfWindowSize}</p>
+                            <p>This filter smooths the signal by reducing high-frequency components.</p>
+                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                        </div>
+                    `;
+                    if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
+                }
+                 if (bottomPane) {
+                    bottomPane.classList.remove('draggable-initialized');
+                    bottomPane.innerHTML = `<h3>Algorithm ${algorithm} - Bottom</h3><div class="analysis-content"><p>LPF Applied</p></div>`;
+                    if (draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
+                }
             }
             break;
         case 2: // Derivative button
@@ -1999,219 +2017,125 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                 plotDataVertical = rawDerivVertical.map(v => 0.5 + (v / (2 * maxAbsVertical + 0.00001)));
                 
                 // Update analysis pane with derivative information
-                document.getElementById('right-analysis-pane').innerHTML = `
-                    <h3>Derivative Results</h3>
-                    <div class="analysis-content">
-                        <p>First derivative shows rate of change at each point.</p>
-                        <p>Horizontal Derivative: Min=${minDerivHorizontal.toFixed(2)}, Max=${maxDerivHorizontal.toFixed(2)}</p>
-                        <p>Vertical Derivative: Min=${minDerivVertical.toFixed(2)}, Max=${maxDerivVertical.toFixed(2)}</p>
-                        <p>Zero-crossings indicate local maxima and minima in the original signal.</p>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
+                if (rightPane) {
+                    rightPane.classList.remove('draggable-initialized');
+                    rightPane.innerHTML = `
+                        <h3>Derivative Results</h3>
+                        <div class="analysis-content">
+                            <p>First derivative shows rate of change at each point.</p>
+                            <p>Horizontal Derivative: Min=${minDerivHorizontal.toFixed(2)}, Max=${maxDerivHorizontal.toFixed(2)}</p>
+                            <p>Vertical Derivative: Min=${minDerivVertical.toFixed(2)}, Max=${maxDerivVertical.toFixed(2)}</p>
+                            <p>Zero-crossings indicate local maxima and minima in the original signal.</p>
+                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                        </div>
+                    `;
+                     if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
+                }
+                 if (bottomPane) {
+                    bottomPane.classList.remove('draggable-initialized');
+                    bottomPane.innerHTML = `<h3>Algorithm ${algorithm} - Bottom</h3><div class="analysis-content"><p>Derivative Applied</p></div>`;
+                    if (draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
+                }
             }
             break;
         case 3: // Derivative + FFT
+        case 4: // Mod(Derivative) + FFT
             {
-                // Modified to use Derivative + FFT
-                // Assign to the outer scope variables
-                fftHorizontal = calculateDerivativeFFT(horizontalProfile);
-                fftVertical = calculateDerivativeFFT(verticalProfile);
+                const isMod = algorithm === 4;
+                const titlePrefix = isMod ? "|Deriv|+FFT" : "Deriv+FFT";
+                const analysisText = isMod ? "|Derivative| + FFT analysis" : "Derivative + FFT analysis";
+
+                fftHorizontal = isMod ? calculateModDerivativeFFT(horizontalProfile) : calculateDerivativeFFT(horizontalProfile);
+                fftVertical = isMod ? calculateModDerivativeFFT(verticalProfile) : calculateDerivativeFFT(verticalProfile);
                 
                 const originalHorizontalLength = horizontalProfile.length;
                 const originalVerticalLength = verticalProfile.length;
 
-                // Find top peaks in FFT results
-                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal, 8, originalHorizontalLength);
-                let verticalPeaksRaw = findFFTPeaks(fftVertical, 8, originalVerticalLength);
-
-                // Use peaks directly - they now have correct frequency calculations
-                const horizontalPeaks = horizontalPeaksRaw;
-                const verticalPeaks = verticalPeaksRaw;
+                let horizontalPeaks = findFFTPeaks(fftHorizontal, 8, originalHorizontalLength);
+                let verticalPeaks = findFFTPeaks(fftVertical, 8, originalVerticalLength);
                 
-                // Normalize FFT results
                 plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
                 plotDataVertical = normalize(fftVertical, Math.max(...fftVertical));
                 
-                // Create a special mode for FFT visualization - it's a frequency spectrum
-                isDerivativeMode = true; // Use line chart
+                isDerivativeMode = true; // Use line chart for FFT magnitude
                 
-                // Store min/max values for grid rendering
-                minDerivHorizontal = 0; // FFT magnitudes are always positive
+                minDerivHorizontal = 0;
                 maxDerivHorizontal = Math.max(...fftHorizontal);
                 minDerivVertical = 0;
                 maxDerivVertical = Math.max(...fftVertical);
                 
-                // Update RIGHT analysis pane with Horizontal FFT information (from rows/horizontal projection)
-                document.getElementById('right-analysis-pane').innerHTML = `
-                    <h3>Horizontal Proj. FFT Peaks</h3>
-                    <div class="analysis-content">
-                        <p>Derivative + FFT analysis of horizontal projection:</p>
-                        <table class="peak-table">
-                            <tr>
-                                <th>Rank</th>
-                                <th>Bin</th>
-                                <th>Frequency</th>
-                                <th>λ (pixels)</th>
-                                <th>Magnitude</th>
-                            </tr>
-                            ${horizontalPeaks.map((peak, i) => `
-                                <tr>
-                                    <td>${i+1}</td>
-                                    <td>${peak.index}</td>
-                                    <td>${peak.frequency.toFixed(4)} c/px</td>
-                                    <td>${peak.wavelength.toFixed(1)}</td>
-                                    <td>${peak.magnitude.toFixed(1)}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
+                // Update RIGHT analysis pane
+                if (rightPane) {
+                    rightPane.classList.remove('draggable-initialized');
+                    rightPane.innerHTML = `
+                        <h3>Horizontal Proj. ${titlePrefix} Peaks</h3>
+                        <div class="analysis-content">
+                            <p>${analysisText} of horizontal projection:</p>
+                            <table class="peak-table">
+                                <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
+                                ${horizontalPeaks.map((peak, i) => `
+                                    <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
+                                `).join('')}
+                            </table>
+                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                        </div>
+                    `;
+                    if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
+                }
                 
-                // Update BOTTOM analysis pane with Vertical FFT information (from columns/vertical projection)
-                document.getElementById('bottom-main-analysis-pane').innerHTML = `
-                    <h3>Vertical Proj. FFT Peaks</h3>
-                    <div class="analysis-content">
-                        <p>Derivative + FFT analysis of vertical projection:</p>
-                        <table class="peak-table">
-                            <tr>
-                                <th>Rank</th>
-                                <th>Bin</th>
-                                <th>Frequency</th>
-                                <th>λ (pixels)</th>
-                                <th>Magnitude</th>
-                            </tr>
-                            ${verticalPeaks.map((peak, i) => `
-                                <tr>
-                                    <td>${i+1}</td>
-                                    <td>${peak.index}</td>
-                                    <td>${peak.frequency.toFixed(4)} c/px</td>
-                                    <td>${peak.wavelength.toFixed(1)}</td>
-                                    <td>${peak.magnitude.toFixed(1)}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
-            }
-            break;
-        case 4: // Algorithm 4 - Mod(Derivative) + FFT
-            {
-                // Use Mod(Derivative) + FFT
-                // Assign to the outer scope variables
-                fftHorizontal = calculateModDerivativeFFT(horizontalProfile);
-                fftVertical = calculateModDerivativeFFT(verticalProfile);
-                
-                const originalHorizontalLength = horizontalProfile.length;
-                const originalVerticalLength = verticalProfile.length;
-
-                // Find top peaks in FFT results
-                let horizontalPeaksRaw = findFFTPeaks(fftHorizontal, 8, originalHorizontalLength);
-                let verticalPeaksRaw = findFFTPeaks(fftVertical, 8, originalVerticalLength);
-
-                // Use peaks directly - they now have correct frequency calculations
-                const horizontalPeaks = horizontalPeaksRaw;
-                const verticalPeaks = verticalPeaksRaw;
-                
-                // Normalize FFT results
-                plotDataHorizontal = normalize(fftHorizontal, Math.max(...fftHorizontal));
-                plotDataVertical = normalize(fftVertical, Math.max(...fftVertical));
-                
-                // Create a special mode for FFT visualization - it's a frequency spectrum
-                isDerivativeMode = true; // Use line chart
-                
-                // Store min/max values for grid rendering
-                minDerivHorizontal = 0; // FFT magnitudes are always positive
-                maxDerivHorizontal = Math.max(...fftHorizontal);
-                minDerivVertical = 0;
-                maxDerivVertical = Math.max(...fftVertical);
-                
-                // Update RIGHT analysis pane with Horizontal FFT information (from rows/horizontal projection)
-                document.getElementById('right-analysis-pane').innerHTML = `
-                    <h3>Horizontal Proj. |Deriv|+FFT Peaks</h3>
-                    <div class="analysis-content">
-                        <p>|Derivative| + FFT analysis of horizontal projection:</p>
-                        <table class="peak-table">
-                            <tr>
-                                <th>Rank</th>
-                                <th>Bin</th>
-                                <th>Frequency</th>
-                                <th>λ (pixels)</th>
-                                <th>Magnitude</th>
-                            </tr>
-                            ${horizontalPeaks.map((peak, i) => `
-                                <tr>
-                                    <td>${i+1}</td>
-                                    <td>${peak.index}</td>
-                                    <td>${peak.frequency.toFixed(4)} c/px</td>
-                                    <td>${peak.wavelength.toFixed(1)}</td>
-                                    <td>${peak.magnitude.toFixed(1)}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
-                
-                // Update BOTTOM analysis pane with Vertical FFT information (from columns/vertical projection)
-                document.getElementById('bottom-main-analysis-pane').innerHTML = `
-                    <h3>Vertical Proj. |Deriv|+FFT Peaks</h3>
-                    <div class="analysis-content">
-                        <p>|Derivative| + FFT analysis of vertical projection:</p>
-                        <table class="peak-table">
-                            <tr>
-                                <th>Rank</th>
-                                <th>Bin</th>
-                                <th>Frequency</th>
-                                <th>λ (pixels)</th>
-                                <th>Magnitude</th>
-                            </tr>
-                            ${verticalPeaks.map((peak, i) => `
-                                <tr>
-                                    <td>${i+1}</td>
-                                    <td>${peak.index}</td>
-                                    <td>${peak.frequency.toFixed(4)} c/px</td>
-                                    <td>${peak.wavelength.toFixed(1)}</td>
-                                    <td>${peak.magnitude.toFixed(1)}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
+                // Update BOTTOM analysis pane
+                if (bottomPane) {
+                    bottomPane.classList.remove('draggable-initialized');
+                    bottomPane.innerHTML = `
+                        <h3>Vertical Proj. ${titlePrefix} Peaks</h3>
+                        <div class="analysis-content">
+                            <p>${analysisText} of vertical projection:</p>
+                            <table class="peak-table">
+                                <tr><th>Rank</th><th>Bin</th><th>Frequency</th><th>λ (pixels)</th><th>Magnitude</th></tr>
+                                ${verticalPeaks.map((peak, i) => `
+                                    <tr><td>${i+1}</td><td>${peak.index}</td><td>${peak.frequency.toFixed(4)} c/px</td><td>${peak.wavelength.toFixed(1)}</td><td>${peak.magnitude.toFixed(1)}</td></tr>
+                                `).join('')}
+                            </table>
+                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                        </div>
+                    `;
+                    if (draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
+                }
             }
             break;
         default: // Algorithmic patterns (sine, step, etc.)
             {
-                // For algorithmic patterns, we still need a base length from original profiles
                 const baseHorizontalNormalized = normalize(horizontalProfile, Math.max(...horizontalProfile));
                 const baseVerticalNormalized = normalize(verticalProfile, Math.max(...verticalProfile));
                 
-                // Generate pattern data of the same length
                 plotDataHorizontal = new Array(baseHorizontalNormalized.length);
                 plotDataVertical = new Array(baseVerticalNormalized.length);
 
-                // Generate different pattern based on algorithm number
                 for (let i = 0; i < baseHorizontalNormalized.length; i++) {
-                    // Use algorithmic patterns for other buttons
                     plotDataHorizontal[i] = Math.abs(Math.sin(i * 0.1 * (algorithm % 3 + 1)) * 0.4 + 0.6);
                 }
 
                 for (let i = 0; i < baseVerticalNormalized.length; i++) {
-                    // Use algorithmic patterns for other buttons
                     plotDataVertical[i] = Math.abs(Math.sin(i * 0.05 * (algorithm % 3 + 1)) * 0.4 + 0.3);
                 }
                 
                 // Update analysis pane with algorithm information
-                document.getElementById('right-analysis-pane').innerHTML = `
-                    <h3>Algorithm ${algorithm} Results</h3>
-                    <div class="analysis-content">
-                        <p>Demonstrating pattern generation algorithm ${algorithm}.</p>
-                        <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
-                    </div>
-                `;
+                 if (rightPane) {
+                    rightPane.classList.remove('draggable-initialized');
+                    rightPane.innerHTML = `
+                        <h3>Algorithm ${algorithm} Results</h3>
+                        <div class="analysis-content">
+                            <p>Demonstrating pattern generation algorithm ${algorithm}.</p>
+                            <p class="algorithm-timestamp">Timestamp: ${new Date().toLocaleTimeString()}</p>
+                        </div>
+                    `;
+                    if (draggableContainer) makeElementDraggable(rightPane, draggableContainer);
+                }
+                 if (bottomPane) {
+                    bottomPane.classList.remove('draggable-initialized');
+                    bottomPane.innerHTML = `<h3>Algorithm ${algorithm} - Bottom</h3><div class="analysis-content"><p>Pattern Applied</p></div>`;
+                     if (draggableContainer) makeElementDraggable(bottomPane, draggableContainer);
+                }
             }
             break;
     }
