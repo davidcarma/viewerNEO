@@ -1973,6 +1973,7 @@ function displayProjection(horizontal, vertical, image) {
             
             // Get references to all draggable elements
             const imageCanvasWrapper = document.getElementById('image-canvas-wrapper');
+            const imageCanvas = document.getElementById('image-canvas');
             const primaryHorizontalGraph = document.getElementById('primary-horizontal-projection-graph').closest('.graph-container');
             const secondaryHorizontalGraph = document.getElementById('secondary-horizontal-projection-graph').closest('.graph-container');
             const primaryVerticalGraph = document.getElementById('primary-vertical-projection-graph').closest('.graph-container');
@@ -1985,15 +1986,14 @@ function displayProjection(horizontal, vertical, image) {
                                        document.getElementById('projection-overlay');
             
             // Apply positions if all elements exist
-            if (imageCanvasWrapper && primaryHorizontalGraph && secondaryHorizontalGraph && 
+            if (imageCanvasWrapper && imageCanvas && primaryHorizontalGraph && secondaryHorizontalGraph && 
                 primaryVerticalGraph && secondaryVerticalGraph && rightAnalysisPane && bottomAnalysisPane) {
                 
-                // 1) Position the image canvas wrapper
+                // 1) Position the image canvas wrapper - maintain aspect ratio while honoring position
                 imageCanvasWrapper.style.position = 'absolute';
                 imageCanvasWrapper.style.left = `${layoutPositions.imageCanvas.left}px`;
                 imageCanvasWrapper.style.top = `${layoutPositions.imageCanvas.top}px`;
-                imageCanvasWrapper.style.width = `${layoutPositions.imageCanvas.width}px`;
-                imageCanvasWrapper.style.height = `${layoutPositions.imageCanvas.height}px`;
+                // Don't set width/height so image maintains proper scaling
                 
                 // Wait for image canvas to be positioned
                 setTimeout(() => {
@@ -2005,8 +2005,9 @@ function displayProjection(horizontal, vertical, image) {
                     primaryHorizontalGraph.style.position = 'absolute';
                     primaryHorizontalGraph.style.left = `${imageRect.right - containerRect.left + layoutPositions.primaryHorizontalGraph.offsetRight}px`;
                     primaryHorizontalGraph.style.top = `${imageRect.top - containerRect.top + layoutPositions.primaryHorizontalGraph.offsetTop}px`;
+                    // Scale height to match image height
+                    primaryHorizontalGraph.style.height = `${imageRect.height}px`;
                     primaryHorizontalGraph.style.width = `${layoutPositions.primaryHorizontalGraph.width}px`;
-                    primaryHorizontalGraph.style.height = `${layoutPositions.primaryHorizontalGraph.height}px`;
                     
                     // Wait for primary horizontal to be positioned
                     setTimeout(() => {
@@ -2017,15 +2018,17 @@ function displayProjection(horizontal, vertical, image) {
                         secondaryHorizontalGraph.style.position = 'absolute';
                         secondaryHorizontalGraph.style.left = `${primaryHorizontalRect.right - containerRect.left + layoutPositions.secondaryHorizontalGraph.offsetRight}px`;
                         secondaryHorizontalGraph.style.top = `${primaryHorizontalRect.top - containerRect.top + layoutPositions.secondaryHorizontalGraph.offsetTop}px`;
+                        // Match height with primary
+                        secondaryHorizontalGraph.style.height = `${primaryHorizontalRect.height}px`;
                         secondaryHorizontalGraph.style.width = `${layoutPositions.secondaryHorizontalGraph.width}px`;
-                        secondaryHorizontalGraph.style.height = `${layoutPositions.secondaryHorizontalGraph.height}px`;
                     }, 10);
                     
                     // 4) Position primary vertical graph relative to image canvas bottom edge
                     primaryVerticalGraph.style.position = 'absolute';
                     primaryVerticalGraph.style.top = `${imageRect.bottom - containerRect.top + layoutPositions.primaryVerticalGraph.offsetBottom}px`;
                     primaryVerticalGraph.style.left = `${imageRect.left - containerRect.left + layoutPositions.primaryVerticalGraph.offsetLeft}px`;
-                    primaryVerticalGraph.style.width = `${layoutPositions.primaryVerticalGraph.width}px`;
+                    // Scale width to match current image width
+                    primaryVerticalGraph.style.width = `${imageRect.width}px`;
                     primaryVerticalGraph.style.height = `${layoutPositions.primaryVerticalGraph.height}px`;
                     
                     // Wait for primary vertical to be positioned
@@ -2037,7 +2040,8 @@ function displayProjection(horizontal, vertical, image) {
                         secondaryVerticalGraph.style.position = 'absolute';
                         secondaryVerticalGraph.style.top = `${primaryVerticalRect.bottom - containerRect.top + layoutPositions.secondaryVerticalGraph.offsetBottom}px`;
                         secondaryVerticalGraph.style.left = `${primaryVerticalRect.left - containerRect.left + layoutPositions.secondaryVerticalGraph.offsetLeft}px`;
-                        secondaryVerticalGraph.style.width = `${layoutPositions.secondaryVerticalGraph.width}px`;
+                        // Scale width to match primary graph's width
+                        secondaryVerticalGraph.style.width = `${primaryVerticalRect.width}px`;
                         secondaryVerticalGraph.style.height = `${layoutPositions.secondaryVerticalGraph.height}px`;
                     }, 10);
                     
@@ -2045,17 +2049,74 @@ function displayProjection(horizontal, vertical, image) {
                     rightAnalysisPane.style.position = 'absolute';
                     rightAnalysisPane.style.left = `${layoutPositions.rightAnalysisPane.left}px`;
                     rightAnalysisPane.style.top = `${layoutPositions.rightAnalysisPane.top}px`;
+                    
+                    // First reset height to auto to measure content properly
+                    rightAnalysisPane.style.height = 'auto';
+                    
+                    // Set initial width and then update based on content
                     rightAnalysisPane.style.width = `${layoutPositions.rightAnalysisPane.width}px`;
-                    rightAnalysisPane.style.height = `${layoutPositions.rightAnalysisPane.height}px`;
+                    
+                    // Check content width after layout stabilizes
+                    setTimeout(() => {
+                        const rightContent = rightAnalysisPane.querySelector('.analysis-content');
+                        if (rightContent) {
+                            // Check if content is wider than container
+                            const contentWidth = rightContent.scrollWidth;
+                            const paneWidth = rightAnalysisPane.clientWidth;
+                            
+                            // If content is wider, adjust the pane width
+                            if (contentWidth > paneWidth - 20) { // Account for padding
+                                rightAnalysisPane.style.width = `${contentWidth + 30}px`; // Add padding
+                            }
+                        }
+                        
+                        // Check if content height exceeds container
+                        const rightScrollHeight = rightAnalysisPane.scrollHeight;
+                        const rightClientHeight = rightAnalysisPane.clientHeight;
+                        
+                        if (rightScrollHeight > rightClientHeight) {
+                            rightAnalysisPane.style.height = `${rightScrollHeight + 20}px`;
+                        } else {
+                            rightAnalysisPane.style.height = `${layoutPositions.rightAnalysisPane.height}px`;
+                        }
+                    }, 50);
                     
                     bottomAnalysisPane.style.position = 'absolute';
                     bottomAnalysisPane.style.left = `${layoutPositions.bottomAnalysisPane.left}px`;
                     bottomAnalysisPane.style.top = `${layoutPositions.bottomAnalysisPane.top}px`;
+                    
+                    // First reset height to auto to measure content properly
+                    bottomAnalysisPane.style.height = 'auto';
+                    
+                    // Set initial width and then update based on content
                     bottomAnalysisPane.style.width = `${layoutPositions.bottomAnalysisPane.width}px`;
-                    bottomAnalysisPane.style.height = `${layoutPositions.bottomAnalysisPane.height}px`;
+                    
+                    // Check content width after layout stabilizes
+                    setTimeout(() => {
+                        const bottomContent = bottomAnalysisPane.querySelector('.analysis-content');
+                        if (bottomContent) {
+                            // Check if content is wider than container
+                            const contentWidth = bottomContent.scrollWidth;
+                            const paneWidth = bottomAnalysisPane.clientWidth;
+                            
+                            // If content is wider, adjust the pane width
+                            if (contentWidth > paneWidth - 20) { // Account for padding
+                                bottomAnalysisPane.style.width = `${contentWidth + 30}px`; // Add padding
+                            }
+                        }
+                        
+                        // Check if content height exceeds container
+                        const bottomScrollHeight = bottomAnalysisPane.scrollHeight;
+                        const bottomClientHeight = bottomAnalysisPane.clientHeight;
+                        
+                        if (bottomScrollHeight > bottomClientHeight) {
+                            bottomAnalysisPane.style.height = `${bottomScrollHeight + 20}px`;
+                        } else {
+                            bottomAnalysisPane.style.height = `${layoutPositions.bottomAnalysisPane.height}px`;
+                        }
+                    }, 50);
                 }, 20);
                 
-                showNotification('Layout positions applied');
                 console.log('Layout positions applied');
                 return true;
             } else {
@@ -2406,11 +2467,9 @@ function updateSecondaryGraphs(algorithm, horizontalProfile, verticalProfile,
                             makeElementDraggable(bottomPane, draggableContainer);
                         }
                     });
-                } else {
-                    if (bottomPane && draggableContainer) {
-                        console.log(`${new Date().toISOString()} - bottomPane exists but no resize, calling makeElementDraggable`);
-                        makeElementDraggable(bottomPane, draggableContainer);
-                    }
+                } else if (bottomPane && draggableContainer) {
+                    console.log(`${new Date().toISOString()} - bottomPane exists but no resize, calling makeElementDraggable`);
+                    makeElementDraggable(bottomPane, draggableContainer);
                 }
             }
             break;
@@ -3589,6 +3648,7 @@ function applyLayoutPositions() {
         
         // Get references to all draggable elements
         const imageCanvasWrapper = document.getElementById('image-canvas-wrapper');
+        const imageCanvas = document.getElementById('image-canvas');
         const primaryHorizontalGraph = document.getElementById('primary-horizontal-projection-graph').closest('.graph-container');
         const secondaryHorizontalGraph = document.getElementById('secondary-horizontal-projection-graph').closest('.graph-container');
         const primaryVerticalGraph = document.getElementById('primary-vertical-projection-graph').closest('.graph-container');
@@ -3598,30 +3658,31 @@ function applyLayoutPositions() {
         
         // Get the projection overlay container for reference
         const projectionContainer = document.getElementById('projection-content') || 
-                                  document.getElementById('projection-overlay');
+                                   document.getElementById('projection-overlay');
         
         // Apply positions if all elements exist
-        if (imageCanvasWrapper && primaryHorizontalGraph && secondaryHorizontalGraph && 
+        if (imageCanvasWrapper && imageCanvas && primaryHorizontalGraph && secondaryHorizontalGraph && 
             primaryVerticalGraph && secondaryVerticalGraph && rightAnalysisPane && bottomAnalysisPane) {
             
-            // 1) Position the image canvas wrapper
+            // 1) Position the image canvas wrapper - maintain aspect ratio while honoring position
             imageCanvasWrapper.style.position = 'absolute';
             imageCanvasWrapper.style.left = `${layoutPositions.imageCanvas.left}px`;
             imageCanvasWrapper.style.top = `${layoutPositions.imageCanvas.top}px`;
-            imageCanvasWrapper.style.width = `${layoutPositions.imageCanvas.width}px`;
-            imageCanvasWrapper.style.height = `${layoutPositions.imageCanvas.height}px`;
+            // Don't set width/height so image maintains proper scaling
             
             // Wait for image canvas to be positioned
             setTimeout(() => {
                 // Get updated rects after positioning
                 const imageRect = imageCanvasWrapper.getBoundingClientRect();
+                const containerRect = projectionContainer.getBoundingClientRect();
                 
                 // 2) Position primary horizontal graph relative to image canvas right edge
                 primaryHorizontalGraph.style.position = 'absolute';
-                primaryHorizontalGraph.style.left = `${imageRect.right - projectionContainer.getBoundingClientRect().left + layoutPositions.primaryHorizontalGraph.offsetRight}px`;
-                primaryHorizontalGraph.style.top = `${imageRect.top - projectionContainer.getBoundingClientRect().top + layoutPositions.primaryHorizontalGraph.offsetTop}px`;
+                primaryHorizontalGraph.style.left = `${imageRect.right - containerRect.left + layoutPositions.primaryHorizontalGraph.offsetRight}px`;
+                primaryHorizontalGraph.style.top = `${imageRect.top - containerRect.top + layoutPositions.primaryHorizontalGraph.offsetTop}px`;
+                // Scale height to match image height
+                primaryHorizontalGraph.style.height = `${imageRect.height}px`;
                 primaryHorizontalGraph.style.width = `${layoutPositions.primaryHorizontalGraph.width}px`;
-                primaryHorizontalGraph.style.height = `${layoutPositions.primaryHorizontalGraph.height}px`;
                 
                 // Wait for primary horizontal to be positioned
                 setTimeout(() => {
@@ -3630,17 +3691,19 @@ function applyLayoutPositions() {
                     
                     // 3) Position secondary horizontal graph relative to primary horizontal
                     secondaryHorizontalGraph.style.position = 'absolute';
-                    secondaryHorizontalGraph.style.left = `${primaryHorizontalRect.right - projectionContainer.getBoundingClientRect().left + layoutPositions.secondaryHorizontalGraph.offsetRight}px`;
-                    secondaryHorizontalGraph.style.top = `${primaryHorizontalRect.top - projectionContainer.getBoundingClientRect().top + layoutPositions.secondaryHorizontalGraph.offsetTop}px`;
+                    secondaryHorizontalGraph.style.left = `${primaryHorizontalRect.right - containerRect.left + layoutPositions.secondaryHorizontalGraph.offsetRight}px`;
+                    secondaryHorizontalGraph.style.top = `${primaryHorizontalRect.top - containerRect.top + layoutPositions.secondaryHorizontalGraph.offsetTop}px`;
+                    // Match height with primary
+                    secondaryHorizontalGraph.style.height = `${primaryHorizontalRect.height}px`;
                     secondaryHorizontalGraph.style.width = `${layoutPositions.secondaryHorizontalGraph.width}px`;
-                    secondaryHorizontalGraph.style.height = `${layoutPositions.secondaryHorizontalGraph.height}px`;
                 }, 10);
                 
                 // 4) Position primary vertical graph relative to image canvas bottom edge
                 primaryVerticalGraph.style.position = 'absolute';
-                primaryVerticalGraph.style.top = `${imageRect.bottom - projectionContainer.getBoundingClientRect().top + layoutPositions.primaryVerticalGraph.offsetBottom}px`;
-                primaryVerticalGraph.style.left = `${imageRect.left - projectionContainer.getBoundingClientRect().left + layoutPositions.primaryVerticalGraph.offsetLeft}px`;
-                primaryVerticalGraph.style.width = `${layoutPositions.primaryVerticalGraph.width}px`;
+                primaryVerticalGraph.style.top = `${imageRect.bottom - containerRect.top + layoutPositions.primaryVerticalGraph.offsetBottom}px`;
+                primaryVerticalGraph.style.left = `${imageRect.left - containerRect.left + layoutPositions.primaryVerticalGraph.offsetLeft}px`;
+                // Scale width to match current image width
+                primaryVerticalGraph.style.width = `${imageRect.width}px`;
                 primaryVerticalGraph.style.height = `${layoutPositions.primaryVerticalGraph.height}px`;
                 
                 // Wait for primary vertical to be positioned
@@ -3650,9 +3713,10 @@ function applyLayoutPositions() {
                     
                     // 5) Position secondary vertical graph relative to primary vertical
                     secondaryVerticalGraph.style.position = 'absolute';
-                    secondaryVerticalGraph.style.top = `${primaryVerticalRect.bottom - projectionContainer.getBoundingClientRect().top + layoutPositions.secondaryVerticalGraph.offsetBottom}px`;
-                    secondaryVerticalGraph.style.left = `${primaryVerticalRect.left - projectionContainer.getBoundingClientRect().left + layoutPositions.secondaryVerticalGraph.offsetLeft}px`;
-                    secondaryVerticalGraph.style.width = `${layoutPositions.secondaryVerticalGraph.width}px`;
+                    secondaryVerticalGraph.style.top = `${primaryVerticalRect.bottom - containerRect.top + layoutPositions.secondaryVerticalGraph.offsetBottom}px`;
+                    secondaryVerticalGraph.style.left = `${primaryVerticalRect.left - containerRect.left + layoutPositions.secondaryVerticalGraph.offsetLeft}px`;
+                    // Scale width to match primary graph's width
+                    secondaryVerticalGraph.style.width = `${primaryVerticalRect.width}px`;
                     secondaryVerticalGraph.style.height = `${layoutPositions.secondaryVerticalGraph.height}px`;
                 }, 10);
                 
