@@ -10,6 +10,10 @@ if (!container) console.warn('No thumbnails-container in HTML');
 const closeBtn = document.getElementById('close-thumbnails');
 const tab = document.getElementById('thumbnail-tab');
 
+// Track panel state to avoid transition issues
+let isPanelTransitioning = false;
+let pendingRedraw = false;
+
 // Create a canvas for snapshot during transitions
 let snapshotCanvas = null;
 function getSnapshotCanvas() {
@@ -60,31 +64,67 @@ async function createThumbnail(file, index) {
 export function updateThumbnails() {
   if (!container) return;
   container.innerHTML = '';
-  const { imageFiles } = getState();
+  const { imageFiles, selectedImageIndex } = getState();
+  
+  // Create all thumbnails
   imageFiles.forEach((f, idx) => {
     createThumbnail(f, idx);
   });
 
-  // Auto-show panel if more than one image
-  if (panelWrapper && imageFiles.length > 1) {
+  // Auto-show panel if there are images
+  if (panelWrapper && imageFiles.length > 0) {
+    // Make sure the panel is visible
     panelWrapper.style.display = 'block';
-    panelWrapper.classList.add('active');
-    const cont = document.getElementById('container');
-    const panelW = parseInt(getComputedStyle(panelWrapper).width,10);
-    cont.style.marginLeft = `${panelW}px`;
-    cont.style.width = `calc(100% - ${panelW}px)`;
     
-    // Always ensure tab is visible and properly positioned
-    if (tab) {
-      tab.classList.add('visible');
-      tab.style.left = `${panelW}px`;
+    // If more than one image, show the gallery
+    if (imageFiles.length > 1) {
+      const wasActive = panelWrapper.classList.contains('active');
+      
+      // Only trigger transition if not already active
+      if (!wasActive) {
+        if (!isPanelTransitioning) {
+          isPanelTransitioning = true;
+          
+          // Take snapshot before making changes
+          const canvas = getCanvas();
+          const { image } = getState();
+          if (image && canvas) {
+            takeCanvasSnapshot();
+          }
+          
+          // Add active class to open panel
+          panelWrapper.classList.add('active');
+          
+          // Apply layout changes
+          setTimeout(() => {
+            const cont = document.getElementById('container');
+            const panelW = parseInt(getComputedStyle(panelWrapper).width,10);
+            cont.style.marginLeft = `${panelW}px`;
+            cont.style.width = `calc(100% - ${panelW}px)`;
+            
+            if (tab) {
+              tab.classList.add('visible');
+              tab.style.left = `${panelW}px`;
+            }
+            
+            // Handle panel transition
+            handlePanelTransition();
+          }, 10);
+        } else {
+          // Panel is already transitioning, just mark that we need a redraw when done
+          pendingRedraw = true;
+        }
+      } else {
+        // Panel already open, just highlight the selection
+        highlightSelectedThumbnail(selectedImageIndex);
+      }
+    } else {
+      // Just one image, don't open the panel but ensure tab is visible
+      if (tab) {
+        tab.classList.add('visible');
+        tab.style.left = '0px';
+      }
     }
-    
-    // Ensure canvas is correctly sized after panel is shown
-    requestAnimationFrame(() => {
-      updateCanvasSize();
-      scheduleRedraw();
-    });
   } else {
     // Even with no images, ensure tab is visible
     if (tab) {
@@ -100,14 +140,57 @@ export function updateThumbnails() {
 }
 
 export async function selectImage(index) {
-  const { imageFiles } = getState();
+  const { imageFiles, selectedImageIndex } = getState();
+  
+  // Skip if invalid index or already selected
   if (index < 0 || index >= imageFiles.length) return;
+  if (index === selectedImageIndex) return; // Already selected
+  
+  // Take a snapshot before changing the image (if one is currently displayed)
+  const canvas = getCanvas();
+  const { image } = getState();
+  if (image && canvas) {
+    takeCanvasSnapshot();
+  }
+  
+  // Load the new image
   const file = imageFiles[index];
-  console.log('Thumbnail click -> loading', file.name);
-  const { image, imageData } = await loadImageFile(file);
-  setState({ image, imageData, selectedImageIndex: index });
-  refreshCanvas();
-  updateThumbnails();
+  console.log('Loading image:', file.name);
+  
+  try {
+    // Update UI before loading (optional progress indicator)
+    const thumbnails = container.querySelectorAll('.thumbnail-item');
+    thumbnails.forEach((item, idx) => {
+      if (idx === index) {
+        item.classList.add('active', 'loading');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+    
+    // Load the image
+    const { image, imageData } = await loadImageFile(file);
+    setState({ image, imageData, selectedImageIndex: index });
+    
+    // Draw it on canvas
+    refreshCanvas();
+    
+    // Update thumbnails to reflect selection
+    updateThumbnails();
+    
+    // Remove loading indicator
+    thumbnails.forEach((item, idx) => {
+      if (idx === index) item.classList.remove('loading');
+    });
+    
+    // Remove the snapshot once the new image is drawn
+    setTimeout(() => removeSnapshot(), 100);
+    
+  } catch (err) {
+    console.error('Failed to load image:', err);
+    // Remove the snapshot if loading failed
+    removeSnapshot();
+  }
 }
 
 function updateCanvasSize() {
@@ -189,9 +272,91 @@ function applyLayout(active) {
   }
 }
 
+// Helper function to handle panel transition and ensure redraws happen in the right order
+function handlePanelTransition() {
+  function onTransitionEnd(e) {
+    if (e.target === panelWrapper) {
+      // Update canvas size first
+      updateCanvasSize();
+      
+      // Force a refresh immediately for newly added images
+      refreshCanvas();
+      
+      // Wait another frame to remove the snapshot
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          removeSnapshot();
+          isPanelTransitioning = false;
+          
+          // Check if another redraw was requested during transition
+          if (pendingRedraw) {
+            pendingRedraw = false;
+            scheduleRedraw();
+          }
+        }, 100);
+      });
+      
+      panelWrapper.removeEventListener('transitionend', onTransitionEnd);
+    }
+  }
+  
+  // Listen for transition completion
+  panelWrapper.addEventListener('transitionend', onTransitionEnd);
+  
+  // Fallback in case transitionend doesn't fire
+  setTimeout(() => {
+    if (isPanelTransitioning) {
+      updateCanvasSize();
+      refreshCanvas();
+      setTimeout(() => {
+        removeSnapshot();
+        isPanelTransitioning = false;
+        if (pendingRedraw) {
+          pendingRedraw = false;
+          scheduleRedraw();
+        }
+      }, 100);
+    }
+  }, 350);
+}
+
+function highlightSelectedThumbnail(selectedIndex) {
+  if (selectedIndex >= 0) {
+    const thumbnails = container.querySelectorAll('.thumbnail-item');
+    thumbnails.forEach((item, idx) => {
+      if (idx === selectedIndex) {
+        item.classList.add('active');
+        // Scroll to the selected thumbnail if needed
+        setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+      } else {
+        item.classList.remove('active');
+      }
+    });
+  }
+}
+
+// close button click hides panel
+if (closeBtn && !closeBtn._bound) {
+  closeBtn.addEventListener('click', togglePanel);
+  closeBtn._bound = true;
+}
+
+// Initialize toggle thumbnails button if exists
+const toggleBtn = document.getElementById('toggle-thumbnails');
+if (toggleBtn && !toggleBtn._bound) {
+  toggleBtn.addEventListener('click', togglePanel);
+  toggleBtn._bound = true;
+}
+
+// Update the togglePanel function to use the shared panel transition handler
 function togglePanel() {
+  if (isPanelTransitioning) return; // Prevent toggling during transitions
+  
   const canvas = getCanvas();
   const { image } = getState();
+  
+  // Start transition tracking
+  isPanelTransitioning = true;
   
   // Only take snapshot if we have an image
   if (image && canvas) {
@@ -206,51 +371,6 @@ function togglePanel() {
     applyLayout(active);
   }, 10);
   
-  // Use transitionend event to ensure we update after CSS transition completes
-  function handleTransitionEnd(e) {
-    if (e.target === panelWrapper) {
-      // Update canvas size first
-      updateCanvasSize();
-      
-      // Wait a frame to ensure the canvas has been resized
-      requestAnimationFrame(() => {
-        const { image } = getState();
-        if (image) {
-          scheduleRedraw();
-          
-          // Wait for redraw to complete before removing snapshot
-          requestAnimationFrame(() => {
-            setTimeout(() => removeSnapshot(), 100);
-          });
-        } else {
-          removeSnapshot();
-        }
-      });
-      
-      panelWrapper.removeEventListener('transitionend', handleTransitionEnd);
-    }
-  }
-  
-  // Listen for transition completion
-  panelWrapper.addEventListener('transitionend', handleTransitionEnd);
-  
-  // Fallback in case transitionend doesn't fire
-  setTimeout(() => {
-    updateCanvasSize();
-    scheduleRedraw();
-    setTimeout(() => removeSnapshot(), 250);
-  }, 350); // Slightly longer than transition
-}
-
-// close button click hides panel
-if (closeBtn && !closeBtn._bound) {
-  closeBtn.addEventListener('click', togglePanel);
-  closeBtn._bound = true;
-}
-
-// Initialize toggle thumbnails button if exists
-const toggleBtn = document.getElementById('toggle-thumbnails');
-if (toggleBtn && !toggleBtn._bound) {
-  toggleBtn.addEventListener('click', togglePanel);
-  toggleBtn._bound = true;
+  // Handle the transition events
+  handlePanelTransition();
 } 
