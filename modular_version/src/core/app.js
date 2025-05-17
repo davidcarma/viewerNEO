@@ -47,13 +47,6 @@ function start() {
   // Clipboard paste
   initClipboardPaste();
 
-  // Ensure thumbnail tab is visible and properly positioned
-  const thumbnailTab = document.getElementById('thumbnail-tab');
-  if (thumbnailTab) {
-    thumbnailTab.classList.add('visible');
-    thumbnailTab.style.left = '0px';
-  }
-
   // pointer coordinates
   const canvas = document.getElementById('canvas');
   canvas.addEventListener('mousemove', (e) => {

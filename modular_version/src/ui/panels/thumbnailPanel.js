@@ -8,16 +8,25 @@ const panelWrapper = document.getElementById('thumbnail-panel');
 if (!container) console.warn('No thumbnails-container in HTML');
 
 const closeBtn = document.getElementById('close-thumbnails');
-const tab = document.getElementById('thumbnail-tab');
+const toggleHandle = document.getElementById('thumbnail-toggle-handle');
 
 // Track panel state to avoid transition issues
 let isPanelTransitioning = false;
 let pendingRedraw = false;
 
-// Ensure tab is visible by default
-if (tab) {
-  tab.classList.add('visible');
-  tab.style.left = '0px';
+// Ensure toggle handle has pointer cursor and is properly set up
+if (toggleHandle) {
+  // Initialize at left edge when not active
+  if (!panelWrapper.classList.contains('active')) {
+    toggleHandle.style.left = '0px';
+  } else {
+    // If panel is active, position the handle at panel edge
+    toggleHandle.style.left = panelWrapper.offsetWidth + 'px';
+    toggleHandle.classList.add('resize');
+  }
+  
+  // Ensure the handle is always visible
+  toggleHandle.style.display = 'flex';
 }
 
 async function createThumbnail(file, index) {
@@ -117,23 +126,13 @@ export function updateThumbnails() {
         // Panel already open, just highlight the selection
         highlightSelectedThumbnail(selectedImageIndex);
       }
-    } else {
-      // Just one image, don't open the panel but ensure tab is visible
-      if (tab) {
-        tab.classList.add('visible');
-      }
-    }
-  } else {
-    // Even with no images, ensure tab is visible
-    if (tab) {
-      tab.classList.add('visible');
     }
   }
 
-  // Handle click toggles
-  if (tab && !tab._bound) {
-    tab.addEventListener('click', togglePanel);
-    tab._bound = true;
+  // Handle click toggles for the handle
+  if (toggleHandle && !toggleHandle._bound) {
+    toggleHandle.addEventListener('click', togglePanel);
+    toggleHandle._bound = true;
   }
 }
 
@@ -197,17 +196,19 @@ function applyLayout(active) {
     // Add a class to the container to synchronize the animation
     cont.classList.add('with-thumbnails');
     
-    // No need to position the tab as it's now part of the panel and positioned with CSS
-    if (tab) {
-      tab.classList.add('visible');
+    // Position handle at the edge of the panel
+    if (toggleHandle) {
+      toggleHandle.style.left = panelW + 'px';
+      toggleHandle.classList.add('resize');
     }
   } else {
     // Remove the class from the container to synchronize the animation
     cont.classList.remove('with-thumbnails');
     
-    // No need to position the tab as it's now part of the panel and positioned with CSS
-    if (tab) {
-      tab.classList.add('visible');
+    // Position handle at the edge of the screen
+    if (toggleHandle) {
+      toggleHandle.style.left = '0px';
+      toggleHandle.classList.remove('resize');
     }
   }
   
@@ -367,10 +368,20 @@ function togglePanel() {
     // If currently active, deactivate it
     panelWrapper.classList.remove('active');
     document.getElementById('container').classList.remove('with-thumbnails');
+    // Change handle to normal mode (pointer) and move to left edge
+    if (toggleHandle) {
+      toggleHandle.classList.remove('resize');
+      toggleHandle.style.left = '0px';
+    }
   } else {
     // If currently inactive, activate it
     panelWrapper.classList.add('active');
     document.getElementById('container').classList.add('with-thumbnails');
+    // Change handle to resize mode when panel is open and move it to panel edge
+    if (toggleHandle) {
+      toggleHandle.classList.add('resize');
+      toggleHandle.style.left = panelWrapper.offsetWidth + 'px';
+    }
   }
   
   // Handle the transition events
