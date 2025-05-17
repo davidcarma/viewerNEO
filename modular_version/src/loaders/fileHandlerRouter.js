@@ -2,14 +2,51 @@ import { loadImageFile } from './imageLoader.js';
 import { setState, getState } from '../core/state.js';
 import { renderImage } from '../ui/canvas/renderImage.js';
 
-export async function handleIncomingFiles(files) {
-  // Filter image types
-  const images = files.filter(f => f.type.startsWith('image/') || /\.tiff?$/.test(f.name.toLowerCase()));
-  if (!images.length) return;
+// Enhanced image file detection
+function isImageFile(file) {
+  // Check by MIME type first (most reliable)
+  if (file.type && file.type.startsWith('image/')) {
+    return true;
+  }
+  
+  // Check by file extension as fallback
+  const filename = file.name.toLowerCase();
+  const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tif', '.tiff', '.svg'];
+  return validExtensions.some(ext => filename.endsWith(ext));
+}
 
+export async function handleIncomingFiles(files) {
+  console.log(`Processing ${files.length} dropped files`);
+  
+  // More robust image filtering with detailed logging
+  const images = [];
+  const skipped = [];
+  
+  for (const file of files) {
+    if (isImageFile(file)) {
+      images.push(file);
+    } else {
+      skipped.push(file.name);
+    }
+  }
+  
+  if (skipped.length > 0) {
+    console.log(`Skipped ${skipped.length} non-image files:`, 
+      skipped.length <= 5 ? skipped.join(', ') : 
+      `${skipped.slice(0, 5).join(', ')} and ${skipped.length - 5} more`);
+  }
+  
+  if (!images.length) {
+    console.log('No valid image files found to load');
+    return;
+  }
+  
+  console.log(`Found ${images.length} valid image files to load`);
+  
   const currentState = getState();
   const combined = [...currentState.imageFiles, ...images];
-  console.log('Files after drop:', combined.map(f=>f.name));
+  console.log('Files after adding new ones:', combined.map(f=>f.name).slice(0, 10), 
+    combined.length > 10 ? `(and ${combined.length - 10} more)` : '');
   
   // Calculate the index of the first new image in the combined array
   const newImageIndex = currentState.imageFiles.length;
@@ -19,7 +56,11 @@ export async function handleIncomingFiles(files) {
   
   // Show loading indicator
   const loadingIndicator = document.querySelector('.loading');
-  if (loadingIndicator) loadingIndicator.style.display = 'flex';
+  if (loadingIndicator) {
+    loadingIndicator.style.display = 'flex';
+    // Add text content to show what's happening
+    loadingIndicator.textContent = `Loading ${images.length} image${images.length > 1 ? 's' : ''}...`;
+  }
   
   try {
     // Load the image first before updating state
@@ -53,6 +94,9 @@ export async function handleIncomingFiles(files) {
     setState({ imageFiles: combined });
   } finally {
     // Hide loading indicator
-    if (loadingIndicator) loadingIndicator.style.display = 'none';
+    if (loadingIndicator) {
+      loadingIndicator.textContent = 'Loading...'; // Reset to default text
+      loadingIndicator.style.display = 'none';
+    }
   }
 } 
