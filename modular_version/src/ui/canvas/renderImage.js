@@ -1,6 +1,7 @@
 import { getContext, clearCanvas } from './canvasContext.js';
 import { getState } from '../../core/state.js';
 import { updateInfo } from '../controls/infoPanel.js';
+import { drawGrid } from '../../features/grid/drawGrid.js';
 
 export function refreshCanvas() {
   const { image, grid, zoom, offset } = getState();
@@ -19,8 +20,7 @@ export function refreshCanvas() {
   ctx.restore();
 
   if (grid.show) {
-    // lazy import to avoid circular dep
-    import('../../features/grid/drawGrid.js').then(({ drawGrid }) => drawGrid());
+    drawGrid();
   }
 
   updateInfo();

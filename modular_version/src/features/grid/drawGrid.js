@@ -2,70 +2,90 @@ import { getContext, getCanvas, getDpr } from '../../ui/canvas/canvasContext.js'
 import { getState } from '../../core/state.js';
 
 export function drawGrid() {
-  const { grid, zoom, offset } = getState();
+  const { grid, zoom, offset, image } = getState();
+  
+  if (!grid.show || !image) return;
 
-  if (!grid.show) return;
+  // Use main canvas context for direct drawing
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = getContext();
 
-  const overlay = document.getElementById('grid-overlay');
-  if (!overlay) return;
-  const ctx = overlay.getContext('2d');
-  ctx.clearRect(0,0,overlay.width, overlay.height);
-
+  // Start with a clean state
   ctx.save();
-
+  
+  // Set general grid styles
   ctx.strokeStyle = grid.color;
   ctx.globalAlpha = grid.opacity;
   ctx.setLineDash(grid.lineStyle === 'dashed' ? [4, 4] : []);
-
-  const canvasW = overlay.width;
-  const canvasH = overlay.height;
-
+  
+  // Grid cell size in logical pixels
+  const cellSize = grid.size;
+  
+  // Canvas dimensions in CSS pixels
+  const canvasEl = getCanvas();
+  const canvasWidth = canvasEl.width / dpr;
+  const canvasHeight = canvasEl.height / dpr;
+  
   if (grid.fixed) {
-    // Grid relative to viewport
+    // Fixed grid - stays in place when image moves
     ctx.lineWidth = 1;
-    const cellPx = grid.size;
-    for (let x = 0; x <= canvasW; x += cellPx) {
+    
+    // Draw vertical lines
+    for (let x = 0; x < canvasWidth; x += cellSize) {
       ctx.beginPath();
       ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, canvasH);
+      ctx.lineTo(x + 0.5, canvasHeight);
       ctx.stroke();
     }
-    for (let y = 0; y <= canvasH; y += cellPx) {
+    
+    // Draw horizontal lines
+    for (let y = 0; y < canvasHeight; y += cellSize) {
       ctx.beginPath();
       ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(canvasW, y + 0.5);
+      ctx.lineTo(canvasWidth, y + 0.5);
       ctx.stroke();
     }
   } else {
-    // Grid relative to image
-    ctx.translate(offset.x, offset.y);
-    ctx.scale(zoom, zoom);
-    ctx.lineWidth = 1 / zoom;
-
-    const cell = grid.size; // in image pixels
-    const imgW = overlay.width;
-    const imgH = overlay.height;
-
-    for (let x = 0; x <= imgW; x += cell) {
+    // Image-aligned grid - scrolls with image
+    
+    // Account for image position and zoom
+    // First, determine the grid cell size in screen pixels
+    const cellSizeScaled = cellSize * zoom;
+    
+    // Calculate where the grid lines should start
+    // Need to align with image origin (0,0) after applying offset
+    const xOffset = (offset.x % cellSizeScaled);
+    const yOffset = (offset.y % cellSizeScaled);
+    
+    // Draw vertical lines
+    ctx.lineWidth = 1;
+    for (let x = xOffset; x < canvasWidth; x += cellSizeScaled) {
       ctx.beginPath();
-      ctx.moveTo(x + 0.5 / zoom, 0);
-      ctx.lineTo(x + 0.5 / zoom, imgH);
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, canvasHeight);
       ctx.stroke();
     }
-    for (let y = 0; y <= imgH; y += cell) {
+    
+    // Draw horizontal lines
+    for (let y = yOffset; y < canvasHeight; y += cellSizeScaled) {
       ctx.beginPath();
-      ctx.moveTo(0, y + 0.5 / zoom);
-      ctx.lineTo(imgW, y + 0.5 / zoom);
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(canvasWidth, y + 0.5);
       ctx.stroke();
     }
   }
-
+  
   ctx.restore();
 }
 
 // Hook events so grid redraws when things change
 export function initGridDraw() {
   window.addEventListener('canvas:resized', drawGrid);
-  window.addEventListener('state:changed', drawGrid);
-  drawGrid();
+  window.addEventListener('state:changed', (e) => {
+    // Only redraw if grid-related state changed
+    const relevantProps = ['grid', 'zoom', 'offset', 'image'];
+    const changedStateKeys = Object.keys(e.detail);
+    const shouldRedraw = relevantProps.some(prop => changedStateKeys.includes(prop));
+    if (shouldRedraw) drawGrid();
+  });
 } 
