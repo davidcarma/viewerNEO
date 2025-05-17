@@ -39,26 +39,47 @@ async function createThumbnail(file, index) {
 
   const imgEl = document.createElement('img');
   imgEl.alt = file.name;
+  imgEl.loading = 'lazy'; // Add lazy loading for better performance
   item.appendChild(imgEl);
 
   const label = document.createElement('div');
   label.textContent = file.name;
   item.appendChild(label);
 
+  // Make sure z-index works properly
+  item.style.zIndex = (100 - index); // Ensure thumbnails on top are given higher priority
+  
   item.addEventListener('click', () => selectImage(index));
+  
+  // Append to container
   container.appendChild(item);
+
+  // Default placeholder - embedded data URI for image icon
+  const placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxMTExMTEiLz48cGF0aCBkPSJNMzUgMjVINjVDNjguMyAyNSA3MSAyNy43IDcxIDMxVjY5QzcxIDcyLjMgNjguMyA3NSA2NSA3NUgzNUMzMS43IDc1IDI5IDcyLjMgMjkgNjlWMzFDMjkgMjcuNyAzMS43IDI1IDM1IDI1WiIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI1IiBmaWxsPSIjNTU1Ii8+PHBhdGggZD0iTTMwIDYwTDQwIDUwTDUwIDYwTDYwIDUwTDcwIDYwVjcwSDMwVjYwWiIgZmlsbD0iIzU1NSIvPjwvc3ZnPg==';
 
   // generate preview
   if (file.type.startsWith('image/') && !/\.tiff?$/.test(file.name.toLowerCase())) {
     imgEl.src = URL.createObjectURL(file);
   } else {
-    // TIFF preview fallback: use icon placeholder or generate small canvas via tiffLoader
-    imgEl.src = 'placeholder.png';
+    // TIFF or other files use placeholder
+    imgEl.src = placeholderSrc;
   }
 
   // Highlight if active
   const { selectedImageIndex } = getState();
-  if (index === selectedImageIndex) item.classList.add('active');
+  if (index === selectedImageIndex) {
+    item.classList.add('active');
+    // Make sure the active item is visible
+    setTimeout(() => {
+      try {
+        if (container.scrollHeight > container.clientHeight) {
+          item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      } catch (e) {
+        console.warn('Failed to scroll to thumbnail', e);
+      }
+    }, 100);
+  }
 }
 
 export function updateThumbnails() {
@@ -327,7 +348,28 @@ function highlightSelectedThumbnail(selectedIndex) {
       if (idx === selectedIndex) {
         item.classList.add('active');
         // Scroll to the selected thumbnail if needed
-        setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+        setTimeout(() => {
+          try {
+            // Check if we need to scroll
+            const containerRect = container.getBoundingClientRect();
+            const itemRect = item.getBoundingClientRect();
+            
+            const isVisible = (
+              itemRect.top >= containerRect.top &&
+              itemRect.bottom <= containerRect.bottom
+            );
+            
+            if (!isVisible) {
+              console.log('Scrolling to thumbnail at index', selectedIndex);
+              item.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest' 
+              });
+            }
+          } catch (e) {
+            console.warn('Failed to scroll to thumbnail', e);
+          }
+        }, 100);
       } else {
         item.classList.remove('active');
       }

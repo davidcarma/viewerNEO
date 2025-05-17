@@ -16,10 +16,94 @@
 #thumbnail-panel.active {
   transform: translateX(0);
 }
+
+/* Thumbnail container with custom scrollbar */
 #thumbnails-container {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll; /* Always show scrollbar */
+  height: 100%;
+  max-height: calc(100vh - 46px); /* Account for header */
+  padding: 4px 0;
+  box-sizing: border-box;
+  position: relative;
+  
+  /* For Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.2);
 }
+
+/* Hide default scrollbar for webkit browsers */
+#thumbnails-container::-webkit-scrollbar {
+  width: 10px;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Track (the background) */
+#thumbnails-container::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+/* Handle (the draggable scrolling element) */
+#thumbnails-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease;
+}
+
+/* Handle on hover */
+#thumbnails-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Handle when active/being dragged */
+#thumbnails-container::-webkit-scrollbar-thumb:active {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Fade effect at the top and bottom of scrollable area - outside the flow */
+#thumbnails-container::before,
+#thumbnails-container::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 15px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#thumbnails-container::before {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(17, 17, 17, 1) 0%, rgba(17, 17, 17, 0) 100%);
+}
+
+#thumbnails-container::after {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(17, 17, 17, 1) 0%, rgba(17, 17, 17, 0) 100%);
+}
+
+/* Thumbnail panel header styling */
+.thumbnail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background-color: #1a1a1a;
+  border-bottom: 1px solid #333;
+  min-height: 30px;
+  flex-shrink: 0;
+}
+
+.thumbnail-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #eee;
+}
+
 #thumbnail-tab {
   position: absolute;
   top: 50%;
