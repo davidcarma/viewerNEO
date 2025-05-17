@@ -37,6 +37,8 @@ export const getContext = () => ctx;
 export const getDpr = () => currentDpr;
 
 export function clearCanvas(fill = '#222') {
+  if (fill === null) return; // Skip clearing if null is passed (for animations)
+  
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0); // work in pixel space
   ctx.fillStyle = fill;

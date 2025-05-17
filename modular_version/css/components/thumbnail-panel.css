@@ -11,6 +11,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  z-index: 20;
 }
 #thumbnail-panel.active {
   transform: translateX(0);
@@ -23,13 +24,16 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 12px;
-  height: 60px;
+  width: 16px;
+  height: 80px;
   background-color: #333;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
   z-index: 50;
-  display: none;
+  display: block;
+  transition: left 0.25s ease, background-color 0.2s ease;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.2);
+  left: 0px;
 }
 #thumbnail-tab:after {
   content: "";
@@ -45,7 +49,7 @@
     transparent 1px,
     transparent 5px
   );
-  opacity: 0.6;
+  opacity: 0.8;
 }
 #thumbnail-tab.visible {
   display: block;
@@ -62,4 +66,48 @@
 }
 .icon-btn:hover {
   color: var(--accent, #ff0059);
+}
+
+/* Container transition */
+#container {
+  transition: margin-left 0.25s ease, width 0.25s ease;
+  position: relative;
+}
+
+/* Canvas wrapper for animations */
+.canvas-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+/* Snapshot canvas for smooth transitions */
+.snapshot-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Canvas animation */
+#canvas {
+  transition: transform 0.25s ease;
+  will-change: transform;
+}
+
+/* Add a class for canvas during animation */
+.canvas-animating {
+  filter: none;
+}
+
+/* Add smooth transition to all canvas elements */
+canvas {
+  transform-origin: center center;
+  transition: transform 0.25s ease;
+  backface-visibility: hidden;
 } 

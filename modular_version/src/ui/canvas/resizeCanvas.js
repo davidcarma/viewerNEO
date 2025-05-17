@@ -9,10 +9,30 @@ export function initResizeCanvas() {
   }
 
   function resize() {
+    const canvas = getCanvas();
+    
+    // Don't animate if we have a snapshot active (handled by panel toggle)
+    const hasSnapshot = document.querySelector('.snapshot-canvas[style*="opacity: 1"]');
+    if (hasSnapshot) {
+      // Just resize the canvas without animation effects
+      const rect = container.getBoundingClientRect();
+      setCanvasSize(rect.width, rect.height);
+      return;
+    }
+    
+    // Apply animation class for smoother transition
+    canvas.classList.add('canvas-animating');
+    
     const rect = container.getBoundingClientRect();
     setCanvasSize(rect.width, rect.height);
-    clearCanvas();
+    clearCanvas(null); // Don't clear during resize animation
+    
     window.dispatchEvent(new CustomEvent('canvas:resized', { detail: { width: rect.width, height: rect.height } }));
+    
+    // Remove animation class after transition
+    setTimeout(() => {
+      canvas.classList.remove('canvas-animating');
+    }, 200);
   }
 
   // Initial
