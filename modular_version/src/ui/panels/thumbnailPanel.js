@@ -1,6 +1,6 @@
 import { getState, setState } from '../../core/state.js';
 import { loadImageFile } from '../../loaders/imageLoader.js';
-import { refreshCanvas } from '../canvas/renderImage.js';
+import { refreshCanvas, scheduleRedraw } from '../canvas/renderImage.js';
 
 const container = document.getElementById('thumbnails-container');
 const panelWrapper = document.getElementById('thumbnail-panel');
@@ -94,6 +94,11 @@ function applyLayout(active) {
 function togglePanel() {
   const active = panelWrapper.classList.toggle('active');
   applyLayout(active);
+  
+  // Ensure image redraws after panel toggle
+  setTimeout(() => {
+    scheduleRedraw();
+  }, 100); // brief delay to allow layout to complete
 }
 
 // close button click hides panel
