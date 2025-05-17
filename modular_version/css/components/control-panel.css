@@ -1,0 +1,169 @@
+/* Control panel button styles with subtle colorization */
+
+/* Base button styling */
+#controls button {
+  background: linear-gradient(to bottom, #4a4a5a, #3a3a4a);
+  color: #f0f0f0;
+  border: none;
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  width: 150px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  border: 1px solid #555;
+}
+
+/* Hover state */
+#controls button:hover {
+  background: linear-gradient(to bottom, #5a5a6a, #4a4a5a);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Active button state */
+#controls button.active {
+  background: linear-gradient(to bottom, #444a64, #353b52);
+  border: 1px solid #6a7aa0;
+  box-shadow: 0 0 5px rgba(100, 150, 255, 0.3);
+}
+
+/* Disabled button state */
+#controls button.disabled {
+  background: linear-gradient(to bottom, #3a3a3a, #333333);
+  color: #888;
+  border: 1px solid #444;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+/* Different colorization for specific button types */
+#controls button[id*="zoom"] {
+  background: linear-gradient(to bottom, #484a5a, #383a4a);
+}
+
+#controls button[id*="fit"] {
+  background: linear-gradient(to bottom, #4a5a4a, #3a4a3a);
+}
+
+#controls button[id*="grid"] {
+  background: linear-gradient(to bottom, #5a4a4a, #4a3a3a);
+}
+
+#controls button[id*="save"],
+#controls button[id*="export"] {
+  background: linear-gradient(to bottom, #4a5a5a, #3a4a4a);
+}
+
+#controls button[id*="open"],
+#controls button[id*="load"] {
+  background: linear-gradient(to bottom, #4a5555, #3a4444);
+}
+
+/* Thumbnail panel button styling */
+#close-thumbnails {
+  background: linear-gradient(to bottom, #4a3a44, #3a2a34) !important;
+  color: #f0f0f0;
+  border: 1px solid #553a44 !important;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.2s ease;
+}
+
+#close-thumbnails:hover {
+  background: linear-gradient(to bottom, #5a4a54, #4a3a44) !important;
+  color: #ff6b9d !important; /* Lighter pink compared to the current red */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Thumbnail toggle handle subtle styling */
+#thumbnail-toggle-handle {
+  background: linear-gradient(to bottom, #3a3a45, #2a2a35) !important;
+  border: 1px solid #444450 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4) !important;
+}
+
+#thumbnail-toggle-handle:hover {
+  background: linear-gradient(to bottom, #45454f, #35353f) !important;
+}
+
+#thumbnail-toggle-handle.resize {
+  background: linear-gradient(to bottom, #41414f, #31313f) !important;
+  border-color: #55556a !important;
+}
+
+/* Icon buttons in the thumbnail panel */
+.icon-btn {
+  background: linear-gradient(to bottom, #45455a, #35354a) !important;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: linear-gradient(to bottom, #55556a, #45455a) !important;
+  border-color: #66667a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Grid controls panel styling */
+#grid-controls.panel {
+  background: linear-gradient(to bottom, rgba(25, 28, 35, 0.9), rgba(18, 20, 25, 0.9));
+  border: 1px solid #3a3a45;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.4);
+}
+
+#grid-controls h3 {
+  color: #e0e0e5;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid #3a3a45;
+  padding-bottom: 8px;
+}
+
+#grid-controls .control-row {
+  border-bottom: 1px solid rgba(80, 80, 100, 0.15);
+  padding: 8px 0;
+}
+
+#grid-controls .control-row:last-child {
+  border-bottom: none;
+}
+
+#grid-controls input[type="number"],
+#grid-controls input[type="range"] {
+  background: linear-gradient(to bottom, #2a2a35, #3a3a45);
+  border: 1px solid #4a4a55;
+  color: #e0e0e5;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+#grid-controls input[type="color"] {
+  border-radius: 4px;
+  height: 28px;
+  border: 1px solid #4a4a55;
+  background: #2a2a35;
+}
+
+#grid-controls select {
+  background: linear-gradient(to bottom, #2a2a35, #3a3a45);
+  border: 1px solid #4a4a55;
+  color: #e0e0e5;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+#grid-controls select option {
+  background: #2a2a35;
+  color: #e0e0e5;
+}
+
+#grid-controls input[type="checkbox"] {
+  accent-color: #5a4a5a;
+  width: 16px;
+  height: 16px;
+} 
