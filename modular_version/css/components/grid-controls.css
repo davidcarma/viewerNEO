@@ -1,5 +1,5 @@
 #grid-controls.panel {
-  position: absolute;
+  position: fixed;
   top: 60px;
   right: 20px;
   background: rgba(0, 0, 0, 0.85);
@@ -9,6 +9,7 @@
   font-size: 13px;
   display: none;
   width: 220px;
+  z-index: 600;
 }
 #grid-controls h3 {
   margin: 0 0 8px;

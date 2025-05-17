@@ -19,13 +19,6 @@
         <button id="toggle-thumbnails">Show Thumbnails</button>
     </div>
     
-    <!-- Info panel outside the sliding container -->
-    <div id="info-panel">
-        Image Size: -<br>
-        Zoom: 100%<br>
-        Position: 0, 0
-    </div>
-    
     <div id="thumbnail-panel">
         <div class="thumbnail-header">
             <h3>Images</h3>
@@ -41,6 +34,13 @@
     <!-- Moved the handle outside of the panel so it's always visible -->
     <div id="thumbnail-toggle-handle" role="button" aria-label="Toggle thumbnail panel" title="Toggle thumbnails"></div>
     <div id="container">
+        <!-- Info panel moved inside the container so it slides with it -->
+        <div id="info-panel">
+            Image Size: -<br>
+            Zoom: 100%<br>
+            Position: 0, 0
+        </div>
+        
         <canvas id="canvas"></canvas>
         <div id="drop-overlay">Drop image or folder here</div>
 
