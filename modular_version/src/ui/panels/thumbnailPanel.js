@@ -186,22 +186,23 @@ export async function selectImage(index, force = false) {
   
   // Find all thumbnails
   const thumbnails = container.querySelectorAll('.thumbnail-item');
-  
-  // First update the selected index in state - do this early
+  const currentSelectedItem = thumbnails[selectedImageIndex];
+  const newSelectedItem = thumbnails[index];
+
+  // Update the selected index in state - do this early
   setState({ selectedImageIndex: index });
+
+  // Directly update classes on the relevant thumbnails
+  if (currentSelectedItem && currentSelectedItem !== newSelectedItem) {
+    currentSelectedItem.classList.remove('active');
+  }
+  if (newSelectedItem) {
+    newSelectedItem.classList.add('active');
+  }
   
-  // Apply loading indicator and active class in a single pass
-  // to avoid multiple reflows/repaints
+  // Handle scrolling after a brief moment for class changes to apply
+  // and DOM to settle. This helps if CSS transitions are involved.
   requestAnimationFrame(() => {
-    thumbnails.forEach((item, idx) => {
-      if (idx === index) {
-        item.classList.add('active', 'loading');
-      } else {
-        item.classList.remove('active');
-      }
-    });
-    
-    // Handle scrolling immediately after class changes
     highlightSelectedThumbnail(index);
   });
   
@@ -216,11 +217,6 @@ export async function selectImage(index, force = false) {
     
     // Draw it on canvas
     refreshCanvas();
-    
-    // Remove loading indicator
-    thumbnails.forEach((item, idx) => {
-      if (idx === index) item.classList.remove('loading');
-    });
     
     // Remove the snapshot once the new image is drawn
     setTimeout(() => removeSnapshot(), 100);
@@ -360,45 +356,49 @@ function handlePanelTransition() {
 }
 
 function highlightSelectedThumbnail(selectedIndex) {
-  if (selectedIndex >= 0) {
-    const thumbnails = container.querySelectorAll('.thumbnail-item');
+  if (selectedIndex < 0 || !container) return;
+
+  const thumbnails = container.querySelectorAll('.thumbnail-item');
+  if (selectedIndex >= thumbnails.length) return;
+
+  const selectedItem = thumbnails[selectedIndex];
+
+  // Ensure only the current item is active
+  // This is a bit redundant if selectImage already did it, but good for direct calls.
+  thumbnails.forEach((item, idx) => {
+    if (idx === selectedIndex) {
+      if (!item.classList.contains('active')) item.classList.add('active');
+    } else {
+      if (item.classList.contains('active')) item.classList.remove('active');
+    }
+  });
+  
+  if (selectedItem) {
+    // Get the current positions using absolute coordinates
+    const containerRect = container.getBoundingClientRect();
+    const itemRect = selectedItem.getBoundingClientRect();
+
+    const containerScrollTop = container.scrollTop;
+    const containerVisibleHeight = container.clientHeight;
     
-    // First just update all classes without scrolling
-    thumbnails.forEach((item, idx) => {
-      if (idx === selectedIndex) {
-        item.classList.add('active');
-      } else {
-        item.classList.remove('active');
-      }
-    });
-    
-    // Wait a tiny bit for any CSS transitions to settle before calculating scroll position
-    requestAnimationFrame(() => {
-      // Then check if we need to scroll
-      const selectedItem = thumbnails[selectedIndex];
-      if (selectedItem) {
-        // Get the current positions using absolute coordinates
-        const containerTop = container.getBoundingClientRect().top;
-        const containerBottom = container.getBoundingClientRect().bottom;
-        const itemTop = selectedItem.getBoundingClientRect().top;
-        const itemBottom = selectedItem.getBoundingClientRect().bottom;
-        
-        // Calculate if item is fully visible in the container
-        const isAboveView = itemTop < containerTop;
-        const isBelowView = itemBottom > containerBottom;
-        
-        // Item height with margin for better visibility
-        const itemHeight = selectedItem.offsetHeight;
-        
-        if (isAboveView) {
-          // Item is above view, position it at the top with a small margin
-          container.scrollTop += (itemTop - containerTop - 12); // 12px margin
-        } else if (isBelowView) {
-          // Item is below view, position it at the bottom with a small margin
-          container.scrollTop += (itemBottom - containerBottom + 12); // 12px margin
-        }
-      }
-    });
+    // Calculate item's position relative to the scrollable content of the container
+    const itemOffsetTop = selectedItem.offsetTop;
+    const itemHeight = selectedItem.offsetHeight;
+
+    // Desired visible portion when scrolling (e.g., ensure item is not right at the edge)
+    const scrollMargin = 12; 
+
+    // Check if item is above the visible area
+    if (itemOffsetTop < containerScrollTop + scrollMargin) {
+      container.scrollTop = Math.max(0, itemOffsetTop - scrollMargin);
+    } 
+    // Check if item is below the visible area
+    else if (itemOffsetTop + itemHeight > containerScrollTop + containerVisibleHeight - scrollMargin) {
+      container.scrollTop = itemOffsetTop + itemHeight - containerVisibleHeight + scrollMargin;
+    }
+    // No scroll needed if item is already sufficiently visible.
+    // The original logic with itemTop/containerTop could be problematic if container itself is scrolled within page.
+    // Using offsetTop and scrollTop provides values relative to the scroll container.
   }
 }
 
