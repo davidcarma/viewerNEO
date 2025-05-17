@@ -1,0 +1,33 @@
+#grid-controls.panel {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: none;
+  width: 220px;
+}
+#grid-controls h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  text-align: center;
+}
+#grid-controls .control-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+#grid-controls input[type="range"] {
+  flex: 1;
+}
+#grid-controls select {
+  flex: 1;
+}
+#grid-controls .control-row span {
+  min-width: 40px;
+  text-align: right;
+} 

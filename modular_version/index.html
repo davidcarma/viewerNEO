@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>High DPI Image Viewer</title>
+    <link rel="stylesheet" href="css/legacy.css">
+    <link rel="stylesheet" href="css/components/grid-controls.css">
+    <link rel="stylesheet" href="css/components/thumbnail.css">
+    <!-- Add local TIFF.js library -->
+    <script src="lib/tiff.js"></script>
+</head>
+<body>
+    <div id="thumbnail-panel">
+        <div class="thumbnail-header">
+            <h3>Images</h3>
+            <button id="close-thumbnails">×</button>
+        </div>
+        <div id="thumbnails-container"></div>
+    </div>
+    <div id="thumbnail-toggle-handle" class="hidden"></div>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        <div id="drop-overlay">Drop image or folder here</div>
+        <div id="info-panel">
+            Image Size: -<br>
+            Zoom: 100%<br>
+            Position: 0, 0
+        </div>
+        <div id="controls">
+            <button id="load-btn">Load Image</button>
+            <button id="zoom-in">Zoom In</button>
+            <button id="zoom-out">Zoom Out</button>
+            <button id="grid-btn">Grid</button>
+            <button id="reset">Reset View</button>
+            <button id="projection-btn">Show Projection</button> 
+            <button id="toggle-thumbnails">Show Thumbnails</button>
+        </div>
+        
+        <!-- Test draggable elements -->
+        <div class="analysis-pane" data-title="Test Panel 1" style="left: 100px; top: 100px; width: 300px; height: 200px; display: none;">
+            <h3>Test Draggable Panel</h3>
+            <div class="analysis-content">
+                This is a test panel to verify that the layout manager is working correctly.
+                Try dragging this panel by its header.
+            </div>
+        </div>
+        
+        <div class="analysis-pane" data-title="Test Panel 2" style="left: 500px; top: 150px; width: 250px; height: 180px; display: none;">
+            <h3>Another Test Panel</h3>
+            <div class="analysis-content">
+                This is another test panel. Both panels should be draggable without "hopping".
+            </div>
+        </div>
+        <!-- End test elements -->
+        
+        <div id="grid-controls" class="panel shadow">
+            <h3>Grid Settings</h3>
+            <div class="control-row">
+                <label for="grid-size">Size</label>
+                <input type="number" id="grid-size" min="0.1" step="0.1" value="100" style="width:80px;">
+                px
+            </div>
+            <div class="control-row">
+                <label for="grid-color">Color</label>
+                <input type="color" id="grid-color" value="#ff0059">
+            </div>
+            <div class="control-row">
+                <label for="grid-opacity">Opacity</label>
+                <input type="range" id="grid-opacity" min="0" max="100" value="50">
+                <span id="grid-opacity-label">50%</span>
+            </div>
+            <div class="control-row">
+                <label for="grid-line-style">Style</label>
+                <select id="grid-line-style">
+                    <option value="solid" selected>Solid</option>
+                    <option value="dashed">Dashed</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <label><input type="checkbox" id="grid-fixed-switch"> Fixed to View</label>
+            </div>
+        </div>
+        <div class="loading">Loading...</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*,.tif,.tiff" multiple>
+    <input type="file" id="directory-input" accept="image/*,.tif,.tiff" webkitdirectory directory multiple>
+    
+    <!-- Modular Version entry point -->
+    <script type="module" src="./src/core/app.js"></script>
+</body>
+</html>

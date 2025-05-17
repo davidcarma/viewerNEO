@@ -1,0 +1,21 @@
+.thumbnail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 6px;
+  width: 100px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
+  color: #ddd;
+}
+.thumbnail-item.active {
+  border-color: var(--accent, #ff0059);
+}
+.thumbnail-item img {
+  width: 100%;
+  height: auto;
+  display: block;
+} 
