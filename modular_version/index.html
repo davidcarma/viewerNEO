@@ -5,6 +5,8 @@
     <link rel="stylesheet" href="css/legacy.css">
     <link rel="stylesheet" href="css/components/grid-controls.css">
     <link rel="stylesheet" href="css/components/thumbnail.css">
+    <link rel="stylesheet" href="css/components/thumbnail-panel.css">
+    <link rel="stylesheet" href="css/components/grid-overlay.css">
     <!-- Add local TIFF.js library -->
     <script src="lib/tiff.js"></script>
 </head>
@@ -12,13 +14,18 @@
     <div id="thumbnail-panel">
         <div class="thumbnail-header">
             <h3>Images</h3>
-            <button id="close-thumbnails">×</button>
+            <button id="close-thumbnails" class="icon-btn" aria-label="Close thumbnails">
+                <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
         </div>
         <div id="thumbnails-container"></div>
     </div>
-    <div id="thumbnail-toggle-handle" class="hidden"></div>
     <div id="container">
         <canvas id="canvas"></canvas>
+        <canvas id="grid-overlay" class="overlay"></canvas>
         <div id="drop-overlay">Drop image or folder here</div>
         <div id="info-panel">
             Image Size: -<br>
@@ -86,5 +93,7 @@
     
     <!-- Modular Version entry point -->
     <script type="module" src="./src/core/app.js"></script>
+    <!-- Slider handle, pure CSS tab -->
+    <div id="thumbnail-tab"></div>
 </body>
 </html>

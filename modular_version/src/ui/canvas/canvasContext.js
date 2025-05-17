@@ -21,6 +21,15 @@ export function setCanvasSize(cssWidth, cssHeight) {
 
   // Reset transform then scale so 1 unit in canvas == 1 CSS pixel.
   ctx.setTransform(currentDpr, 0, 0, currentDpr, 0, 0);
+
+  // grid overlay canvas
+  const overlay = document.getElementById('grid-overlay');
+  if (overlay) {
+    overlay.width = canvas.width;
+    overlay.height = canvas.height;
+    overlay.style.width = canvas.style.width;
+    overlay.style.height = canvas.style.height;
+  }
 }
 
 export const getCanvas = () => canvas;

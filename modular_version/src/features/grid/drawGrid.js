@@ -6,9 +6,10 @@ export function drawGrid() {
 
   if (!grid.show) return;
 
-  const ctx = getContext();
-  const { image } = getState();
-  if (!image) return;
+  const overlay = document.getElementById('grid-overlay');
+  if (!overlay) return;
+  const ctx = overlay.getContext('2d');
+  ctx.clearRect(0,0,overlay.width, overlay.height);
 
   ctx.save();
 
@@ -16,10 +17,12 @@ export function drawGrid() {
   ctx.globalAlpha = grid.opacity;
   ctx.setLineDash(grid.lineStyle === 'dashed' ? [4, 4] : []);
 
+  const canvasW = overlay.width;
+  const canvasH = overlay.height;
+
   if (grid.fixed) {
     // Grid relative to viewport
     ctx.lineWidth = 1;
-    const { width: canvasW, height: canvasH } = getCanvas();
     const cellPx = grid.size;
     for (let x = 0; x <= canvasW; x += cellPx) {
       ctx.beginPath();
@@ -40,8 +43,8 @@ export function drawGrid() {
     ctx.lineWidth = 1 / zoom;
 
     const cell = grid.size; // in image pixels
-    const imgW = image.width;
-    const imgH = image.height;
+    const imgW = overlay.width;
+    const imgH = overlay.height;
 
     for (let x = 0; x <= imgW; x += cell) {
       ctx.beginPath();
