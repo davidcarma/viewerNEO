@@ -16,6 +16,8 @@ export const State = {
     lineStyle: 'solid',
   },
   selectedImageIndex: -1,
+  canvasZoomLimits: { min: 0.1, max: 50 },
+  canvasReady: false,
 };
 
 /**
