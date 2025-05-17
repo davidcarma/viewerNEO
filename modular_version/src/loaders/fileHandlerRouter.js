@@ -16,24 +16,12 @@ function isImageFile(file) {
 }
 
 export async function handleIncomingFiles(files) {
-  console.log(`Processing ${files.length} dropped files`);
-  
-  // More robust image filtering with detailed logging
+  // Filter for valid image files
   const images = [];
-  const skipped = [];
-  
   for (const file of files) {
     if (isImageFile(file)) {
       images.push(file);
-    } else {
-      skipped.push(file.name);
     }
-  }
-  
-  if (skipped.length > 0) {
-    console.log(`Skipped ${skipped.length} non-image files:`, 
-      skipped.length <= 5 ? skipped.join(', ') : 
-      `${skipped.slice(0, 5).join(', ')} and ${skipped.length - 5} more`);
   }
   
   if (!images.length) {
@@ -41,34 +29,29 @@ export async function handleIncomingFiles(files) {
     return;
   }
   
-  console.log(`Found ${images.length} valid image files to load`);
+  // Sort images alphabetically by name
+  images.sort((a, b) => a.name.localeCompare(b.name));
   
+  // Combine with existing files
   const currentState = getState();
   const combined = [...currentState.imageFiles, ...images];
-  console.log('Files after adding new ones:', combined.map(f=>f.name).slice(0, 10), 
-    combined.length > 10 ? `(and ${combined.length - 10} more)` : '');
   
-  // Calculate the index of the first new image in the combined array
+  // Calculate the index of the first new image
   const newImageIndex = currentState.imageFiles.length;
-  
-  // Always show the first newly dropped image
   const targetIndex = images.length > 0 ? newImageIndex : currentState.selectedImageIndex;
   
   // Show loading indicator
   const loadingIndicator = document.querySelector('.loading');
   if (loadingIndicator) {
     loadingIndicator.style.display = 'flex';
-    // Add text content to show what's happening
     loadingIndicator.textContent = `Loading ${images.length} image${images.length > 1 ? 's' : ''}...`;
   }
   
   try {
     // Load the image first before updating state
-    // This prevents race conditions with thumbnails panel transitions
-    console.log(`Loading image at index ${targetIndex} (${combined[targetIndex].name})`);
     const { image, imageData } = await loadImageFile(combined[targetIndex]);
     
-    // Now update state with both files and loaded image
+    // Update state with the files and loaded image
     setState({ 
       imageFiles: combined,
       image, 
@@ -76,26 +59,27 @@ export async function handleIncomingFiles(files) {
       selectedImageIndex: targetIndex 
     });
     
-    // Render the image on canvas immediately
+    // Render the image on canvas
     renderImage();
     
-    // Now that image is loaded and rendered, update thumbnails
-    const { updateThumbnails } = await import('../ui/panels/thumbnailPanel.js');
-    
-    // Delay thumbnail panel update slightly to avoid rendering race conditions
+    // Force a second render to ensure image is visible
     setTimeout(() => {
-      updateThumbnails();
-      console.log('Rendering', combined.length, 'thumbnails');
-    }, 50);
+      renderImage();
+      
+      // Now update thumbnails with a delay to ensure image is fully rendered
+      setTimeout(async () => {
+        const { updateThumbnails } = await import('../ui/panels/thumbnailPanel.js');
+        updateThumbnails();
+      }, 200);
+    }, 100);
     
   } catch (err) {
     console.error('Error loading image:', err);
-    // Still update the file list even if the image load failed
     setState({ imageFiles: combined });
   } finally {
     // Hide loading indicator
     if (loadingIndicator) {
-      loadingIndicator.textContent = 'Loading...'; // Reset to default text
+      loadingIndicator.textContent = 'Loading...';
       loadingIndicator.style.display = 'none';
     }
   }

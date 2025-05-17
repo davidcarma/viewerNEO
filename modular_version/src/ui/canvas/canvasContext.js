@@ -13,6 +13,14 @@ let currentDpr = window.devicePixelRatio || 1;
  * Resize canvas backing store & CSS size with proper DPR scaling.
  */
 export function setCanvasSize(cssWidth, cssHeight) {
+  // Keep reference to old canvas content
+  const oldCanvas = document.createElement('canvas');
+  oldCanvas.width = canvas.width;
+  oldCanvas.height = canvas.height;
+  const oldCtx = oldCanvas.getContext('2d');
+  oldCtx.drawImage(canvas, 0, 0);
+  
+  // Resize the canvas
   currentDpr = window.devicePixelRatio || 1;
   canvas.width = cssWidth * currentDpr;
   canvas.height = cssHeight * currentDpr;
@@ -21,6 +29,10 @@ export function setCanvasSize(cssWidth, cssHeight) {
 
   // Reset transform then scale so 1 unit in canvas == 1 CSS pixel.
   ctx.setTransform(currentDpr, 0, 0, currentDpr, 0, 0);
+  
+  // Restore previous canvas content
+  ctx.drawImage(oldCanvas, 0, 0, oldCanvas.width, oldCanvas.height, 
+                0, 0, canvas.width, canvas.height);
 
   // grid overlay canvas
   const overlay = document.getElementById('grid-overlay');

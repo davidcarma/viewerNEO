@@ -1,7 +1,7 @@
 import { getState, setState } from '../../core/state.js';
 import { loadImageFile } from '../../loaders/imageLoader.js';
 import { refreshCanvas, scheduleRedraw } from '../canvas/renderImage.js';
-import { setCanvasSize, getCanvas, getContext } from '../canvas/canvasContext.js';
+import { setCanvasSize, getCanvas } from '../canvas/canvasContext.js';
 
 const container = document.getElementById('thumbnails-container');
 const panelWrapper = document.getElementById('thumbnail-panel');
@@ -14,23 +14,10 @@ const tab = document.getElementById('thumbnail-tab');
 let isPanelTransitioning = false;
 let pendingRedraw = false;
 
-// Create a canvas for snapshot during transitions
-let snapshotCanvas = null;
-function getSnapshotCanvas() {
-  if (!snapshotCanvas) {
-    snapshotCanvas = document.createElement('canvas');
-    snapshotCanvas.className = 'snapshot-canvas';
-    snapshotCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:10;';
-    document.getElementById('container').appendChild(snapshotCanvas);
-  }
-  return snapshotCanvas;
-}
-
 // Ensure tab is visible by default
 if (tab) {
   tab.classList.add('visible');
   tab.style.left = '0px';
-  console.log('Thumbnail tab initialized at position 0');
 }
 
 async function createThumbnail(file, index) {
@@ -116,31 +103,11 @@ export function updateThumbnails() {
         if (!isPanelTransitioning) {
           isPanelTransitioning = true;
           
-          // Take snapshot before making changes
-          const canvas = getCanvas();
-          const { image } = getState();
-          if (image && canvas) {
-            takeCanvasSnapshot();
-          }
-          
-          // Add active class to open panel
+          // Start panel animation
           panelWrapper.classList.add('active');
           
-          // Apply layout changes
-          setTimeout(() => {
-            const cont = document.getElementById('container');
-            const panelW = parseInt(getComputedStyle(panelWrapper).width,10);
-            cont.style.marginLeft = `${panelW}px`;
-            cont.style.width = `calc(100% - ${panelW}px)`;
-            
-            if (tab) {
-              tab.classList.add('visible');
-              tab.style.left = `${panelW}px`;
-            }
-            
-            // Handle panel transition
-            handlePanelTransition();
-          }, 10);
+          // Set up panel transition handler
+          handlePanelTransition();
         } else {
           // Panel is already transitioning, just mark that we need a redraw when done
           pendingRedraw = true;
@@ -177,13 +144,6 @@ export async function selectImage(index, force = false) {
   if (index < 0 || index >= imageFiles.length) return;
   if (!force && index === selectedImageIndex) return; // Already selected
   
-  // Take a snapshot before changing the image (if one is currently displayed)
-  const canvas = getCanvas();
-  const { image } = getState();
-  if (image && canvas) {
-    takeCanvasSnapshot();
-  }
-  
   // Find all thumbnails
   const thumbnails = container.querySelectorAll('.thumbnail-item');
   const currentSelectedItem = thumbnails[selectedImageIndex];
@@ -200,8 +160,7 @@ export async function selectImage(index, force = false) {
     newSelectedItem.classList.add('active');
   }
   
-  // Handle scrolling after a brief moment for class changes to apply
-  // and DOM to settle. This helps if CSS transitions are involved.
+  // Handle scrolling after a brief moment
   requestAnimationFrame(() => {
     highlightSelectedThumbnail(index);
   });
@@ -217,14 +176,8 @@ export async function selectImage(index, force = false) {
     
     // Draw it on canvas
     refreshCanvas();
-    
-    // Remove the snapshot once the new image is drawn
-    setTimeout(() => removeSnapshot(), 100);
-    
   } catch (err) {
     console.error('Failed to load image:', err);
-    // Remove the snapshot if loading failed
-    removeSnapshot();
   }
 }
 
@@ -236,59 +189,20 @@ function updateCanvasSize() {
   setCanvasSize(rect.width, rect.height);
 }
 
-// Take a snapshot of the current canvas to use during transition
-function takeCanvasSnapshot() {
-  const mainCanvas = getCanvas();
-  if (!mainCanvas) return null;
-  
-  const snapshot = getSnapshotCanvas();
-  snapshot.width = mainCanvas.width;
-  snapshot.height = mainCanvas.height;
-  snapshot.style.width = mainCanvas.style.width;
-  snapshot.style.height = mainCanvas.style.height;
-  
-  const ctx = snapshot.getContext('2d');
-  ctx.clearRect(0, 0, snapshot.width, snapshot.height);
-  ctx.drawImage(mainCanvas, 0, 0);
-  
-  // Position the snapshot exactly over the canvas
-  const canvasRect = mainCanvas.getBoundingClientRect();
-  const containerRect = document.getElementById('container').getBoundingClientRect();
-  
-  snapshot.style.top = '0px';
-  snapshot.style.left = '0px';
-  snapshot.style.opacity = '1';
-  snapshot.style.display = 'block';
-  
-  return snapshot;
-}
-
-function removeSnapshot() {
-  if (snapshotCanvas) {
-    // Fade out gradually
-    snapshotCanvas.style.opacity = '0';
-    setTimeout(() => {
-      snapshotCanvas.style.display = 'none';
-    }, 300);
-  }
-}
-
 function applyLayout(active) {
   const panelW = parseInt(getComputedStyle(panelWrapper).width, 10);
   const cont = document.getElementById('container');
   
-  // Get current dimensions before any changes
-  const prevWidth = cont.offsetWidth;
-  const prevHeight = cont.offsetHeight;
-  
   if (active) {
+    // When panel is active (open), shift the container right but keep its full width
     cont.style.marginLeft = `${panelW}px`;
-    cont.style.width = `calc(100% - ${panelW}px)`;
+    cont.style.width = `100%`; // Keep full width
     if (tab) {
       tab.style.left = `${panelW}px`;
       tab.classList.add('visible');
     }
   } else {
+    // When panel is inactive (closed), reset container position
     cont.style.marginLeft = '0';
     cont.style.width = '100%';
     if (tab) {
@@ -297,39 +211,47 @@ function applyLayout(active) {
     }
   }
   
-  // Get dimensions after changes
-  const newWidth = parseInt(getComputedStyle(cont).width, 10);
-  const newHeight = cont.offsetHeight;
-  
-  // If dimensions changed, force canvas update
-  if (prevWidth !== newWidth || prevHeight !== newHeight) {
-    console.log(`Container dimensions changed: ${prevWidth}x${prevHeight} -> ${newWidth}x${newHeight}`);
-  }
+  // Don't trigger canvas resize - the image will just shift with the container
 }
 
 // Helper function to handle panel transition and ensure redraws happen in the right order
 function handlePanelTransition() {
+  // Force a render immediately when transition begins
+  refreshCanvas();
+  
+  // Set up rendering during transition
+  let transitionTimer = setInterval(() => {
+    refreshCanvas();
+  }, 50);
+
   function onTransitionEnd(e) {
     if (e.target === panelWrapper) {
-      // Update canvas size first
-      updateCanvasSize();
+      // Clear the interval
+      clearInterval(transitionTimer);
       
-      // Force a refresh immediately for newly added images
+      // Determine panel state after transition
+      const isActive = panelWrapper.classList.contains('active');
+      
+      // Apply layout based on final state
+      applyLayout(isActive);
+
+      // Skip canvas resize - we want to maintain canvas dimensions
+      // Just redraw the image at its current position
       refreshCanvas();
       
-      // Wait another frame to remove the snapshot
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          removeSnapshot();
-          isPanelTransitioning = false;
-          
-          // Check if another redraw was requested during transition
-          if (pendingRedraw) {
-            pendingRedraw = false;
-            scheduleRedraw();
-          }
-        }, 100);
-      });
+      // Do another render after a small delay
+      setTimeout(() => {
+        refreshCanvas();
+        
+        // Panel transition is complete
+        isPanelTransitioning = false;
+        
+        // Check if another redraw was requested during transition
+        if (pendingRedraw) {
+          pendingRedraw = false;
+          scheduleRedraw();
+        }
+      }, 50);
       
       panelWrapper.removeEventListener('transitionend', onTransitionEnd);
     }
@@ -341,16 +263,23 @@ function handlePanelTransition() {
   // Fallback in case transitionend doesn't fire
   setTimeout(() => {
     if (isPanelTransitioning) {
-      updateCanvasSize();
+      // Clear the interval if it's still running
+      clearInterval(transitionTimer);
+      
+      const isActive = panelWrapper.classList.contains('active');
+      applyLayout(isActive);
+      
+      // Skip canvas resize, just redraw
       refreshCanvas();
+      
       setTimeout(() => {
-        removeSnapshot();
+        refreshCanvas();
         isPanelTransitioning = false;
         if (pendingRedraw) {
           pendingRedraw = false;
           scheduleRedraw();
         }
-      }, 100);
+      }, 50);
     }
   }, 350);
 }
@@ -364,7 +293,6 @@ function highlightSelectedThumbnail(selectedIndex) {
   const selectedItem = thumbnails[selectedIndex];
 
   // Ensure only the current item is active
-  // This is a bit redundant if selectImage already did it, but good for direct calls.
   thumbnails.forEach((item, idx) => {
     if (idx === selectedIndex) {
       if (!item.classList.contains('active')) item.classList.add('active');
@@ -385,7 +313,7 @@ function highlightSelectedThumbnail(selectedIndex) {
     const itemOffsetTop = selectedItem.offsetTop;
     const itemHeight = selectedItem.offsetHeight;
 
-    // Desired visible portion when scrolling (e.g., ensure item is not right at the edge)
+    // Desired visible portion when scrolling
     const scrollMargin = 12; 
 
     // Check if item is above the visible area
@@ -396,9 +324,6 @@ function highlightSelectedThumbnail(selectedIndex) {
     else if (itemOffsetTop + itemHeight > containerScrollTop + containerVisibleHeight - scrollMargin) {
       container.scrollTop = itemOffsetTop + itemHeight - containerVisibleHeight + scrollMargin;
     }
-    // No scroll needed if item is already sufficiently visible.
-    // The original logic with itemTop/containerTop could be problematic if container itself is scrolled within page.
-    // Using offsetTop and scrollTop provides values relative to the scroll container.
   }
 }
 
@@ -415,34 +340,21 @@ if (toggleBtn && !toggleBtn._bound) {
   toggleBtn._bound = true;
 }
 
-// Update the togglePanel function to use the shared panel transition handler
+// Update the togglePanel function to simplify it
 function togglePanel() {
   if (isPanelTransitioning) return; // Prevent toggling during transitions
-  
-  const canvas = getCanvas();
-  const { image } = getState();
   
   // Start transition tracking
   isPanelTransitioning = true;
   
-  // Only take snapshot if we have an image
-  if (image && canvas) {
-    takeCanvasSnapshot();
-  }
-  
-  // Apply panel toggle
-  const active = panelWrapper.classList.toggle('active');
-  
-  // Use a brief timeout to ensure snapshot is rendered before layout changes
-  setTimeout(() => {
-    applyLayout(active);
-  }, 10);
+  // Toggle panel active state - this triggers the CSS sliding animation
+  panelWrapper.classList.toggle('active');
   
   // Handle the transition events
   handlePanelTransition();
 }
 
-// Add new function to remove an image
+// Add function to remove an image
 function removeImage(index) {
   const { imageFiles, selectedImageIndex } = getState();
   
@@ -474,6 +386,6 @@ function removeImage(index) {
     setState({ selectedImageIndex: selectedImageIndex - 1 });
   }
   
-  // Rebuild thumbnails (this is a legitimate reason to rebuild)
+  // Rebuild thumbnails
   updateThumbnails();
 } 
