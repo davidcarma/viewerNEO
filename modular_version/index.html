@@ -11,6 +11,21 @@
     <script src="lib/tiff.js"></script>
 </head>
 <body>
+    <!-- Fixed controls that don't slide with the container -->
+    <div id="controls">
+        <button id="load-btn">Load Image</button>
+        <button id="grid-btn">Grid</button>
+        <button id="projection-btn">Show Projection</button> 
+        <button id="toggle-thumbnails">Show Thumbnails</button>
+    </div>
+    
+    <!-- Info panel outside the sliding container -->
+    <div id="info-panel">
+        Image Size: -<br>
+        Zoom: 100%<br>
+        Position: 0, 0
+    </div>
+    
     <div id="thumbnail-panel">
         <div class="thumbnail-header">
             <h3>Images</h3>
@@ -22,21 +37,13 @@
             </button>
         </div>
         <div id="thumbnails-container"></div>
+        <div id="thumbnail-toggle-handle"></div>
+        <!-- Slider handle, now inside the panel for synchronized animation -->
+        <div id="thumbnail-tab"></div>
     </div>
     <div id="container">
         <canvas id="canvas"></canvas>
         <div id="drop-overlay">Drop image or folder here</div>
-        <div id="info-panel">
-            Image Size: -<br>
-            Zoom: 100%<br>
-            Position: 0, 0
-        </div>
-        <div id="controls">
-            <button id="load-btn">Load Image</button>
-            <button id="grid-btn">Grid</button>
-            <button id="projection-btn">Show Projection</button> 
-            <button id="toggle-thumbnails">Show Thumbnails</button>
-        </div>
         
         <!-- Test draggable elements -->
         <div class="analysis-pane" data-title="Test Panel 1" style="left: 100px; top: 100px; width: 300px; height: 200px; display: none;">
@@ -89,7 +96,5 @@
     
     <!-- Modular Version entry point -->
     <script type="module" src="./src/core/app.js"></script>
-    <!-- Slider handle, pure CSS tab -->
-    <div id="thumbnail-tab"></div>
 </body>
 </html>

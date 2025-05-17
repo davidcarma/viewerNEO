@@ -1,6 +1,6 @@
 import { getState, setState } from '../../core/state.js';
 import { loadImageFile } from '../../loaders/imageLoader.js';
-import { refreshCanvas, scheduleRedraw } from '../canvas/renderImage.js';
+import { refreshCanvas, scheduleRedraw, setPanelTransitionState } from '../canvas/renderImage.js';
 import { setCanvasSize, getCanvas } from '../canvas/canvasContext.js';
 
 const container = document.getElementById('thumbnails-container');
@@ -103,8 +103,9 @@ export function updateThumbnails() {
         if (!isPanelTransitioning) {
           isPanelTransitioning = true;
           
-          // Start panel animation
+          // Start panel animation - both panel and container simultaneously
           panelWrapper.classList.add('active');
+          document.getElementById('container').classList.add('with-thumbnails');
           
           // Set up panel transition handler
           handlePanelTransition();
@@ -120,7 +121,6 @@ export function updateThumbnails() {
       // Just one image, don't open the panel but ensure tab is visible
       if (tab) {
         tab.classList.add('visible');
-        tab.style.left = '0px';
       }
     }
   } else {
@@ -194,19 +194,19 @@ function applyLayout(active) {
   const cont = document.getElementById('container');
   
   if (active) {
-    // When panel is active (open), shift the container right but keep its full width
-    cont.style.marginLeft = `${panelW}px`;
-    cont.style.width = `100%`; // Keep full width
+    // Add a class to the container to synchronize the animation
+    cont.classList.add('with-thumbnails');
+    
+    // No need to position the tab as it's now part of the panel and positioned with CSS
     if (tab) {
-      tab.style.left = `${panelW}px`;
       tab.classList.add('visible');
     }
   } else {
-    // When panel is inactive (closed), reset container position
-    cont.style.marginLeft = '0';
-    cont.style.width = '100%';
+    // Remove the class from the container to synchronize the animation
+    cont.classList.remove('with-thumbnails');
+    
+    // No need to position the tab as it's now part of the panel and positioned with CSS
     if (tab) {
-      tab.style.left = '0px';
       tab.classList.add('visible');
     }
   }
@@ -216,13 +216,21 @@ function applyLayout(active) {
 
 // Helper function to handle panel transition and ensure redraws happen in the right order
 function handlePanelTransition() {
+  // Tell the renderer we're in a transition - this prevents image resizing
+  setPanelTransitionState(true);
+  
   // Force a render immediately when transition begins
   refreshCanvas();
   
-  // Set up rendering during transition
+  // Set up rendering during transition - more frequent interval for smoother animation
   let transitionTimer = setInterval(() => {
     refreshCanvas();
-  }, 50);
+  }, 16); // ~60fps for smoother animation
+  
+  // Additional forced renders to ensure the image stays visible
+  for (let i = 1; i < 10; i++) {
+    setTimeout(() => refreshCanvas(), i * 25);
+  }
 
   function onTransitionEnd(e) {
     if (e.target === panelWrapper) {
@@ -241,6 +249,8 @@ function handlePanelTransition() {
       
       // Do another render after a small delay
       setTimeout(() => {
+        // Tell the renderer the transition is complete
+        setPanelTransitionState(false);
         refreshCanvas();
         
         // Panel transition is complete
@@ -273,6 +283,8 @@ function handlePanelTransition() {
       refreshCanvas();
       
       setTimeout(() => {
+        // Tell the renderer the transition is complete
+        setPanelTransitionState(false);
         refreshCanvas();
         isPanelTransitioning = false;
         if (pendingRedraw) {
@@ -347,8 +359,19 @@ function togglePanel() {
   // Start transition tracking
   isPanelTransitioning = true;
   
-  // Toggle panel active state - this triggers the CSS sliding animation
-  panelWrapper.classList.toggle('active');
+  // Get current state
+  const isActive = panelWrapper.classList.contains('active');
+  
+  // Apply both changes simultaneously to synchronize animations
+  if (isActive) {
+    // If currently active, deactivate it
+    panelWrapper.classList.remove('active');
+    document.getElementById('container').classList.remove('with-thumbnails');
+  } else {
+    // If currently inactive, activate it
+    panelWrapper.classList.add('active');
+    document.getElementById('container').classList.add('with-thumbnails');
+  }
   
   // Handle the transition events
   handlePanelTransition();

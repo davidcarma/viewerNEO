@@ -5,6 +5,13 @@ import { drawGrid } from '../../features/grid/drawGrid.js';
 
 // Simple tracking of last rendered image to avoid duplicate fitting
 let lastRenderedImage = null;
+// Track when we're in a panel transition to avoid transformation changes
+let inPanelTransition = false;
+
+// Export function to allow thumbnail panel to signal transition state
+export function setPanelTransitionState(isTransitioning) {
+  inPanelTransition = isTransitioning;
+}
 
 export function refreshCanvas() {
   const { image, grid } = getState();
@@ -43,8 +50,18 @@ export function refreshCanvas() {
 
   if (image) {
     ctx.save();
-    ctx.translate(currentOffset.x, currentOffset.y);
-    ctx.scale(currentZoom, currentZoom);
+    
+    // During panel transitions, maintain exact same position and scale
+    // to prevent the image from jumping or resizing
+    if (!inPanelTransition) {
+      ctx.translate(currentOffset.x, currentOffset.y);
+      ctx.scale(currentZoom, currentZoom);
+    } else {
+      // Just use the stored values during transition, no adjustments
+      ctx.translate(currentOffset.x, currentOffset.y);
+      ctx.scale(currentZoom, currentZoom);
+    }
+    
     ctx.drawImage(image, 0, 0);
     ctx.restore();
   }
