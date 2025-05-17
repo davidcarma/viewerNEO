@@ -30,18 +30,19 @@ export function drawGrid() {
   console.log('Drawing grid with size:', grid.size, typeof grid.size);
   
   if (grid.fixed) {
-    // "Fixed" grid: Scales with zoom, but does NOT pan with the image.
-    // Acts like a ruler fixed to the viewport, but whose markings scale with zoom.
+    // Fixed grid - STAYS IN PLACE ON SCREEN, but its cell size SCALES WITH ZOOM
     ctx.lineWidth = 1;
     
-    const actualCellSizeOnScreen = cellSize * zoom;
-    console.log('[Fixed Viewport Grid] original cellSize:', cellSize, 'zoom:', zoom, 'actualCellSizeOnScreen:', actualCellSizeOnScreen);
+    // Grid lines represent image pixels, so scale with zoom
+    const fixedCellSize = cellSize * zoom; 
+    console.log('[Fixed Grid] Using cellSize:', cellSize, 'zoom:', zoom, 'Resulting fixedCellSize:', fixedCellSize);
     
-    const startX = 0; // Does not pan with image offset.x
-    const startY = 0; // Does not pan with image offset.y
+    // Calculate where to start drawing the grid (always from screen origin for fixed)
+    const startX = 0;
+    const startY = 0;
     
     // Draw vertical lines
-    for (let x = startX; x < canvasWidth; x += actualCellSizeOnScreen) {
+    for (let x = startX; x < canvasWidth; x += fixedCellSize) {
       ctx.beginPath();
       ctx.moveTo(x + 0.5, 0);
       ctx.lineTo(x + 0.5, canvasHeight);
@@ -49,22 +50,27 @@ export function drawGrid() {
     }
     
     // Draw horizontal lines
-    for (let y = startY; y < canvasHeight; y += actualCellSizeOnScreen) {
+    for (let y = startY; y < canvasHeight; y += fixedCellSize) {
       ctx.beginPath();
       ctx.moveTo(0, y + 0.5);
       ctx.lineTo(canvasWidth, y + 0.5);
       ctx.stroke();
     }
   } else {
-    // Image-aligned grid - scrolls and scales with image
-    ctx.lineWidth = 1;
-    const cellSizeScaled = cellSize * zoom; // This is correct for image-aligned
+    // Image-aligned grid - scrolls with image
+    
+    // Account for image position and zoom
+    // First, determine the grid cell size in screen pixels
+    const cellSizeScaled = cellSize * zoom;
     console.log('[Image-Aligned Grid] Using cellSize:', cellSize, 'zoom:', zoom, 'Resulting cellSizeScaled:', cellSizeScaled);
     
+    // Calculate where the grid lines should start
+    // Need to align with image origin (0,0) after applying offset
     const xOffset = (offset.x % cellSizeScaled);
     const yOffset = (offset.y % cellSizeScaled);
     
     // Draw vertical lines
+    ctx.lineWidth = 1;
     for (let x = xOffset; x < canvasWidth; x += cellSizeScaled) {
       ctx.beginPath();
       ctx.moveTo(x + 0.5, 0);
