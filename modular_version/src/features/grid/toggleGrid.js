@@ -15,7 +15,11 @@ export function initGridFeature() {
     updateGridSettings({ show: btn.classList.contains('active') });
 
     if (controlPanel) {
-      controlPanel.style.display = btn.classList.contains('active') ? 'block' : 'none';
+      if (btn.classList.contains('active')) {
+        controlPanel.classList.add('visible');
+      } else {
+        controlPanel.classList.remove('visible');
+      }
     }
   });
 
@@ -23,5 +27,5 @@ export function initGridFeature() {
   initGridDraw();
 
   // start hidden
-  if (controlPanel) controlPanel.style.display = 'none';
+  if (controlPanel) controlPanel.classList.remove('visible');
 } 

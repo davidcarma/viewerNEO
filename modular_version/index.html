@@ -33,6 +33,36 @@
     </div>
     <!-- Moved the handle outside of the panel so it's always visible -->
     <div id="thumbnail-toggle-handle" role="button" aria-label="Toggle thumbnail panel" title="Toggle thumbnails"></div>
+    
+    <!-- Grid controls moved outside the container so they stay fixed -->
+    <div id="grid-controls" class="panel shadow">
+        <h3>Grid Settings</h3>
+        <div class="control-row">
+            <label for="grid-size">Size</label>
+            <input type="number" id="grid-size" min="0.1" step="0.1" value="100" style="width:80px;">
+            px
+        </div>
+        <div class="control-row">
+            <label for="grid-color">Color</label>
+            <input type="color" id="grid-color" value="#ff0059">
+        </div>
+        <div class="control-row">
+            <label for="grid-opacity">Opacity</label>
+            <input type="range" id="grid-opacity" min="0" max="100" value="50">
+            <span id="grid-opacity-label">50%</span>
+        </div>
+        <div class="control-row">
+            <label for="grid-line-style">Style</label>
+            <select id="grid-line-style">
+                <option value="solid" selected>Solid</option>
+                <option value="dashed">Dashed</option>
+            </select>
+        </div>
+        <div class="control-row">
+            <label><input type="checkbox" id="grid-fixed-switch"> Fixed to View</label>
+        </div>
+    </div>
+    
     <div id="container">
         <!-- Info panel moved inside the container so it slides with it -->
         <div id="info-panel">
@@ -43,35 +73,6 @@
         
         <canvas id="canvas"></canvas>
         <div id="drop-overlay">Drop image or folder here</div>
-
-        
-        <div id="grid-controls" class="panel shadow">
-            <h3>Grid Settings</h3>
-            <div class="control-row">
-                <label for="grid-size">Size</label>
-                <input type="number" id="grid-size" min="0.1" step="0.1" value="100" style="width:80px;">
-                px
-            </div>
-            <div class="control-row">
-                <label for="grid-color">Color</label>
-                <input type="color" id="grid-color" value="#ff0059">
-            </div>
-            <div class="control-row">
-                <label for="grid-opacity">Opacity</label>
-                <input type="range" id="grid-opacity" min="0" max="100" value="50">
-                <span id="grid-opacity-label">50%</span>
-            </div>
-            <div class="control-row">
-                <label for="grid-line-style">Style</label>
-                <select id="grid-line-style">
-                    <option value="solid" selected>Solid</option>
-                    <option value="dashed">Dashed</option>
-                </select>
-            </div>
-            <div class="control-row">
-                <label><input type="checkbox" id="grid-fixed-switch"> Fixed to View</label>
-            </div>
-        </div>
         <div class="loading">Loading...</div>
     </div>
     <input type="file" id="file-input" accept="image/*,.tif,.tiff" multiple>

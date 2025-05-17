@@ -127,33 +127,6 @@ button.disabled {
     z-index: 200;
 }
 
-#grid-controls {
-    position: fixed;
-    top: 60px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 10px;
-    border-radius: 5px;
-    color: white;
-    display: none;
-    z-index: 200;
-}
-
-#grid-controls.visible {
-    display: block;
-}
-
-#grid-controls input {
-    width: 60px;
-    margin-left: 5px;
-}
-
-#grid-controls label {
-    display: flex;
-    align-items: center;
-    margin: 5px 0;
-}
-
 #projection-overlay {
     position: fixed;
     top: 50%;
