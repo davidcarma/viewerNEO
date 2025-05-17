@@ -26,12 +26,22 @@ export function drawGrid() {
   const canvasWidth = canvasEl.width / dpr;
   const canvasHeight = canvasEl.height / dpr;
   
+  // Debugging
+  console.log('Drawing grid with size:', grid.size, typeof grid.size);
+  
   if (grid.fixed) {
-    // Fixed grid - stays in place when image moves
+    // Fixed grid - unaffected by zoom/pan
     ctx.lineWidth = 1;
     
+    // Ensure we use exact logical pixels for fixed grid
+    const fixedCellSize = cellSize;
+    
+    // Calculate where to start drawing the grid
+    const startX = 0;
+    const startY = 0;
+    
     // Draw vertical lines
-    for (let x = 0; x < canvasWidth; x += cellSize) {
+    for (let x = startX; x < canvasWidth; x += fixedCellSize) {
       ctx.beginPath();
       ctx.moveTo(x + 0.5, 0);
       ctx.lineTo(x + 0.5, canvasHeight);
@@ -39,7 +49,7 @@ export function drawGrid() {
     }
     
     // Draw horizontal lines
-    for (let y = 0; y < canvasHeight; y += cellSize) {
+    for (let y = startY; y < canvasHeight; y += fixedCellSize) {
       ctx.beginPath();
       ctx.moveTo(0, y + 0.5);
       ctx.lineTo(canvasWidth, y + 0.5);

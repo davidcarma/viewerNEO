@@ -11,7 +11,7 @@ export function initGridControls() {
     return;
   }
 
-  sizeInput.addEventListener('change', () => {
+  sizeInput.addEventListener('input', () => {
     const value = parseFloat(sizeInput.value) || 100;
     updateGridSettings({ size: value });
   });
