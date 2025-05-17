@@ -184,13 +184,15 @@ export async function selectImage(index, force = false) {
     takeCanvasSnapshot();
   }
   
-  // Load the new image
-  const file = imageFiles[index];
-  console.log('Loading image:', file.name);
+  // Find all thumbnails
+  const thumbnails = container.querySelectorAll('.thumbnail-item');
   
-  try {
-    // Update UI before loading (optional progress indicator)
-    const thumbnails = container.querySelectorAll('.thumbnail-item');
+  // First update the selected index in state - do this early
+  setState({ selectedImageIndex: index });
+  
+  // Apply loading indicator and active class in a single pass
+  // to avoid multiple reflows/repaints
+  requestAnimationFrame(() => {
     thumbnails.forEach((item, idx) => {
       if (idx === index) {
         item.classList.add('active', 'loading');
@@ -199,15 +201,21 @@ export async function selectImage(index, force = false) {
       }
     });
     
+    // Handle scrolling immediately after class changes
+    highlightSelectedThumbnail(index);
+  });
+  
+  // Load the new image
+  const file = imageFiles[index];
+  console.log('Loading image:', file.name);
+  
+  try {
     // Load the image
     const { image, imageData } = await loadImageFile(file);
-    setState({ image, imageData, selectedImageIndex: index });
+    setState({ image, imageData });
     
     // Draw it on canvas
     refreshCanvas();
-    
-    // Scroll the selected thumbnail into view if needed
-    highlightSelectedThumbnail(index);
     
     // Remove loading indicator
     thumbnails.forEach((item, idx) => {
@@ -354,34 +362,41 @@ function handlePanelTransition() {
 function highlightSelectedThumbnail(selectedIndex) {
   if (selectedIndex >= 0) {
     const thumbnails = container.querySelectorAll('.thumbnail-item');
+    
+    // First just update all classes without scrolling
     thumbnails.forEach((item, idx) => {
       if (idx === selectedIndex) {
         item.classList.add('active');
-        // Scroll to the selected thumbnail if needed
-        setTimeout(() => {
-          try {
-            // Check if we need to scroll
-            const containerRect = container.getBoundingClientRect();
-            const itemRect = item.getBoundingClientRect();
-            
-            const isVisible = (
-              itemRect.top >= containerRect.top &&
-              itemRect.bottom <= containerRect.bottom
-            );
-            
-            if (!isVisible) {
-              console.log('Scrolling to thumbnail at index', selectedIndex);
-              item.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'nearest' 
-              });
-            }
-          } catch (e) {
-            console.warn('Failed to scroll to thumbnail', e);
-          }
-        }, 100);
       } else {
         item.classList.remove('active');
+      }
+    });
+    
+    // Wait a tiny bit for any CSS transitions to settle before calculating scroll position
+    requestAnimationFrame(() => {
+      // Then check if we need to scroll
+      const selectedItem = thumbnails[selectedIndex];
+      if (selectedItem) {
+        // Get the current positions using absolute coordinates
+        const containerTop = container.getBoundingClientRect().top;
+        const containerBottom = container.getBoundingClientRect().bottom;
+        const itemTop = selectedItem.getBoundingClientRect().top;
+        const itemBottom = selectedItem.getBoundingClientRect().bottom;
+        
+        // Calculate if item is fully visible in the container
+        const isAboveView = itemTop < containerTop;
+        const isBelowView = itemBottom > containerBottom;
+        
+        // Item height with margin for better visibility
+        const itemHeight = selectedItem.offsetHeight;
+        
+        if (isAboveView) {
+          // Item is above view, position it at the top with a small margin
+          container.scrollTop += (itemTop - containerTop - 12); // 12px margin
+        } else if (isBelowView) {
+          // Item is below view, position it at the bottom with a small margin
+          container.scrollTop += (itemBottom - containerBottom + 12); // 12px margin
+        }
       }
     });
   }

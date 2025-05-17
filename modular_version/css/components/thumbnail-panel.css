@@ -26,6 +26,8 @@
   padding: 4px 0;
   box-sizing: border-box;
   position: relative;
+  overscroll-behavior: contain; /* Prevent scroll chaining */
+  scroll-behavior: auto; /* Disable smooth scrolling to prevent visual issues */
   
   /* For Firefox */
   scrollbar-width: thin;
@@ -104,6 +106,21 @@
   color: #eee;
 }
 
+/* Close button styling */
+#close-thumbnails {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px 6px;
+  transition: color 0.2s;
+}
+
+#close-thumbnails:hover {
+  color: #ff0059; /* Use accent color */
+}
+
 #thumbnail-tab {
   position: absolute;
   top: 50%;
@@ -152,10 +169,81 @@
   color: var(--accent, #ff0059);
 }
 
+/* Resize handle for thumbnail panel */
+#thumbnail-toggle-handle {
+  position: fixed;
+  left: 120px; /* Match the panel width */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 100px;
+  background: rgba(30, 30, 30, 0.8);
+  border-radius: 0 5px 5px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: col-resize;
+  z-index: 199;
+  transition: left 0.3s ease, background 0.2s ease;
+  border: 1px solid #444;
+  border-left: none;
+  opacity: 0.7;
+}
+
+#thumbnail-toggle-handle:hover {
+  opacity: 1;
+  background: rgba(60, 60, 60, 0.8);
+}
+
+#thumbnail-toggle-handle::after {
+  content: "⋮⋮";
+  color: white;
+  font-size: 12px;
+  line-height: 100px;
+}
+
+#thumbnail-toggle-handle.hidden {
+  left: 0;
+  cursor: pointer;
+  width: 15px;
+  height: 60px;
+  border-radius: 0 3px 3px 0;
+  background: rgba(40, 40, 40, 0.6);
+}
+
+#thumbnail-toggle-handle.hidden::after {
+  content: "▶";
+  line-height: 60px;
+}
+
+/* Adjust container when thumbnails are visible */
+#container.with-thumbnails {
+  margin-left: 120px; /* Match the panel width */
+  width: calc(100% - 120px);
+  transition: margin-left 0.25s ease, width 0.25s ease;
+}
+
 /* Container transition */
 #container {
   transition: margin-left 0.25s ease, width 0.25s ease;
   position: relative;
+}
+
+/* Mobile optimization */
+@media (max-width: 600px) {
+  #thumbnail-panel {
+    width: 100%;
+    transform: translateX(-100%);
+  }
+  
+  #container.with-thumbnails {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  #thumbnail-toggle-handle {
+    display: none;
+  }
 }
 
 /* Canvas wrapper for animations */
