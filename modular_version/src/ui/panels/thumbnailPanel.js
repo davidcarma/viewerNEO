@@ -42,6 +42,16 @@ async function createThumbnail(file, index) {
   imgEl.loading = 'lazy'; // Add lazy loading for better performance
   item.appendChild(imgEl);
 
+  // Add remove button (red X)
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'thumbnail-remove-btn';
+  removeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  removeBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Prevent triggering thumbnail click
+    removeImage(index);
+  });
+  item.appendChild(removeBtn);
+
   const label = document.createElement('div');
   label.textContent = file.name;
   item.appendChild(label);
@@ -160,12 +170,12 @@ export function updateThumbnails() {
   }
 }
 
-export async function selectImage(index) {
+export async function selectImage(index, force = false) {
   const { imageFiles, selectedImageIndex } = getState();
   
   // Skip if invalid index or already selected
   if (index < 0 || index >= imageFiles.length) return;
-  if (index === selectedImageIndex) return; // Already selected
+  if (!force && index === selectedImageIndex) return; // Already selected
   
   // Take a snapshot before changing the image (if one is currently displayed)
   const canvas = getCanvas();
@@ -196,8 +206,8 @@ export async function selectImage(index) {
     // Draw it on canvas
     refreshCanvas();
     
-    // Update thumbnails to reflect selection
-    updateThumbnails();
+    // Scroll the selected thumbnail into view if needed
+    highlightSelectedThumbnail(index);
     
     // Remove loading indicator
     thumbnails.forEach((item, idx) => {
@@ -415,4 +425,40 @@ function togglePanel() {
   
   // Handle the transition events
   handlePanelTransition();
+}
+
+// Add new function to remove an image
+function removeImage(index) {
+  const { imageFiles, selectedImageIndex } = getState();
+  
+  // Validate index
+  if (index < 0 || index >= imageFiles.length) return;
+  
+  // Create new array without the removed image
+  const newFiles = [...imageFiles];
+  newFiles.splice(index, 1);
+  
+  // Update state with new file list
+  setState({ imageFiles: newFiles });
+  
+  // If we removed the selected image, select another one
+  if (index === selectedImageIndex) {
+    // Select previous image or first if this was the first
+    const newIndex = index > 0 ? index - 1 : (newFiles.length > 0 ? 0 : -1);
+    
+    if (newIndex >= 0) {
+      // We have another image to select
+      selectImage(newIndex, true); // Pass true to force selection
+    } else {
+      // No images left
+      setState({ image: null, imageData: null, selectedImageIndex: -1 });
+      refreshCanvas(); // Clear canvas
+    }
+  } else if (selectedImageIndex > index) {
+    // If we removed an image before the selected one, update the index
+    setState({ selectedImageIndex: selectedImageIndex - 1 });
+  }
+  
+  // Rebuild thumbnails (this is a legitimate reason to rebuild)
+  updateThumbnails();
 } 
