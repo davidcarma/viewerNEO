@@ -5,6 +5,21 @@ export function initZoom() {
   const canvas = document.getElementById('canvas');
   if (!canvas) return;
 
+  // Note: Zoom-in, zoom-out, and Reset View buttons have been removed from the UI.
+  // Zooming is now exclusively handled via the mouse wheel for a cleaner interface.
+  // View reset can be achieved through double-click or by reloading the image.
+  
+  // Add double-click to reset view (replacing the reset button)
+  canvas.addEventListener('dblclick', (e) => {
+    // Reset zoom and position
+    setState({ 
+      zoom: 1,
+      offset: { x: 0, y: 0 }
+    });
+    scheduleRedraw();
+    console.log('View reset via double-click');
+  });
+  
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const { zoom } = getState();
