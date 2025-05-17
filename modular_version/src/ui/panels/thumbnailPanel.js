@@ -19,10 +19,14 @@ if (toggleHandle) {
   // Initialize at left edge when not active
   if (!panelWrapper.classList.contains('active')) {
     toggleHandle.style.left = '0px';
+    toggleHandle.setAttribute('title', 'Show thumbnails');
+    toggleHandle.setAttribute('aria-label', 'Show thumbnail panel');
   } else {
     // If panel is active, position the handle at panel edge
     toggleHandle.style.left = panelWrapper.offsetWidth + 'px';
     toggleHandle.classList.add('resize');
+    toggleHandle.setAttribute('title', 'Resize panel');
+    toggleHandle.setAttribute('aria-label', 'Resize thumbnail panel');
   }
   
   // Ensure the handle is always visible
@@ -372,6 +376,8 @@ function togglePanel() {
     if (toggleHandle) {
       toggleHandle.classList.remove('resize');
       toggleHandle.style.left = '0px';
+      toggleHandle.setAttribute('title', 'Show thumbnails');
+      toggleHandle.setAttribute('aria-label', 'Show thumbnail panel');
     }
   } else {
     // If currently inactive, activate it
@@ -381,6 +387,8 @@ function togglePanel() {
     if (toggleHandle) {
       toggleHandle.classList.add('resize');
       toggleHandle.style.left = panelWrapper.offsetWidth + 'px';
+      toggleHandle.setAttribute('title', 'Resize panel');
+      toggleHandle.setAttribute('aria-label', 'Resize thumbnail panel');
     }
   }
   
