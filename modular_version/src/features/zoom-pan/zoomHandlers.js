@@ -1,6 +1,9 @@
 import { getState, setState } from '../../core/state.js';
 import { refreshCanvas, scheduleRedraw } from '../../ui/canvas/renderImage.js';
 
+// Import function to fit image with padding 
+import { fitImageWithPadding } from '../../ui/canvas/renderImage.js';
+
 export function initZoom() {
   const canvas = document.getElementById('canvas');
   if (!canvas) return;
@@ -11,11 +14,15 @@ export function initZoom() {
   
   // Add double-click to reset view (replacing the reset button)
   canvas.addEventListener('dblclick', (e) => {
-    // Reset zoom and position
+    // Get fit parameters instead of resetting to defaults
+    const { zoom, offset } = fitImageWithPadding();
+    
+    // Set the calculated values
     setState({ 
-      zoom: 1,
-      offset: { x: 0, y: 0 }
+      zoom: zoom,
+      offset: offset
     });
+    
     scheduleRedraw();
     console.log('View reset via double-click');
   });

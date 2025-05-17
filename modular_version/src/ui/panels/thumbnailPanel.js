@@ -1,6 +1,6 @@
 import { getState, setState } from '../../core/state.js';
 import { loadImageFile } from '../../loaders/imageLoader.js';
-import { refreshCanvas, scheduleRedraw, setPanelTransitionState } from '../canvas/renderImage.js';
+import { refreshCanvas, scheduleRedraw, setPanelTransitionState, fitImageWithPadding } from '../canvas/renderImage.js';
 import { setCanvasSize, getCanvas } from '../canvas/canvasContext.js';
 
 const container = document.getElementById('thumbnails-container');
@@ -256,6 +256,11 @@ function handlePanelTransition() {
       setTimeout(() => {
         // Tell the renderer the transition is complete
         setPanelTransitionState(false);
+        
+        // Recenter the image with padding
+        const { zoom, offset } = fitImageWithPadding();
+        setState({ zoom, offset });
+        
         refreshCanvas();
         
         // Panel transition is complete
@@ -290,6 +295,11 @@ function handlePanelTransition() {
       setTimeout(() => {
         // Tell the renderer the transition is complete
         setPanelTransitionState(false);
+        
+        // Recenter the image with padding
+        const { zoom, offset } = fitImageWithPadding();
+        setState({ zoom, offset });
+        
         refreshCanvas();
         isPanelTransitioning = false;
         if (pendingRedraw) {

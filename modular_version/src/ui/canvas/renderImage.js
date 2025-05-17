@@ -13,6 +13,62 @@ export function setPanelTransitionState(isTransitioning) {
   inPanelTransition = isTransitioning;
 }
 
+/**
+ * Calculate zoom and offset to fit image with 10% padding on all sides
+ * respecting the control panel on the right and thumbnail panel if visible
+ */
+export function fitImageWithPadding() {
+  const { image } = getState();
+  if (!image) return { zoom: 1, offset: { x: 0, y: 0 } };
+  
+  const canvas = getCanvas();
+  if (!canvas) return { zoom: 1, offset: { x: 0, y: 0 } };
+  
+  // Get canvas dimensions
+  const canvasWidth = canvas.width / (window.devicePixelRatio || 1);
+  const canvasHeight = canvas.height / (window.devicePixelRatio || 1);
+  
+  // Account for control panel on the right (assume it takes 170px)
+  const controlPanelWidth = 170; // Width of control panel + spacing
+  
+  // Check if thumbnail panel is visible
+  const container = document.getElementById('container');
+  const isThumbnailPanelVisible = container.classList.contains('with-thumbnails');
+  
+  // If the panel is visible, it shifts the container, but doesn't
+  // actually reduce the available width since the container has transformed
+  
+  // Calculate effective canvas width accounting for control panel
+  const effectiveWidth = canvasWidth - controlPanelWidth;
+  
+  // Calculate available space (subtract 10% padding from each side)
+  const paddingFactor = 0.1; // 10% padding
+  const availableWidth = effectiveWidth * (1 - paddingFactor * 2);
+  const availableHeight = canvasHeight * (1 - paddingFactor * 2);
+  
+  // Calculate zoom to fit image in available space
+  const hZoom = availableWidth / image.width;
+  const vZoom = availableHeight / image.height;
+  const zoom = Math.min(hZoom, vZoom);
+  
+  // Calculate centered position with padding
+  // Start with padding for left side, don't account for control panel here
+  const xPadding = canvasWidth * paddingFactor;
+  const yPadding = canvasHeight * paddingFactor;
+  
+  // Center the image in the available space (considering the control panel)
+  const offsetX = xPadding + (availableWidth - (image.width * zoom)) / 2;
+  const offsetY = yPadding + (availableHeight - (image.height * zoom)) / 2;
+  
+  return { 
+    zoom, 
+    offset: { 
+      x: offsetX, 
+      y: offsetY 
+    } 
+  };
+}
+
 export function refreshCanvas() {
   const { image, grid } = getState();
   let { zoom: currentZoom, offset: currentOffset } = getState();
@@ -22,23 +78,20 @@ export function refreshCanvas() {
 
   if (!canvas || !ctx) return;
 
-  // For new images, reset zoom to 100% and position to top-left (0,0)
+  // For new images, fit and center with padding
   if (image && image !== lastRenderedImage) {
-    console.log('New image detected, positioning at 0,0 with 100% zoom');
+    console.log('New image detected, fitting with padding');
     
-    // Always use 100% zoom for new images
-    const newScale = 1.0;
+    // Calculate fit parameters
+    const { zoom, offset } = fitImageWithPadding();
     
-    // Position at top-left (0,0)
-    const newOffsetX = 0;
-    const newOffsetY = 0;
-
     lastRenderedImage = image;
     
-    // Update local variables for current draw and state
-    currentZoom = newScale;
-    currentOffset = { x: newOffsetX, y: newOffsetY };
+    // Update local variables for current draw
+    currentZoom = zoom;
+    currentOffset = offset;
     
+    // Update state
     setState({ 
       zoom: currentZoom, 
       offset: currentOffset,
@@ -75,6 +128,17 @@ export function refreshCanvas() {
   updateInfo();
 }
 
+// Schedule redraws to prevent multiple rapid refreshes
+let redrawScheduled = false;
+export function scheduleRedraw() {
+  if (redrawScheduled) return;
+  redrawScheduled = true;
+  requestAnimationFrame(() => {
+    refreshCanvas();
+    redrawScheduled = false;
+  });
+}
+
 // Alias for compatibility
 export const renderImage = refreshCanvas;
 
@@ -86,15 +150,4 @@ window.addEventListener('state:changed', (e) => {
       e.detail.hasOwnProperty('offset')) {
     scheduleRedraw();
   }
-});
-
-// Schedule a redraw using requestAnimationFrame
-let redrawPending = false;
-export function scheduleRedraw() {
-  if (redrawPending) return;
-  redrawPending = true;
-  requestAnimationFrame(() => {
-    redrawPending = false;
-    refreshCanvas();
-  });
-} 
+}); 
