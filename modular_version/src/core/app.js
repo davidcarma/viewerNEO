@@ -13,6 +13,7 @@ import { getCurrentImage, createImageFromRecord } from '../services/db/currentIm
 import { renderImage } from '../ui/canvas/renderImage.js';
 import { clearImageDatabase, getAllImagesMetadata, getImageFromDb } from '../services/db/imageStore.js';
 import { clearCanvas } from '../ui/canvas/canvasContext.js';
+import { startDbMonitoring, registerChangeObserver } from '../services/db/dbMonitor.js';
 
 // Basic Phase-1 bootstrap
 console.log('%cViewer bootstrap (Phase 1)', 'color:#00c8ff;font-weight:bold');
@@ -94,6 +95,54 @@ async function start() {
   
   // Check if we're coming back from another page and need to restore image state
   await restoreImagesFromDb();
+  
+  // Set up database monitoring to detect changes from other pages
+  initDatabaseMonitoring();
+}
+
+/**
+ * Initialize the database monitoring system for cross-page updates
+ */
+function initDatabaseMonitoring() {
+  console.log('Initializing database change monitoring system');
+  
+  // Start the monitoring system
+  startDbMonitoring();
+  
+  // Register a handler for database changes
+  registerChangeObserver(handleDatabaseChanges);
+}
+
+/**
+ * Handle database changes detected by the monitoring system
+ * @param {Object} changeInfo - Information about what changed
+ */
+function handleDatabaseChanges(changeInfo) {
+  console.log('Received database change notification:', changeInfo);
+  
+  // Update UI elements based on the changes
+  if (changeInfo.currentImageChanged) {
+    // The thumbnails panel needs to be updated to show the new selection
+    updateThumbnailsWithDelay();
+  }
+  
+  // If batches or image counts changed, the full data refresh will
+  // be triggered by the monitoring system
+}
+
+/**
+ * Update thumbnails with a delay to avoid performance issues
+ */
+function updateThumbnailsWithDelay() {
+  // Use a short delay to ensure state has been fully updated
+  setTimeout(async () => {
+    try {
+      const { updateThumbnails } = await import('../ui/panels/thumbnailPanel.js');
+      updateThumbnails();
+    } catch (err) {
+      console.error('Error updating thumbnails after database change:', err);
+    }
+  }, 300);
 }
 
 /**

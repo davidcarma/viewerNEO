@@ -388,28 +388,31 @@
     </div>
     
     <script type="module">
-        import { getCurrentImage, createImageFromRecord } from './src/services/db/currentImageStore.js';
-        import { getAllImagesMetadata, getImageFromDb, clearImageDatabase } from './src/services/db/imageStore.js';
+        // Import modules and utilities from the modular application
+        import { getCurrentImage, createImageFromRecord } from './modular_version/src/services/db/currentImageStore.js';
+        import { getAllImagesMetadata, getImageFromDb, clearImageDatabase } from './modular_version/src/services/db/imageStore.js';
         
-        // Import the CURRENT_IMAGE_KEY constant for filtering out current image from thumbnails
-        const CURRENT_IMAGE_KEY = 'current_image';
-        
-        const loadingIndicator = document.querySelector('.loading');
-        const imageDisplay = document.getElementById('imageDisplay');
-        const imageInfo = document.getElementById('imageInfo');
-        const debugLog = document.getElementById('debugLog');
-        const loadButton = document.getElementById('loadCurrentImage');
-        const applyProcessingButton = document.getElementById('applyProcessing');
-        const backButton = document.getElementById('backToViewer');
-        const showDebugButton = document.getElementById('showDebug');
-        const thumbnailPanel = document.getElementById('thumbnail-panel');
-        const thumbnailsContainer = document.getElementById('thumbnails-container');
-        const toggleThumbnailsBtn = document.getElementById('toggle-thumbnails');
-        const toggleHandle = document.getElementById('thumbnail-toggle-handle');
-        const closeThumbnailsBtn = document.getElementById('close-thumbnails');
-        const contentElement = document.querySelector('.content');
+        /**
+         * BIDIRECTIONAL COMMUNICATION OVERVIEW
+         * 
+         * This page now communicates bidirectionally with the main index.html viewer using IndexedDB:
+         * 
+         * 1. RECEIVING CHANGES (index.html → projection.html):
+         *    - The database monitoring system (startDbMonitoring) polls the database for changes
+         *    - When changes are detected (new current image, added/deleted images), this page updates
+         *    - Changes from the main viewer are automatically reflected here
+         * 
+         * 2. SENDING CHANGES (projection.html → index.html):
+         *    - When selecting an image in this page, setCurrentImageInDatabase updates the current_image
+         *    - The main viewer will detect this change through its own monitoring system
+         *    - This creates a two-way sync where either page can control what's displayed
+         * 
+         * The monitoring systems in both pages ensure changes are reflected almost instantly
+         * without requiring page refreshes or manual synchronization.
+         */
         
         // Debug logging
+        const debugPanel = document.getElementById('debug-panel');
         function log(message, data) {
             console.log(message, data);
             const logEntry = document.createElement('div');
@@ -475,6 +478,13 @@
             
             // Start database polling for updates
             startDatabasePolling();
+            
+            // Initialize database monitoring
+            log('Starting database change monitoring');
+            startDbMonitoring();
+            
+            // Stop monitoring when the window unloads
+            window.addEventListener('unload', stopDbMonitoring);
         });
         
         // Toggle thumbnail panel
@@ -716,83 +726,115 @@
         
         // Load image by ID from IndexedDB
         async function loadImageById(imageId) {
+            if (!imageId) {
+                log('No image ID provided');
+                return;
+            }
+            
+            log(`Loading image ${imageId} from IndexedDB`);
+            
+            // Show loading indicator
+            loadingIndicator.style.display = 'flex';
+            loadingIndicator.textContent = 'Loading image...';
+            
             try {
-                // Show loading indicator
-                loadingIndicator.style.display = 'flex';
-                loadingIndicator.textContent = 'Loading selected image...';
-                
-                log(`Loading image ${imageId} from IndexedDB`);
-                
-                // Store current image ID for sync detection
-                currentImageId = imageId;
-                
-                // Highlight the selected thumbnail
-                const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
-                thumbnails.forEach(thumbnail => {
-                    thumbnail.classList.remove('active');
-                    
-                    // The current image may not be in thumbnails after our filtering
-                    if (thumbnail.dataset.imageId === imageId) {
-                        thumbnail.classList.add('active');
-                        
-                        // Scroll to the selected thumbnail
-                        thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                });
-                
                 // Get the image from IndexedDB
                 const imageRecord = await getImageFromDb(imageId);
                 
                 if (!imageRecord) {
                     log(`Image ${imageId} not found in IndexedDB`);
-                    imageInfo.textContent = 'Image not found in database.';
-                    loadingIndicator.style.display = 'none';
-                    return false;
-                }
-                
-                // Store the timestamp for change detection
-                currentImageTimestamp = imageRecord.timestamp || Date.now();
-                
-                if (!imageRecord.imageBlob) {
-                    log(`Image ${imageId} has no blob data`);
-                    imageInfo.textContent = 'Error: Image record exists but contains no image data.';
+                    imageInfo.textContent = `Error: Image with ID ${imageId} not found.`;
                     loadingIndicator.style.display = 'none';
                     return;
                 }
+                
+                // Store current image ID for tracking
+                currentImageId = imageId;
+                currentImageRecord = imageRecord;
                 
                 // Create an image element from the blob
                 const img = await createImageFromRecord(imageRecord);
                 
                 // Display the image
-                const objectUrl = img.src;
-                imageDisplay.src = objectUrl;
+                imageDisplay.src = img.src;
                 
-                // Wait for the image to load
-                imageDisplay.onload = () => {
-                    // Update image info
-                    imageInfo.innerHTML = `
-                        <strong>Image loaded successfully</strong><br>
-                        Filename: ${imageRecord.filename}<br>
-                        Size: ${imageRecord.dimensions.width} x ${imageRecord.dimensions.height} px<br>
-                        File Type: ${imageRecord.fileType || 'Unknown'}<br>
-                        File Size: ${imageRecord.imageBlob.size ? formatFileSize(imageRecord.imageBlob.size) : 'Unknown'}<br>
-                        Last Modified: ${new Date(imageRecord.timestamp).toLocaleString()}
-                    `;
-                    
-                    loadingIndicator.style.display = 'none';
-                };
+                // Update image info
+                imageInfo.innerHTML = `
+                    <strong>Image loaded successfully</strong><br>
+                    ID: ${imageRecord.id}<br>
+                    Filename: ${imageRecord.filename}<br>
+                    Size: ${imageRecord.dimensions.width} x ${imageRecord.dimensions.height} px<br>
+                    File Type: ${imageRecord.fileType || 'Unknown'}<br>
+                    File Size: ${imageRecord.imageBlob.size ? formatFileSize(imageRecord.imageBlob.size) : 'Unknown'}<br>
+                    Last Modified: ${new Date(imageRecord.timestamp).toLocaleString()}
+                `;
                 
-                imageDisplay.onerror = (e) => {
-                    log('Error displaying image', e);
-                    imageInfo.textContent = `Error displaying image. See debug info for details.`;
-                    loadingIndicator.style.display = 'none';
-                };
+                // Update the main viewer with our selection
+                if (imageId !== CURRENT_IMAGE_KEY) {
+                    await setCurrentImageInDatabase(imageRecord);
+                }
+                
+                // Highlight the selected thumbnail
+                const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
+                thumbnails.forEach(thumbnail => {
+                    thumbnail.classList.remove('active');
+                    if (thumbnail.dataset.imageId === imageId) {
+                        thumbnail.classList.add('active');
+                        // Scroll to the selected thumbnail
+                        thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+                
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
                 
             } catch (error) {
-                log('Error loading image', error.message);
+                log('Error loading image:', error.message);
                 console.error('Error loading image:', error);
                 imageInfo.textContent = `Error loading image: ${error.message}`;
                 loadingIndicator.style.display = 'none';
+            }
+        }
+        
+        /**
+         * Set the current image in the database for cross-page access
+         * This function updates the current_image record to point to the selected image
+         */
+        async function setCurrentImageInDatabase(imageRecord) {
+            if (!imageRecord || !imageRecord.imageBlob) {
+                log('Cannot set current image: invalid record or missing blob');
+                return false;
+            }
+            
+            try {
+                log('Setting current image in database for main viewer', {
+                    id: imageRecord.id,
+                    filename: imageRecord.filename
+                });
+                
+                // Create a modified copy of the record with current image flag
+                const currentImageRecord = {
+                    ...imageRecord,
+                    id: CURRENT_IMAGE_KEY,  // Use the special key
+                    isCurrent: true,
+                    timestamp: Date.now(),  // Update timestamp to trigger detection
+                    originalId: imageRecord.id  // Store the original ID for reference
+                };
+                
+                // Save to database
+                const { saveImageToDb } = await import('./modular_version/src/services/db/imageStore.js');
+                const id = await saveImageToDb(null, null, currentImageRecord);
+                
+                log('Current image set successfully in database', {
+                    id,
+                    filename: currentImageRecord.filename
+                });
+                
+                return true;
+            } catch (error) {
+                log('Error setting current image in database:', error.message);
+                console.error('Error setting current image in database:', error);
+                return false;
             }
         }
         
@@ -920,8 +962,6 @@
                     loadingIndicator.style.display = 'none';
                     return false;
                 };
-                
-                return true;
                 
             } catch (error) {
                 log('Error loading image from IndexedDB', error.message);
@@ -1086,67 +1126,164 @@
             });
         });
         
-        // Database update tracking
         let lastImageCount = 0;
-        let lastDatabaseTimestamp = Date.now();
+        let lastDatabaseTimestamp = 0;
         let currentImageId = null;
         let currentImageTimestamp = 0;
         const syncStatusIndicator = document.getElementById('syncStatus');
 
-        // Start polling for database changes
+        // Enhanced database monitoring system (replaces old polling mechanism)
         function startDatabasePolling() {
-            log('Starting database change detection');
+            log('Starting enhanced database monitoring');
             
-            // Store initial state
+            // Use our new monitoring system
+            return startDbMonitoring();
+        }
+        
+        // Constants for database monitoring  
+        const CHECK_INTERVAL = 2000; // Check every 2 seconds
+        
+        // Variables for DB monitoring
+        let isMonitoring = false;
+        let monitorInterval = null;
+        let lastCurrentImageTimestamp = 0;
+        let lastKnownImageCount = 0;
+        
+        // Initialize monitoring
+        function startDbMonitoring() {
+            if (isMonitoring) return;
+            
+            log('Starting IndexedDB monitoring');
+            isMonitoring = true;
+            
+            // Initialize timestamps from current state
+            const imageRecord = getCurrentImageRecord();
+            lastCurrentImageTimestamp = imageRecord?.timestamp || 0;
+            
+            // Initialize image count
             getAllImagesMetadata().then(images => {
-                lastImageCount = images ? images.length : 0;
-                lastDatabaseTimestamp = Date.now();
-                log(`Initial database state: ${lastImageCount} images`);
+                lastKnownImageCount = images ? images.filter(img => 
+                    img.id !== CURRENT_IMAGE_KEY && img.hasBlob
+                ).length : 0;
+                
+                log(`Initial database state: ${lastKnownImageCount} images`);
             });
             
-            // Set up a separate interval for checking the current image changes more frequently
-            const currentImageCheckInterval = setInterval(async () => {
-                try {
-                    // Only check if we have a current image loaded
-                    if (currentImageId) {
-                        const currentImageRecord = await getCurrentImage();
-                        
-                        // Check if current image has changed
-                        if (currentImageRecord && currentImageRecord.timestamp > currentImageTimestamp) {
-                            // Store new timestamp
-                            currentImageTimestamp = currentImageRecord.timestamp;
-                            
-                            // Reload the current image quietly
-                            await loadCurrentImage();
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error checking current image updates:', error);
-                }
-            }, 500); // Check current image every 500ms
-            
-            // Check for changes in all images every second
-            const pollingInterval = setInterval(async () => {
-                try {
-                    // Quick flash of sync indicator (minimal visibility)
+            // Show sync indicator when checking
+            function updateSyncIndicator(isChecking) {
+                if (isChecking) {
                     syncStatusIndicator.classList.add('active');
+                } else {
+                    syncStatusIndicator.classList.remove('active');
+                }
+            }
+            
+            // Set up polling interval
+            monitorInterval = setInterval(async () => {
+                updateSyncIndicator(true);
+                await checkForDbChanges();
+                updateSyncIndicator(false);
+            }, CHECK_INTERVAL);
+            
+            // Return a cleanup function
+            return () => stopDbMonitoring();
+        }
+        
+        // Stop monitoring the database
+        function stopDbMonitoring() {
+            if (!isMonitoring) return;
+            
+            log('Stopping IndexedDB monitoring');
+            isMonitoring = false;
+            
+            if (monitorInterval) {
+                clearInterval(monitorInterval);
+                monitorInterval = null;
+            }
+        }
+        
+        // Store the current image record
+        let currentImageRecord = null;
+        
+        function getCurrentImageRecord() {
+            return currentImageRecord;
+        }
+        
+        // Check for changes in the database
+        async function checkForDbChanges() {
+            try {
+                // Skip check if we're in the middle of loading or processing
+                if (loadingIndicator.style.display === 'flex') {
+                    log('Skipping DB check while page is loading/processing');
+                    return;
+                }
+                
+                // Get the current image record
+                const newImageRecord = await getCurrentImage();
+                const currentTimestamp = newImageRecord?.timestamp || 0;
+                
+                // Check if current image has changed
+                const currentImageChanged = currentTimestamp > lastCurrentImageTimestamp;
+                
+                // Get all image metadata
+                const allMetadata = await getAllImagesMetadata();
+                
+                // Count regular images (exclude current image)
+                const newImageCount = allMetadata.filter(img => 
+                    img.id !== CURRENT_IMAGE_KEY && 
+                    img.hasBlob
+                ).length;
+                
+                const imageCountChanged = newImageCount !== lastKnownImageCount;
+                lastKnownImageCount = newImageCount;
+                
+                // Also check if currently displayed image was deleted
+                let currentImageDeleted = false;
+                if (currentImageId && currentImageId !== CURRENT_IMAGE_KEY) {
+                    const imageStillExists = allMetadata.some(img => img.id === currentImageId);
+                    if (!imageStillExists) {
+                        currentImageDeleted = true;
+                    }
+                }
+                
+                // Only process if something has changed
+                if (currentImageChanged || imageCountChanged || currentImageDeleted) {
+                    log('Detected changes in IndexedDB:', {
+                        currentImageChanged,
+                        imageCountChanged,
+                        currentImageDeleted,
+                        oldTimestamp: lastCurrentImageTimestamp,
+                        newTimestamp: currentTimestamp,
+                        oldCount: lastKnownImageCount,
+                        newCount: newImageCount
+                    });
                     
-                    // Get current database state
-                    const allImages = await getAllImagesMetadata();
-                    const currentCount = allImages ? allImages.length : 0;
-                    
-                    // Check if image count changed
-                    if (currentCount !== lastImageCount) {
-                        // Update our stored count
-                        lastImageCount = currentCount;
-                        lastDatabaseTimestamp = Date.now();
+                    // Update last known timestamp if current image changed
+                    if (currentImageChanged) {
+                        lastCurrentImageTimestamp = currentTimestamp;
+                        currentImageRecord = newImageRecord;
                         
-                        // Refresh thumbnails to reflect changes
+                        // Reload current image since it changed
+                        log('Current image changed in database, reloading...');
+                        await loadCurrentImage();
+                    }
+                    
+                    // If image count changed or an image was deleted
+                    if (imageCountChanged || currentImageDeleted) {
+                        // Reload thumbnails since available images changed
+                        log('Available images changed in database, updating thumbnails...');
                         await loadThumbnails();
                         
-                        // If we have no current image but there are images in the database, 
-                        // select the first one
-                        if ((!imageDisplay.src || imageDisplay.src.endsWith('No image loaded')) && currentCount > 0) {
+                        // If current image was deleted, load the first available image
+                        if (currentImageDeleted) {
+                            log('Current image was deleted, loading first available image...');
+                            
+                            // Reset display
+                            imageDisplay.src = '';
+                            imageInfo.textContent = 'Please select an image';
+                            currentImageId = null;
+                            
+                            // Try to load the first image if available
                             const firstThumbnail = thumbnailsContainer.querySelector('.thumbnail-item');
                             if (firstThumbnail) {
                                 const imageId = firstThumbnail.dataset.imageId;
@@ -1155,57 +1292,12 @@
                                 }
                             }
                         }
-                        
-                        // Check if currently displayed image has been deleted
-                        if (currentImageId) {
-                            const imageStillExists = allImages.some(img => img.id === currentImageId);
-                            if (!imageStillExists) {
-                                // Reset display
-                                imageDisplay.src = '';
-                                imageInfo.textContent = 'Please select an image';
-                                currentImageId = null;
-                                
-                                // Try to load the first image if available
-                                const firstThumbnail = thumbnailsContainer.querySelector('.thumbnail-item');
-                                if (firstThumbnail) {
-                                    const imageId = firstThumbnail.dataset.imageId;
-                                    if (imageId) {
-                                        loadImageById(imageId);
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Even if the count hasn't changed, check for updates to individual images
-                        // This could catch cases where an image was replaced but the count stayed the same
-                        const timeSinceLastCheck = Date.now() - lastDatabaseTimestamp;
-                        
-                        // Only do the more intensive check if enough time has passed (5 seconds)
-                        if (timeSinceLastCheck > 5000) {
-                            // Check if any image has a newer timestamp than our last update
-                            const hasNewerImages = allImages.some(img => img.timestamp > lastDatabaseTimestamp);
-                            if (hasNewerImages) {
-                                lastDatabaseTimestamp = Date.now();
-                                
-                                // Refresh thumbnails
-                                await loadThumbnails();
-                            }
-                        }
                     }
-                    
-                    // Hide sync indicator immediately
-                    syncStatusIndicator.classList.remove('active');
-                } catch (error) {
-                    console.error('Error checking for database updates:', error);
-                    syncStatusIndicator.classList.remove('active');
                 }
-            }, 1000); // Check every second
-            
-            // Clean up the interval when the page is unloaded
-            window.addEventListener('beforeunload', () => {
-                clearInterval(pollingInterval);
-                clearInterval(currentImageCheckInterval);
-            });
+            } catch (error) {
+                log('Error checking for database changes:', error.message);
+                console.error('Error checking for database changes:', error);
+            }
         }
     </script>
 </body>
