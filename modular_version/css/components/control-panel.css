@@ -209,4 +209,34 @@
 
 #rotate-right-btn svg {
   transform: scale(1.1);
+}
+
+.control-button, #controls button, #controls a {
+    background-color: #333;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-right: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+#controls a {
+    text-decoration: none;
+}
+
+.control-button:hover, #controls button:hover, #controls a:hover {
+    background-color: #444;
+}
+
+.control-button:active, #controls button:active, #controls a:active {
+    background-color: #555;
+}
+
+.control-button svg, #controls button svg, #controls a svg {
+    margin-right: 6px;
 } 

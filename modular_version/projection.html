@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Projection</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: #111;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .controls {
+            padding: 10px 20px;
+            background-color: #333;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #555;
+        }
+        button:active {
+            background-color: #666;
+        }
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .image-container {
+            position: relative;
+            max-width: 100%;
+            max-height: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #imageDisplay {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .status-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            max-width: 300px;
+            z-index: 100;
+            width: 350px;
+        }
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            font-size: 18px;
+            display: none;
+        }
+        .debug-log {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            max-width: 80%;
+            max-height: 150px;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-family: monospace;
+            color: #aaffaa;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Image Projection</h1>
+        <div>
+            <button id="backToViewer">Back to Viewer</button>
+        </div>
+    </header>
+    
+    <div class="controls">
+        <button id="loadCurrentImage">Load Current Image</button>
+        <button id="applyProcessing">Apply Processing (Demo)</button>
+        <button id="showDebug">Show Debug Info</button>
+    </div>
+    
+    <div class="content">
+        <div class="image-container">
+            <img id="imageDisplay" alt="No image loaded">
+        </div>
+        
+        <div class="status-container">
+            <div id="imageInfo">No image loaded</div>
+        </div>
+        
+        <div id="debugLog" class="debug-log" style="display: none;"></div>
+        
+        <div class="loading">Loading...</div>
+    </div>
+    
+    <script type="module">
+        import { getCurrentImage, createImageFromRecord } from './src/services/db/currentImageStore.js';
+        
+        const loadingIndicator = document.querySelector('.loading');
+        const imageDisplay = document.getElementById('imageDisplay');
+        const imageInfo = document.getElementById('imageInfo');
+        const debugLog = document.getElementById('debugLog');
+        const loadButton = document.getElementById('loadCurrentImage');
+        const applyProcessingButton = document.getElementById('applyProcessing');
+        const backButton = document.getElementById('backToViewer');
+        const showDebugButton = document.getElementById('showDebug');
+        
+        // Debug logging
+        function log(message, data) {
+            console.log(message, data);
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            if (data) {
+                try {
+                    logEntry.textContent += `: ${JSON.stringify(data)}`;
+                } catch (e) {
+                    logEntry.textContent += `: ${data}`;
+                }
+            }
+            debugLog.appendChild(logEntry);
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Projection page loaded');
+            
+            // Try to load the current image automatically on page load
+            setTimeout(() => loadCurrentImage(), 100);
+        });
+        
+        // Set up button handlers
+        loadButton.addEventListener('click', loadCurrentImage);
+        backButton.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+        
+        // Toggle debug info
+        showDebugButton.addEventListener('click', () => {
+            if (debugLog.style.display === 'none') {
+                debugLog.style.display = 'block';
+                showDebugButton.textContent = 'Hide Debug Info';
+            } else {
+                debugLog.style.display = 'none';
+                showDebugButton.textContent = 'Show Debug Info';
+            }
+        });
+        
+        // Apply a simple visual processing effect as a demo
+        applyProcessingButton.addEventListener('click', () => {
+            if (!imageDisplay.src || imageDisplay.src.endsWith('No image loaded')) {
+                alert('Please load an image first');
+                return;
+            }
+            
+            applyDemoProcessing();
+        });
+        
+        // Load the current image from IndexedDB
+        async function loadCurrentImage() {
+            try {
+                // Show loading indicator
+                loadingIndicator.style.display = 'flex';
+                loadingIndicator.textContent = 'Loading image from IndexedDB...';
+                
+                log('Requesting image from IndexedDB');
+                
+                // Get the current image from IndexedDB
+                const imageRecord = await getCurrentImage();
+                
+                if (!imageRecord) {
+                    log('No image record found in IndexedDB');
+                    imageInfo.textContent = 'No image found in storage. Please load an image in the main viewer first.';
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+                
+                log('Retrieved image record', {
+                    id: imageRecord.id,
+                    filename: imageRecord.filename,
+                    hasBlobData: !!imageRecord.imageBlob,
+                    blobSize: imageRecord.imageBlob?.size,
+                    dimensions: imageRecord.dimensions
+                });
+                
+                if (!imageRecord.imageBlob) {
+                    log('Error: Image record has no blob data');
+                    imageInfo.textContent = 'Error: Image record exists but contains no image data.';
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+                
+                // Create an image element from the blob
+                log('Creating image element from blob', {
+                    type: imageRecord.imageBlob.type,
+                    size: imageRecord.imageBlob.size
+                });
+                
+                const img = await createImageFromRecord(imageRecord);
+                log('Image created from blob', {
+                    width: img.width,
+                    height: img.height,
+                    complete: img.complete
+                });
+                
+                // Display the image
+                const objectUrl = img.src;
+                imageDisplay.src = objectUrl;
+                
+                // Wait for the image to load
+                imageDisplay.onload = () => {
+                    log('Image loaded and displayed', {
+                        naturalWidth: imageDisplay.naturalWidth,
+                        naturalHeight: imageDisplay.naturalHeight
+                    });
+                    
+                    // Update image info
+                    imageInfo.innerHTML = `
+                        <strong>Image loaded successfully</strong><br>
+                        Filename: ${imageRecord.filename}<br>
+                        Size: ${imageRecord.dimensions.width} x ${imageRecord.dimensions.height} px<br>
+                        File Type: ${imageRecord.fileType || 'Unknown'}<br>
+                        File Size: ${imageRecord.imageBlob.size ? formatFileSize(imageRecord.imageBlob.size) : 'Unknown'}<br>
+                        Last Modified: ${new Date(imageRecord.timestamp).toLocaleString()}
+                    `;
+                    
+                    loadingIndicator.style.display = 'none';
+                };
+                
+                imageDisplay.onerror = (e) => {
+                    log('Error displaying image', e);
+                    imageInfo.textContent = `Error displaying image. See debug info for details.`;
+                    loadingIndicator.style.display = 'none';
+                };
+                
+            } catch (error) {
+                log('Error loading image from IndexedDB', error.message);
+                console.error('Error loading image from IndexedDB:', error);
+                imageInfo.textContent = `Error loading image: ${error.message}`;
+                loadingIndicator.style.display = 'none';
+            }
+        }
+        
+        // Apply a simple visual effect to demonstrate image processing
+        function applyDemoProcessing() {
+            loadingIndicator.style.display = 'flex';
+            loadingIndicator.textContent = 'Applying demo processing...';
+            log('Starting image processing');
+            
+            setTimeout(() => {
+                try {
+                    // Create a canvas to manipulate the image
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set canvas dimensions to match the image
+                    canvas.width = imageDisplay.naturalWidth;
+                    canvas.height = imageDisplay.naturalHeight;
+                    
+                    log('Created processing canvas', {
+                        width: canvas.width,
+                        height: canvas.height
+                    });
+                    
+                    // Draw the image onto the canvas
+                    ctx.drawImage(imageDisplay, 0, 0);
+                    
+                    // Apply a simple effect (invert colors)
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    
+                    log('Processing image data', {
+                        pixelCount: data.length / 4
+                    });
+                    
+                    // Invert all colors as a simple demo effect
+                    for (let i = 0; i < data.length; i += 4) {
+                        data[i] = 255 - data[i];         // Red
+                        data[i + 1] = 255 - data[i + 1]; // Green
+                        data[i + 2] = 255 - data[i + 2]; // Blue
+                        // data[i + 3] is alpha (transparency)
+                    }
+                    
+                    // Put the modified image data back to the canvas
+                    ctx.putImageData(imageData, 0, 0);
+                    
+                    // Update the displayed image with the processed version
+                    imageDisplay.src = canvas.toDataURL();
+                    
+                    // Update information
+                    imageInfo.innerHTML += '<br><strong>Status: Processed (colors inverted)</strong>';
+                    log('Image processing complete');
+                } catch (error) {
+                    log('Error applying processing', error.message);
+                    console.error('Error applying processing:', error);
+                    alert('Error applying processing: ' + error.message);
+                } finally {
+                    loadingIndicator.style.display = 'none';
+                }
+            }, 500); // Small delay to allow the loading indicator to display
+        }
+        
+        // Helper function to format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html> 

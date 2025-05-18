@@ -4,6 +4,7 @@ import { rotateImageData, createRotatedFile } from './imageRotator.js';
 import { loadImageFile } from '../../loaders/imageLoader.js';
 import { updateThumbnails } from '../../ui/panels/thumbnailPanel.js';
 import { fitImageWithPadding } from '../../ui/canvas/renderImage.js';
+import { saveCurrentImage } from '../../services/db/currentImageStore.js';
 
 /**
  * Rotates the current image 90 degrees counterclockwise by physically 
@@ -53,6 +54,18 @@ export async function rotateLeft() {
     
     // Update thumbnails to reflect the new image
     updateThumbnails();
+    
+    // Save the rotated image to IndexedDB for cross-page access
+    try {
+      await saveCurrentImage(image, imageData, {
+        selectedFile: rotatedFile,
+        rotation: 0 // Image is physically rotated, so rotation state is 0
+      });
+      console.log('Rotated image saved to IndexedDB for cross-page access');
+    } catch (dbError) {
+      console.error('Failed to save rotated image to IndexedDB:', dbError);
+      // Continue even if DB save fails - won't block the main functionality
+    }
     
     // Hide loading indicator
     if (loadingEl) loadingEl.style.display = 'none';
@@ -113,6 +126,18 @@ export async function rotateRight() {
     
     // Update thumbnails to reflect the new image
     updateThumbnails();
+    
+    // Save the rotated image to IndexedDB for cross-page access
+    try {
+      await saveCurrentImage(image, imageData, {
+        selectedFile: rotatedFile,
+        rotation: 0 // Image is physically rotated, so rotation state is 0
+      });
+      console.log('Rotated image saved to IndexedDB for cross-page access');
+    } catch (dbError) {
+      console.error('Failed to save rotated image to IndexedDB:', dbError);
+      // Continue even if DB save fails - won't block the main functionality
+    }
     
     // Hide loading indicator
     if (loadingEl) loadingEl.style.display = 'none';

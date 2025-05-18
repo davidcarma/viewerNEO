@@ -1,6 +1,7 @@
 import { loadImageFile } from './imageLoader.js';
 import { setState, getState, getGlobalIndex } from '../core/state.js';
 import { renderImage } from '../ui/canvas/renderImage.js';
+import { saveCurrentImage } from '../services/db/currentImageStore.js';
 
 // Enhanced image file detection
 function isImageFile(file) {
@@ -110,7 +111,15 @@ export async function handleIncomingFiles(files) {
     
     // Load the first image from the new batch
     const targetFile = newBatch.files[newFileIndex];
+    
+    console.log('Loading initial image from batch:', targetFile.name);
     const { image, imageData } = await loadImageFile(targetFile);
+    
+    console.log('Image loaded successfully:', {
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      hasImageData: !!imageData
+    });
     
     // Update state with the new batch and loaded image
     setState({ 
@@ -119,6 +128,21 @@ export async function handleIncomingFiles(files) {
       imageData, 
       selectedImageIndex: { batchIndex: newBatchIndex, fileIndex: newFileIndex }
     });
+    
+    // Save the current image to IndexedDB for cross-page access
+    try {
+      console.log('Saving image to IndexedDB for cross-page access');
+      
+      await saveCurrentImage(image, imageData, {
+        selectedFile: targetFile,
+        rotation: currentState.rotation
+      });
+      
+      console.log('Image successfully saved to IndexedDB');
+    } catch (dbError) {
+      console.error('Failed to save image to IndexedDB:', dbError);
+      // Continue even if DB save fails - won't block the main functionality
+    }
     
     // Render the image on canvas
     renderImage();

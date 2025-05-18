@@ -203,7 +203,7 @@ function createThumbnail(file, batchIndex, fileIndex) {
   }
   
   return item;
-        }
+}
 
 /**
  * Update the thumbnail panel with all batches and images
@@ -315,6 +315,20 @@ export async function selectImage(batchIndex, fileIndex, force = false) {
     
     // Draw it on canvas
     refreshCanvas();
+
+    // Save to IndexedDB for cross-page access
+    try {
+      const { saveCurrentImage } = await import('../../services/db/currentImageStore.js');
+      const currentState = getState();
+      await saveCurrentImage(image, imageData, {
+        selectedFile: file,
+        rotation: currentState.rotation
+      });
+      console.log('Current image saved to IndexedDB for cross-page access');
+    } catch (dbError) {
+      console.error('Failed to save image to IndexedDB:', dbError);
+      // Continue even if DB save fails - won't block the main functionality
+    }
   } catch (err) {
     console.error('Failed to load image:', err);
   }
