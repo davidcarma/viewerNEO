@@ -171,6 +171,70 @@
             box-shadow: 0 0 8px rgba(255,0,89,0.4);
         }
         
+        /* Batch header styling */
+        .batch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #1a1a1a;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 5px 0;
+            opacity: 1; /* Ensure full visibility */
+            visibility: visible; /* Explicitly ensure visibility */
+        }
+        
+        .batch-header .chevron {
+            transition: transform 0.2s ease;
+        }
+        
+        .batch-header.collapsed .chevron {
+            transform: rotate(-90deg);
+        }
+        
+        .batch-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .batch-title {
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .batch-count {
+            background: rgba(80, 80, 80, 0.5);
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 11px;
+            min-width: 16px;
+            text-align: center;
+        }
+        
+        .batch-content {
+            overflow: hidden;
+            max-height: 3000px; /* Arbitrary large value */
+            display: block; /* Ensure it's explicitly visible */
+            transition: none; /* Disable transition initially */
+        }
+        
+        .batch-content.collapsed {
+            max-height: 0;
+        }
+        
+        /* Enable transitions after initial load */
+        .transitions-enabled .batch-content {
+            transition: max-height 0.3s ease;
+        }
+        
+        .batch-divider {
+            height: 1px;
+            background-color: rgba(255, 255, 255, 0.1);
+            margin: 8px 0;
+        }
+        
         /* Sync status indicator */
         .sync-status {
             position: absolute;
@@ -213,23 +277,23 @@
     <header>
         <h1>Image Projection</h1>
         <div>
-            <button id="backToViewer">Back to Viewer</button>
+            <button id="backToViewer" style="background-color: #4CAF50; border-color: #3d8b40; color: white;">Back to Viewer</button>
         </div>
     </header>
     
     <div class="controls">
-        <button id="loadCurrentImage">Load Current Image</button>
-        <button id="loadAllImages">Load All Images</button>
-        <button id="clear-db-btn">Clear DB</button>
-        <button id="applyProcessing">Apply Processing (Demo)</button>
-        <button id="showDebug">Show Debug Info</button>
-        <button id="toggle-thumbnails">Show Thumbnails</button>
+        <button id="loadCurrentImage" style="background-color: #2196F3; border-color: #1976D2; color: white;">Load Current Image</button>
+        <button id="loadAllImages" style="background-color: #9c27b0; border-color: #7b1fa2; color: white;">Load All Images</button>
+        <button id="clear-db-btn" style="background-color: #f44336; border-color: #d32f2f; color: white;">Clear DB</button>
+        <button id="applyProcessing" style="background-color: #ff9800; border-color: #f57c00; color: white;">Apply Processing (Demo)</button>
+        <button id="showDebug" style="background-color: #795548; border-color: #5d4037; color: white;">Show Debug Info</button>
+        <button id="toggle-thumbnails" style="background-color: #00BCD4; border-color: #0097A7; color: white;">Show Thumbnails</button>
     </div>
     
     <div id="thumbnail-panel">
         <div class="thumbnail-header">
             <h3>Images</h3>
-            <button id="close-thumbnails" class="icon-btn" aria-label="Close thumbnails">
+            <button id="close-thumbnails" class="icon-btn" style="background-color: #f44336; border-color: #d32f2f;" aria-label="Close thumbnails">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -328,6 +392,12 @@
                         }
                     }
                 }
+                
+                // Enable transitions after page content has loaded
+                setTimeout(() => {
+                    document.body.classList.add('transitions-enabled');
+                    log('Transitions enabled');
+                }, 500);
             }, 100);
             
             // Start database polling for updates
@@ -355,6 +425,15 @@
         async function loadThumbnails() {
             try {
                 log('Loading thumbnails from IndexedDB');
+                
+                // Store collapsed states before clearing
+                const collapsedBatchStates = new Map();
+                document.querySelectorAll('.batch-header').forEach(header => {
+                    const batchTitle = header.querySelector('.batch-title')?.textContent;
+                    if (batchTitle) {
+                        collapsedBatchStates.set(batchTitle, header.classList.contains('collapsed'));
+                    }
+                });
                 
                 // Clear existing thumbnails
                 thumbnailsContainer.innerHTML = '';
@@ -401,23 +480,76 @@
                     const batchHeader = document.createElement('div');
                     batchHeader.className = 'batch-header';
                     
+                    // Ensure immediate visibility with inline styles
+                    batchHeader.style.display = 'flex';
+                    batchHeader.style.visibility = 'visible';
+                    batchHeader.style.opacity = '1';
+                    
+                    // Create left side container for title and count
+                    const leftSide = document.createElement('div');
+                    leftSide.className = 'batch-info';
+                    
                     // Create title
                     const title = document.createElement('span');
                     title.className = 'batch-title';
-                    title.textContent = `Batch ${batchMap.size > 1 ? Array.from(batchMap.keys()).indexOf(batchId) + 1 : ''}`;
-                    batchHeader.appendChild(title);
+                    const batchTitle = `Batch ${batchMap.size > 1 ? Array.from(batchMap.keys()).indexOf(batchId) + 1 : ''}`;
+                    title.textContent = batchTitle;
+                    leftSide.appendChild(title);
                     
                     // Add count badge
                     const count = document.createElement('span');
                     count.className = 'batch-count';
                     count.textContent = imagesList.length;
-                    batchHeader.appendChild(count);
+                    leftSide.appendChild(count);
                     
-                    thumbnailsContainer.appendChild(batchHeader);
+                    batchHeader.appendChild(leftSide);
+                    
+                    // Add chevron icon for expand/collapse
+                    const chevron = document.createElement('span');
+                    chevron.className = 'chevron';
+                    chevron.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+                    batchHeader.appendChild(chevron);
                     
                     // Create batch content
                     const batchContent = document.createElement('div');
                     batchContent.className = 'batch-content';
+                    
+                    // Create reference between header and content elements
+                    batchHeader.dataset.contentId = `batch-content-${batchId}`;
+                    batchContent.id = `batch-content-${batchId}`;
+                    
+                    // Only apply collapsed state if explicitly found in the stored states
+                    // Otherwise, default to expanded (not collapsed)
+                    const wasCollapsed = collapsedBatchStates.has(batchTitle) && collapsedBatchStates.get(batchTitle) === true;
+                    if (wasCollapsed) {
+                        batchHeader.classList.add('collapsed');
+                        batchContent.classList.add('collapsed');
+                    }
+                    
+                    // Add toggle functionality
+                    batchHeader.addEventListener('click', (event) => {
+                        // Toggle collapsed class on this specific header
+                        batchHeader.classList.toggle('collapsed');
+                        
+                        // Toggle collapsed class on the paired batch content using the reference
+                        const contentId = batchHeader.dataset.contentId;
+                        const content = document.getElementById(contentId);
+                        if (content) {
+                            content.classList.toggle('collapsed');
+                        }
+                        
+                        // Log toggle action for debugging
+                        log('Batch header toggled', {
+                            batchTitle,
+                            isCollapsed: batchHeader.classList.contains('collapsed'),
+                            contentId
+                        });
+                        
+                        // Prevent event bubbling
+                        event.stopPropagation();
+                    });
+                    
+                    thumbnailsContainer.appendChild(batchHeader);
                     
                     // Create thumbnails for each image
                     for (const imageMetadata of imagesList) {
@@ -472,6 +604,17 @@
                         thumbnailsContainer.appendChild(divider);
                     }
                 }
+                
+                // Wait a moment for DOM to update, then ensure batch headers are visible
+                setTimeout(() => {
+                    document.querySelectorAll('.batch-header').forEach(header => {
+                        // Ensure batch headers are properly styled
+                        header.style.visibility = 'visible';
+                        header.style.display = 'flex';
+                        header.style.opacity = '1';
+                    });
+                    log('Batch headers refreshed and made visible');
+                }, 50);
                 
             } catch (error) {
                 log('Error loading thumbnails', error.message);

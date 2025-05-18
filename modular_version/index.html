@@ -14,38 +14,39 @@
 <body>
     <!-- Fixed controls that don't slide with the container -->
     <div id="controls">
-        <button id="load-btn">Load Image</button>
-        <button id="grid-btn">Grid</button>
-        <button id="clear-db-btn">Clear DB</button> 
-        <button id="toggle-thumbnails">Show Thumbnails</button>
-        <button id="rotate-left-btn" title="Rotate 90° Left">
+        <button id="load-btn" style="background-color: #4CAF50; border-color: #3d8b40; color: white;">Load Image</button>
+        <button id="grid-btn" style="background-color: #2196F3; border-color: #1976D2; color: white;">Grid</button>
+        <button id="clear-db-btn" style="background-color: #f44336; border-color: #d32f2f; color: white;">Clear DB</button> 
+        <button id="toggle-thumbnails" style="background-color: #9c27b0; border-color: #7b1fa2; color: white;">Show Thumbnails</button>
+        <button id="rotate-left-btn" style="background-color: #ff9800; border-color: #f57c00; color: white;" title="Rotate 90° Left">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 14 4 9 9 4"></polyline>
                 <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
             </svg>
             Rotate Left
         </button>
-        <button id="rotate-right-btn" title="Rotate 90° Right">
+        <button id="rotate-right-btn" style="background-color: #ff5722; border-color: #e64a19; color: white;" title="Rotate 90° Right">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 4 20 9 15 14"></polyline>
                 <path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>
             </svg>
             Rotate Right
         </button>
-        <a href="projection.html" id="projection-page-link" class="control-button" title="Open Projection Page">
+        
+        <button id="projection-page-btn" style="background-color: #00BCD4; border-color: #0097A7; color: white;" onclick="window.location.href='projection.html'" title="Open Projection Page">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                 <polyline points="15 3 21 3 21 9"></polyline>
                 <line x1="10" y1="14" x2="21" y2="3"></line>
             </svg>
             Projection Page
-        </a>
+        </button>
     </div>
     
     <div id="thumbnail-panel">
         <div class="thumbnail-header">
             <h3>Images</h3>
-            <button id="close-thumbnails" class="icon-btn" aria-label="Close thumbnails">
+            <button id="close-thumbnails" class="icon-btn" style="background-color: #f44336; border-color: #d32f2f;" aria-label="Close thumbnails">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
