@@ -60,6 +60,7 @@
             align-items: center;
             overflow: hidden;
             position: relative;
+            margin-top: 10px; /* Add some spacing between controls and content */
         }
         .image-container {
             position: relative;
@@ -119,25 +120,71 @@
         
         /* Adjust content when thumbnails are visible */
         .content.with-thumbnails {
-            transform: translateX(250px);
-            transition: transform 0.25s ease;
-            will-change: transform;
+            margin-left: 250px;
+            transition: margin-left 0.25s ease;
+            will-change: margin-left;
+            padding-top: 0; /* No need for extra padding since panel is below controls now */
         }
         
         /* Make the thumbnail panel wider for projection page */
         #thumbnail-panel {
             width: 250px !important;
+            top: 120px !important; /* Position below the header + controls */
+            z-index: 200; /* Ensure it appears above other content */
+            height: calc(100vh - 120px) !important; /* Adjust height to account for header and controls */
+            position: fixed; /* Ensure fixed positioning */
+            left: -250px; /* Start offscreen */
+            transition: left 0.25s ease; /* Smooth transition */
+            background-color: #333; /* Match app background */
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.4); /* Add shadow for depth */
+            overflow-y: auto; /* Allow scrolling */
+        }
+        
+        /* Active state for the panel */
+        #thumbnail-panel.active {
+            left: 0 !important; /* Slide in from the left */
         }
         
         /* Ensure the toggle handle is visible on this page */
         #thumbnail-toggle-handle {
             display: flex !important;
             left: 0px;
+            top: 120px !important; /* Align with the top of the thumbnail panel */
+            z-index: 201; /* Slightly higher than the panel */
+            position: fixed;
+            width: 12px;
+            height: 40px;
+            background-color: #444;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0 4px 4px 0;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+            transition: left 0.25s ease;
+            border: none;
+            outline: none;
         }
         
         /* Position the handle correctly when panel is open */
         #thumbnail-panel.active ~ #thumbnail-toggle-handle {
             left: 250px !important;
+            top: 120px !important; /* Keep alignment correct when panel is open */
+        }
+        
+        /* Add a visual indicator to the handle */
+        #thumbnail-toggle-handle::before {
+            content: '';
+            width: 0;
+            height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-right: 6px solid #aaa;
+        }
+        
+        /* Flip the indicator when panel is open */
+        #thumbnail-panel.active ~ #thumbnail-toggle-handle::before {
+            border-right: none;
+            border-left: 6px solid #aaa;
         }
         
         /* Improve thumbnail styling for projection page */
@@ -409,14 +456,9 @@
             thumbnailPanel.classList.toggle('active');
             contentElement.classList.toggle('with-thumbnails');
             
-            // Update toggle handle position
             if (thumbnailPanel.classList.contains('active')) {
-                toggleHandle.style.left = '250px';
-                toggleHandle.classList.add('resize');
                 toggleThumbnailsBtn.textContent = 'Hide Thumbnails';
             } else {
-                toggleHandle.style.left = '0px';
-                toggleHandle.classList.remove('resize');
                 toggleThumbnailsBtn.textContent = 'Show Thumbnails';
             }
         }
