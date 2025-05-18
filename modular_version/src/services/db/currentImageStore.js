@@ -1,10 +1,21 @@
 // Current image store service
 // Handles saving/retrieving the currently viewed image to/from IndexedDB
 
-import { saveImageToDb, getImageFromDb } from './imageStore.js';
+import { getImageFromDb } from './imageStore.js';
 
 // Constant for the current image ID
 const CURRENT_IMAGE_KEY = 'current_image';
+const DB_NAME = 'ImageViewerDB';
+const CURRENT_IMAGE_STORE = 'current_image_store';
+
+// Helper function to get DB connection
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME);
+    request.onerror = event => reject(event.target.error);
+    request.onsuccess = event => resolve(event.target.result);
+  });
+}
 
 /**
  * Save the currently viewed image to IndexedDB
@@ -35,49 +46,10 @@ export async function saveCurrentImage(image, imageData, metadata = {}) {
     // Get file information if available
     const { selectedFile, rotation } = metadata;
     
-    // Prepare metadata object
-    const imageMetadata = {
-      filename: selectedFile?.name || 'current_image',
-      fileType: selectedFile?.type || 'image/png',
-      fileSize: selectedFile?.size,
-      rotation: rotation || 0,
-      lastAccessed: Date.now(),
-      isCurrent: true,
-      selectedFile, // Include the original file if available
-      id: CURRENT_IMAGE_KEY // Use a fixed ID for the current image
-    };
-    
-    // Save to IndexedDB with the special current image key
-    const id = await saveImageToDb(image, imageData, imageMetadata);
-    
-    console.log('Current image successfully saved to IndexedDB with ID:', id);
-    return id;
-  } catch (error) {
-    console.error('Failed to save current image to IndexedDB:', error);
-    // Implement retry logic for transaction errors
-    if (error.name === 'TransactionInactiveError') {
-      console.log('Transaction inactive error detected, attempting alternative save approach');
-      return saveWithRetry(image, imageData, metadata);
-    }
-    throw error;
-  }
-}
-
-/**
- * Alternative save approach that breaks down the steps differently
- * Used as a fallback when the primary approach fails with transaction errors
- */
-async function saveWithRetry(image, imageData, metadata) {
-  try {
-    console.log('Using alternative save approach for large images');
-    
-    // Get file information if available
-    const { selectedFile, rotation } = metadata;
-    
-    // Create a cloned simple file if we have a selected file
+    // First create the blob - this needs to happen outside the transaction
     let imageBlob = null;
     
-    // First, try to use the original file if available (most reliable)
+    // Try to use the original file first (most efficient)
     if (selectedFile instanceof File || selectedFile instanceof Blob) {
       imageBlob = selectedFile;
       console.log('Using original file directly:', {
@@ -94,20 +66,44 @@ async function saveWithRetry(image, imageData, metadata) {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(image, 0, 0);
       
-      // Use a lower quality JPEG for large images to reduce storage requirements
+      // Create blob from canvas
       imageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-      console.log('Created optimized JPEG blob from image:', { 
-        width: image.naturalWidth, 
+      console.log('Created blob from image element:', {
+        width: image.naturalWidth,
         height: image.naturalHeight,
-        blobSize: imageBlob.size 
+        blobSize: imageBlob.size
       });
+    }
+    // If we have image data, use that
+    else if (!imageBlob && imageData && imageData.data) {
+      try {
+        const { width, height, data } = imageData;
+        // Create ImageData object for Blob creation
+        if (data instanceof Uint8ClampedArray) {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.putImageData(new ImageData(data, width, height), 0, 0);
+          
+          // Convert canvas to blob
+          imageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+          console.log('Created blob from imageData:', {
+            width,
+            height,
+            blobSize: imageBlob.size
+          });
+        }
+      } catch (error) {
+        console.error('Error creating blob from imageData:', error);
+      }
     }
     
     if (!imageBlob) {
-      throw new Error('Could not create image blob in retry');
+      throw new Error('Could not create image blob');
     }
     
-    // Create a simplified record with just essential data
+    // Prepare the record object
     const record = {
       id: CURRENT_IMAGE_KEY,
       filename: selectedFile?.name || 'current_image',
@@ -120,39 +116,45 @@ async function saveWithRetry(image, imageData, metadata) {
       rotation: rotation || 0,
       timestamp: Date.now(),
       isCurrent: true,
-      isRetry: true
+      // If the metadata has originalId, preserve it to reference the original image
+      originalId: metadata.originalId || metadata.id || null
     };
     
-    // Manually open database and handle transaction
+    if (metadata.batchId) {
+      record.batchId = metadata.batchId;
+    }
+    
+    // Save to current image store
+    const db = await openDb();
+    
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open('ImageViewerDB', 1);
-      
-      request.onerror = event => {
-        console.error('Error opening database in retry:', event.target.error);
-        reject(event.target.error);
-      };
-      
-      request.onsuccess = event => {
-        const db = event.target.result;
-        // Create a new transaction for each operation for maximum reliability
-        const transaction = db.transaction(['images'], 'readwrite');
-        const store = transaction.objectStore('images');
+      try {
+        const transaction = db.transaction([CURRENT_IMAGE_STORE], 'readwrite');
+        const store = transaction.objectStore(CURRENT_IMAGE_STORE);
         
-        const putRequest = store.put(record);
+        transaction.onerror = (event) => {
+          console.error('Transaction error:', event.target.error);
+          reject(event.target.error);
+        };
         
-        putRequest.onsuccess = () => {
-          console.log('Successfully saved image in retry mode');
+        const request = store.put(record);
+        
+        request.onsuccess = () => {
+          console.log('Current image saved successfully to dedicated store');
           resolve(CURRENT_IMAGE_KEY);
         };
         
-        putRequest.onerror = event => {
-          console.error('Error in retry save:', event.target.error);
+        request.onerror = (event) => {
+          console.error('Error saving current image:', event.target.error);
           reject(event.target.error);
         };
-      };
+      } catch (error) {
+        console.error('Error in current image save transaction:', error);
+        reject(error);
+      }
     });
   } catch (error) {
-    console.error('Failed in retry save:', error);
+    console.error('Failed to save current image:', error);
     throw error;
   }
 }
@@ -163,27 +165,66 @@ async function saveWithRetry(image, imageData, metadata) {
  */
 export async function getCurrentImage() {
   try {
-    console.log('Retrieving current image from IndexedDB');
+    console.log('Retrieving current image from dedicated store');
     
-    // Retrieve from IndexedDB using the special current image key
-    const imageRecord = await getImageFromDb(CURRENT_IMAGE_KEY);
+    const db = await openDb();
     
-    if (imageRecord) {
-      console.log('Retrieved current image from IndexedDB', {
-        id: imageRecord.id,
-        filename: imageRecord.filename,
-        hasBlob: !!imageRecord.imageBlob,
-        blobSize: imageRecord.imageBlob?.size,
-        width: imageRecord.dimensions?.width,
-        height: imageRecord.dimensions?.height
-      });
-      return imageRecord;
-    } else {
-      console.log('No current image found in IndexedDB');
-      return null;
-    }
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction([CURRENT_IMAGE_STORE], 'readonly');
+        const store = transaction.objectStore(CURRENT_IMAGE_STORE);
+        
+        const request = store.get(CURRENT_IMAGE_KEY);
+        
+        request.onsuccess = () => {
+          if (request.result) {
+            console.log('Retrieved current image from dedicated store', {
+              id: request.result.id,
+              filename: request.result.filename,
+              hasBlob: !!request.result.imageBlob,
+              blobSize: request.result.imageBlob?.size
+            });
+            resolve(request.result);
+          } else {
+            console.log('No current image found in dedicated store');
+            
+            // For backward compatibility, try the old method
+            getImageFromDb(CURRENT_IMAGE_KEY)
+              .then(oldRecord => {
+                if (oldRecord) {
+                  console.log('Found current image in main store (legacy) - migrating');
+                  // Migrate it to the new store
+                  saveCurrentImage(null, null, {
+                    ...oldRecord,
+                    selectedFile: oldRecord.imageBlob
+                  }).then(() => {
+                    resolve(oldRecord);
+                  }).catch(err => {
+                    console.error('Error migrating legacy current image:', err);
+                    resolve(oldRecord);
+                  });
+                } else {
+                  resolve(null);
+                }
+              })
+              .catch(error => {
+                console.error('Error checking for legacy current image:', error);
+                resolve(null);
+              });
+          }
+        };
+        
+        request.onerror = (event) => {
+          console.error('Error retrieving current image:', event.target.error);
+          reject(event.target.error);
+        };
+      } catch (error) {
+        console.error('Error in current image retrieval transaction:', error);
+        reject(error);
+      }
+    });
   } catch (error) {
-    console.error('Failed to retrieve current image from IndexedDB:', error);
+    console.error('Failed to retrieve current image:', error);
     throw error;
   }
 }

@@ -10,6 +10,8 @@ import { renderImage } from '../../ui/canvas/renderImage.js';
 // Constants
 const CHECK_INTERVAL = 3000; // Check every 3 seconds
 const CURRENT_IMAGE_KEY = 'current_image';
+const CURRENT_IMAGE_STORE = 'current_image_store';
+const IMAGE_STORE = 'images';
 
 // State variables
 let isMonitoring = false;
@@ -121,38 +123,33 @@ async function checkForChanges() {
       return;
     }
     
-    // Get the current image record
+    // Get the current image record from dedicated store
     const currentImageRecord = await getCurrentImage();
     const currentTimestamp = currentImageRecord?.timestamp || 0;
     
     // Check if current image has changed
     const currentImageChanged = currentTimestamp > lastCurrentImageTimestamp;
     
-    // Only fetch all metadata if necessary
-    let allMetadata = null;
-    let batchCountChanged = false;
-    let imageCountChanged = false;
+    // IMPORTANT: Always fetch all metadata to check for image additions/deletions
+    // This ensures we detect when images are deleted even if current image hasn't changed
+    const allMetadata = await getAllImagesMetadata();
     
-    // If current image has changed or we need to check counts
-    if (currentImageChanged) {
-      allMetadata = await getAllImagesMetadata();
-      
-      // Count batches and images
-      const batchIds = new Set();
-      allMetadata.forEach(img => {
-        if (img.batchId) batchIds.add(img.batchId);
-      });
-      
-      const newBatchCount = batchIds.size;
-      const newImageCount = allMetadata.length;
-      
-      batchCountChanged = newBatchCount !== lastKnownBatchCount;
-      imageCountChanged = newImageCount !== lastKnownImageCount;
-      
-      // Update cached values
-      lastKnownBatchCount = newBatchCount;
-      lastKnownImageCount = newImageCount;
-    }
+    // Count batches and images
+    const batchIds = new Set();
+    allMetadata.forEach(img => {
+      if (img.batchId) batchIds.add(img.batchId);
+    });
+    
+    const newBatchCount = batchIds.size;
+    // Count regular images (exclude current_image which should now be in separate store)
+    const newImageCount = allMetadata.length;
+    
+    const batchCountChanged = newBatchCount !== lastKnownBatchCount;
+    const imageCountChanged = newImageCount !== lastKnownImageCount;
+    
+    // Update cached values
+    lastKnownBatchCount = newBatchCount;
+    lastKnownImageCount = newImageCount;
     
     // Only process if something has changed
     if (currentImageChanged || batchCountChanged || imageCountChanged) {
@@ -160,6 +157,8 @@ async function checkForChanges() {
         currentImageChanged,
         batchCountChanged,
         imageCountChanged,
+        oldImageCount: lastKnownImageCount,
+        newImageCount: newImageCount,
         oldTimestamp: lastCurrentImageTimestamp,
         newTimestamp: currentTimestamp
       });
@@ -212,14 +211,56 @@ async function refreshAllData() {
   console.log('Refreshing all data from database due to detected changes');
   
   try {
-    // Import the necessary function here to avoid circular dependencies
-    const { restoreImagesFromDb } = await import('../../core/app.js');
+    // Instead of trying to import restoreImagesFromDb which causes circular dependencies,
+    // implement a simplified version directly that will work in both contexts
     
-    // Force a reload of all images from DB
-    setState({ image: null });  // Clear current image first
-    await restoreImagesFromDb();
+    // Clear current image from state first
+    setState({ image: null });
     
-    console.log('Successfully refreshed all data from database');
+    // Wait a short moment to ensure the state update is processed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Get all images metadata
+    const allImageMetadata = await getAllImagesMetadata();
+    
+    // If no images found, just return
+    if (!allImageMetadata || allImageMetadata.length === 0) {
+      console.log('No images found in database to restore');
+      return;
+    }
+    
+    console.log(`Found ${allImageMetadata.length} images to restore`);
+    
+    // Use the getCurrentImage function which now looks in the dedicated store
+    const currentImageRecord = await getCurrentImage();
+    
+    // If we found a current image, load it
+    if (currentImageRecord && currentImageRecord.imageBlob) {
+      try {
+        const currentImage = await createImageFromRecord(currentImageRecord);
+        
+        // Update state with the new image
+        setState({
+          image: currentImage,
+          currentImageRecord
+        });
+        
+        // Re-render the image
+        renderImage();
+        
+        console.log('Successfully restored current image from database');
+      } catch (err) {
+        console.error('Error loading current image:', err);
+      }
+    }
+    
+    // Notify that data was refreshed
+    notifyObservers({
+      dataRefreshed: true,
+      timestamp: Date.now()
+    });
+    
+    console.log('Successfully refreshed data from database');
   } catch (error) {
     console.error('Error refreshing data from database:', error);
   }

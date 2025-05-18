@@ -2,8 +2,9 @@
 // This allows images to be accessed across different pages/routes
 
 const DB_NAME = 'ImageViewerDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Increased to add current image store
 const STORE_NAME = 'images';
+const CURRENT_IMAGE_STORE = 'current_image_store';
 
 // Initialize the database
 function initDB() {
@@ -28,10 +29,37 @@ function initDB() {
         store.createIndex('filename', 'filename', { unique: false });
         store.createIndex('timestamp', 'timestamp', { unique: false });
       }
+      
+      // Create separate store for current image if it doesn't exist
+      if (!db.objectStoreNames.contains(CURRENT_IMAGE_STORE)) {
+        const currentStore = db.createObjectStore(CURRENT_IMAGE_STORE, { keyPath: 'id' });
+        currentStore.createIndex('timestamp', 'timestamp', { unique: false });
+        console.log('Created separate store for current image');
+      }
+      
+      // Handle migration from v1 to v2
+      if (event.oldVersion === 1 && event.newVersion === 2) {
+        console.log('Migrating from DB version 1 to 2');
+        // Will move current image to new store after transaction completes
+      }
     };
     
     request.onsuccess = (event) => {
-      resolve(event.target.result);
+      const db = event.target.result;
+      
+      // If this is a newly upgraded database, migrate current_image to new store
+      if (request.transaction) {
+        try {
+          // After upgrade completed, we need to migrate the current_image
+          migrateCurrentImage(db).catch(err => 
+            console.error('Error during current_image migration:', err)
+          );
+        } catch (err) {
+          console.error('Error setting up migration:', err);
+        }
+      }
+      
+      resolve(db);
     };
     
     request.onerror = (event) => {
@@ -39,6 +67,90 @@ function initDB() {
       reject(event.target.error);
     };
   });
+}
+
+// Migrate current_image from images store to current_image_store
+async function migrateCurrentImage(db) {
+  try {
+    console.log('Starting current_image migration to new store');
+    
+    // First get the current_image from old store
+    const oldTransaction = db.transaction([STORE_NAME], 'readonly');
+    const imageStore = oldTransaction.objectStore(STORE_NAME);
+    const request = imageStore.get('current_image');
+    
+    return new Promise((resolve, reject) => {
+      request.onsuccess = async () => {
+        const currentImage = request.result;
+        
+        if (!currentImage) {
+          console.log('No current_image found to migrate');
+          resolve(false);
+          return;
+        }
+        
+        console.log('Found current_image to migrate:', {
+          id: currentImage.id,
+          filename: currentImage.filename
+        });
+        
+        try {
+          // Save to new store
+          const newTransaction = db.transaction([CURRENT_IMAGE_STORE], 'readwrite');
+          const currentStore = newTransaction.objectStore(CURRENT_IMAGE_STORE);
+          
+          // Create a transaction promise
+          const savePromise = new Promise((resolveInner, rejectInner) => {
+            const saveRequest = currentStore.put(currentImage);
+            
+            saveRequest.onsuccess = () => {
+              console.log('Successfully migrated current_image to new store');
+              resolveInner(true);
+            };
+            
+            saveRequest.onerror = (event) => {
+              console.error('Error saving current_image to new store:', event.target.error);
+              rejectInner(event.target.error);
+            };
+          });
+          
+          await savePromise;
+          
+          // Delete from old store
+          const deleteTransaction = db.transaction([STORE_NAME], 'readwrite');
+          const oldStore = deleteTransaction.objectStore(STORE_NAME);
+          
+          const deletePromise = new Promise((resolveInner, rejectInner) => {
+            const deleteRequest = oldStore.delete('current_image');
+            
+            deleteRequest.onsuccess = () => {
+              console.log('Successfully deleted current_image from old store');
+              resolveInner(true);
+            };
+            
+            deleteRequest.onerror = (event) => {
+              console.error('Error deleting current_image from old store:', event.target.error);
+              rejectInner(event.target.error);
+            };
+          });
+          
+          await deletePromise;
+          resolve(true);
+        } catch (error) {
+          console.error('Error during migration:', error);
+          reject(error);
+        }
+      };
+      
+      request.onerror = (event) => {
+        console.error('Error getting current_image for migration:', event.target.error);
+        reject(event.target.error);
+      };
+    });
+  } catch (error) {
+    console.error('Migration error:', error);
+    throw error;
+  }
 }
 
 // Prepare image blob first, then save to DB in a separate transaction

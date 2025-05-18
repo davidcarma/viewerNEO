@@ -33,7 +33,7 @@ export function fitImageWithPadding() {
   
   // Check if thumbnail panel is visible
   const container = document.getElementById('container');
-  const isThumbnailPanelVisible = container.classList.contains('with-thumbnails');
+  const isThumbnailPanelVisible = container && container.classList ? container.classList.contains('with-thumbnails') : false;
   
   // If the panel is visible, it shifts the container, but doesn't
   // actually reduce the available width since the container has transformed

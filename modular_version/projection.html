@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Projection</title>
+    <!-- Import the same CSS files as the main viewer for consistency -->
+    <link rel="stylesheet" href="css/legacy.css">
     <link rel="stylesheet" href="css/components/thumbnail.css">
     <link rel="stylesheet" href="css/components/thumbnail-panel.css">
     <link rel="stylesheet" href="css/components/thumbnail-arrow-fix.css">
@@ -76,7 +78,32 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+            display: none; /* Hide the image since we're using canvas */
         }
+        #canvas {
+            max-width: 100%;
+            max-height: 100%;
+            background-color: #222;
+            position: relative; /* Prevent position issues */
+            z-index: 5; /* Ensure canvas is above other elements */
+        }
+        
+        /* Container styles to match main viewer */
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 120px); /* Account for header and controls */
+            width: 100%;
+            position: relative;
+            transition: transform 0.25s ease;
+            margin-top: 10px;
+        }
+        
+        /* Match the behavior of index.html */
+        #container.with-thumbnails {
+            transform: translateX(160px);
+        }
+        
         .status-container {
             position: absolute;
             top: 20px;
@@ -119,278 +146,89 @@
             color: #aaffaa;
         }
         
-        /* Adjust content when thumbnails are visible */
-        .content.with-thumbnails {
-            margin-left: 250px;
-            transition: margin-left 0.25s ease;
-            will-change: margin-left;
-            padding-top: 0; /* No need for extra padding since panel is below controls now */
-        }
-        
-        /* Make the thumbnail panel wider for projection page */
-        #thumbnail-panel {
-            width: 250px !important;
-            top: 120px !important; /* Position below the header + controls */
-            z-index: 200; /* Ensure it appears above other content */
-            height: calc(100vh - 120px) !important; /* Adjust height to account for header and controls */
-            position: fixed; /* Ensure fixed positioning */
-            left: -250px; /* Start offscreen */
-            transition: left 0.25s ease; /* Smooth transition */
-            background-color: #333; /* Match app background */
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.4); /* Add shadow for depth */
-            overflow-y: auto; /* Allow scrolling */
-        }
-        
-        /* Active state for the panel */
-        #thumbnail-panel.active {
-            left: 0 !important; /* Slide in from the left */
-        }
-        
-        /* Remove all custom styling for the toggle handle and use the shared CSS */
-        #thumbnail-toggle-handle {
-            position: fixed !important;
-            left: 0 !important;
-            top: 50% !important;
-            transform: translateY(-50%) !important;
-            width: 16px !important;
-            height: 40px !important;
-            background-color: #2c2c2c !important;
-            border-radius: 0 4px 4px 0 !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            cursor: pointer !important;
-            z-index: 201 !important;
-            border: 1px solid #444 !important;
-            border-left: none !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
-            transition: left 0.25s ease, background-color 0.2s ease !important;
-            opacity: 0.95 !important;
-        }
-
-        #thumbnail-toggle-handle:hover {
-            opacity: 1 !important;
-            background-color: #3a3a3a !important;
-        }
-
-        /* Ensure all pseudo-elements are cleared */
-        #thumbnail-toggle-handle::before,
-        #thumbnail-toggle-handle::after {
-            content: none !important;
-            display: none !important;
-        }
-
-        /* Position the handle correctly when panel is open */
-        #thumbnail-panel.active ~ #thumbnail-toggle-handle {
-            left: 250px !important;
-        }
-        
-        /* Create a new chevron arrow with a div */
-        #thumbnail-toggle-handle .toggle-arrow {
-            width: 0;
-            height: 0;
-            border-top: 6px solid transparent;
-            border-bottom: 6px solid transparent;
-            border-left: 6px solid rgba(255, 255, 255, 0.9);
-        }
-
-        /* Flip arrow when panel is active */
-        #thumbnail-panel.active ~ #thumbnail-toggle-handle .toggle-arrow {
-            border-left: none;
-            border-right: 6px solid rgba(255, 255, 255, 0.9);
-        }
-        
-        /* Improve thumbnail styling for projection page */
-        .thumbnail-item {
-            width: 230px;
-            margin: 10px auto;
-            border-radius: 6px;
-            background: #222;
-        }
-        
-        .thumbnail-item img {
-            height: 150px;
-            object-fit: contain;
-            background: #111;
-        }
-        
-        /* Improve thumbnail label styling */
-        .thumbnail-item div {
-            font-size: 11px;
-            text-overflow: ellipsis;
-            overflow: hidden;
-            white-space: nowrap;
-            background: rgba(0,0,0,0.7);
-            padding: 6px;
-            text-align: left;
-        }
-        
-        /* Style for active thumbnail */
-        .thumbnail-item.active {
-            border: 2px solid #ff0059;
-            box-shadow: 0 0 8px rgba(255,0,89,0.4);
-        }
-        
-        /* Batch header styling */
-        .batch-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background-color: #1a1a1a;
-            cursor: pointer;
-            border-radius: 4px;
-            margin: 5px 0;
-            opacity: 1; /* Ensure full visibility */
-            visibility: visible; /* Explicitly ensure visibility */
-        }
-        
-        .batch-header .chevron {
-            transition: transform 0.2s ease;
-        }
-        
-        .batch-header.collapsed .chevron {
-            transform: rotate(-90deg);
-        }
-        
-        .batch-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .batch-title {
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
-        .batch-count {
-            background: rgba(80, 80, 80, 0.5);
-            border-radius: 12px;
-            padding: 2px 8px;
-            font-size: 11px;
-            min-width: 16px;
-            text-align: center;
-        }
-        
-        .batch-content {
-            overflow: hidden;
-            max-height: 3000px; /* Arbitrary large value */
-            display: block; /* Ensure it's explicitly visible */
-            transition: none; /* Disable transition initially */
-        }
-        
-        .batch-content.collapsed {
-            max-height: 0;
-        }
-        
-        /* Enable transitions after initial load */
-        .transitions-enabled .batch-content {
-            transition: max-height 0.3s ease;
-        }
-        
-        .batch-divider {
-            height: 1px;
-            background-color: rgba(255, 255, 255, 0.1);
-            margin: 8px 0;
-        }
-        
-        /* Sync status indicator */
-        .sync-status {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background-color: rgba(0, 0, 0, 0.5);
-            color: #fff;
-            padding: 5px 10px;
-            font-size: 11px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            z-index: 100;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-        
-        .sync-status.active {
-            opacity: 0.6;
-        }
-        
-        .sync-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: #4CAF50;
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-        }
+        /* Removed content.with-thumbnails as we now use container.with-thumbnails */
     </style>
 </head>
 <body>
     <header>
         <h1>Image Projection</h1>
-        <div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="sync-status" id="syncStatus" style="position: relative; top: 0; right: 0; opacity: 0.6;">
+                <div class="sync-indicator"></div>
+                <span>Syncing with database...</span>
+            </div>
             <button id="backToViewer" style="background-color: #4CAF50; border-color: #3d8b40; color: white;">Back to Viewer</button>
         </div>
     </header>
-    
-    <div class="controls">
-        <button id="loadCurrentImage" style="background-color: #2196F3; border-color: #1976D2; color: white;">Load Current Image</button>
-        <button id="loadAllImages" style="background-color: #9c27b0; border-color: #7b1fa2; color: white;">Load All Images</button>
-        <button id="clear-db-btn" style="background-color: #f44336; border-color: #d32f2f; color: white;">Clear DB</button>
-        <button id="applyProcessing" style="background-color: #ff9800; border-color: #f57c00; color: white;">Apply Processing (Demo)</button>
-        <button id="showDebug" style="background-color: #795548; border-color: #5d4037; color: white;">Show Debug Info</button>
-        <button id="toggle-thumbnails" style="background-color: #00BCD4; border-color: #0097A7; color: white;">Show Thumbnails</button>
-    </div>
-    
-    <div id="thumbnail-panel">
-        <div class="thumbnail-header">
-            <h3>Images</h3>
-            <button id="close-thumbnails" class="icon-btn" style="background-color: #f44336; border-color: #d32f2f; color: white;" aria-label="Close thumbnails">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-        </div>
-        <div id="thumbnails-container"></div>
-    </div>
-    
-    <!-- Thumbnail toggle handle - empty to avoid duplicate content -->
-    <div id="thumbnail-toggle-handle" role="button" aria-label="Toggle thumbnail panel" title="Toggle thumbnails">
-        <div class="toggle-arrow"></div>
-    </div>
-    
-    <div class="content">
-        <div class="image-container">
-            <img id="imageDisplay" alt="No image loaded">
+        
+        <div class="controls">
+            <button id="loadCurrentImage" style="background-color: #2196F3; border-color: #1976D2; color: white;">Load Current Image</button>
+            <button id="loadAllImages" style="background-color: #9c27b0; border-color: #7b1fa2; color: white;">Load All Images</button>
+            <button id="clear-db-btn" style="background-color: #f44336; border-color: #d32f2f; color: white;">Clear DB</button>
+            <button id="applyProcessing" style="background-color: #ff9800; border-color: #f57c00; color: white;">Apply Processing (Demo)</button>
+            <button id="showDebug" style="background-color: #795548; border-color: #5d4037; color: white;">Show Debug Info</button>
+            <button id="toggle-thumbnails" style="background-color: #00BCD4; border-color: #0097A7; color: white;">Show Thumbnails</button>
         </div>
         
-        <div class="status-container">
-            <div id="imageInfo">No image loaded</div>
+        <div id="thumbnail-panel">
+            <div class="thumbnail-header">
+                <h3>Images</h3>
+                <button id="close-thumbnails" class="icon-btn" style="background-color: #f44336; border-color: #d32f2f; color: white;" aria-label="Close thumbnails">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div id="thumbnails-container"></div>
         </div>
         
-        <div id="debugLog" class="debug-log" style="display: none;"></div>
+        <!-- Thumbnail toggle handle -->
+        <div id="thumbnail-toggle-handle" role="button" aria-label="Toggle thumbnail panel" title="Toggle thumbnails"></div>
         
-        <div class="loading">Loading...</div>
-        
-        <div class="sync-status" id="syncStatus">
-            <div class="sync-indicator"></div>
-            <span>Syncing with database...</span>
+        <div id="container">
+            <div class="content">
+                <div class="image-container">
+                    <canvas id="canvas"></canvas>
+                    <img id="imageDisplay" alt="No image loaded" style="display: none;">
+                </div>
+                
+                <div class="status-container">
+                    <div id="imageInfo">No image loaded</div>
+                </div>
+                
+                <div id="debugLog" class="debug-log" style="display: none;"></div>
+                
+                <div class="loading">Loading...</div>
+            </div>
         </div>
-    </div>
     
     <script type="module">
         // Import modules and utilities from the modular application
-        import { getCurrentImage, createImageFromRecord } from './modular_version/src/services/db/currentImageStore.js';
-        import { getAllImagesMetadata, getImageFromDb, clearImageDatabase } from './modular_version/src/services/db/imageStore.js';
+        import { getCurrentImage, createImageFromRecord } from './src/services/db/currentImageStore.js';
+        import { getAllImagesMetadata, getImageFromDb, clearImageDatabase } from './src/services/db/imageStore.js';
+        import { registerChangeObserver, unregisterChangeObserver, startDbMonitoring } from './src/services/db/dbMonitor.js';
+        
+        // Helper function to size and position canvas properly
+        async function sizeCanvasToImage(img, imageRecord) {
+            const { getCanvas } = await import('./src/ui/canvas/canvasContext.js');
+            const canvas = getCanvas();
+            if (!canvas) return;
+            
+            // Make sure we have valid dimensions
+            const width = img.naturalWidth || imageRecord.dimensions.width || 640;
+            const height = img.naturalHeight || imageRecord.dimensions.height || 480;
+            
+            // Set canvas dimensions
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Make sure the canvas is visible and properly sized
+            canvas.style.maxWidth = '100%';
+            canvas.style.maxHeight = '100%';
+            canvas.style.display = 'block';
+            canvas.style.margin = 'auto';
+        }
         
         /**
          * BIDIRECTIONAL COMMUNICATION OVERVIEW
@@ -428,6 +266,21 @@
             debugLog.scrollTop = debugLog.scrollHeight;
         }
         
+        // Get references to DOM elements - making them globally accessible
+        const loadingIndicator = document.querySelector('.loading');
+        const imageDisplay = document.getElementById('imageDisplay');
+        const imageInfo = document.getElementById('imageInfo');
+        const debugLog = document.getElementById('debugLog');
+        const loadButton = document.getElementById('loadCurrentImage');
+        const applyProcessingButton = document.getElementById('applyProcessing');
+        const backButton = document.getElementById('backToViewer');
+        const showDebugButton = document.getElementById('showDebug');
+        const thumbnailPanel = document.getElementById('thumbnail-panel');
+        const thumbnailsContainer = document.getElementById('thumbnails-container');
+        const toggleThumbnailsBtn = document.getElementById('toggle-thumbnails');
+        const toggleHandle = document.getElementById('thumbnail-toggle-handle');
+        const closeThumbnailsBtn = document.getElementById('close-thumbnails');
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             log('Projection page loaded');
@@ -437,35 +290,80 @@
             closeThumbnailsBtn.addEventListener('click', toggleThumbnailPanel);
             toggleHandle.addEventListener('click', toggleThumbnailPanel);
             
-            // Make sure toggle handle has the correct initial state
-            if (toggleHandle) {
-                // Clear any existing content that might cause styling issues
-                toggleHandle.innerHTML = '';
-                
-                // Create a proper toggle arrow
-                const toggleArrow = document.createElement('div');
-                toggleArrow.className = 'toggle-arrow';
-                toggleHandle.appendChild(toggleArrow);
-            }
+            // Initialize database monitoring first
+            log('Starting database change monitoring');
+            initializeMonitoring();
             
-            // Load thumbnails
+            // Load thumbnails to show available images
             await loadThumbnails();
             
             // Show thumbnail panel by default
             toggleThumbnailPanel();
             
-            // Try to load the current image automatically on page load
-            setTimeout(async () => {
-                const imageLoaded = await loadCurrentImage();
-                if (!imageLoaded) {
-                    // If no current image exists, try to load the first image from the first batch
-                    // (which will now exclude the current image due to our loadThumbnails modification)
-                    const firstThumbnail = thumbnailsContainer.querySelector('.thumbnail-item');
-                    if (firstThumbnail) {
-                        const imageId = firstThumbnail.dataset.imageId;
-                        if (imageId) {
-                            loadImageById(imageId);
+            // Try to load images in a sequence that matches index.html:
+            // 1. First try to load current image (from the main viewer)
+            // 2. If that fails, try to load the first image from the first batch
+            const loadingSequence = async () => {
+                // Start with the current image from the main viewer
+                const currentImageLoaded = await loadCurrentImage();
+                
+                if (!currentImageLoaded) {
+                    log('No current image found, loading first available image...');
+                    
+                    // If current image loading failed, get all images and find first in batch
+                    const allImages = await getAllImagesMetadata();
+                    
+                    if (!allImages || allImages.length === 0) {
+                        log('No images found in database');
+                        imageInfo.textContent = 'No images found in database. Please load images in the main viewer first.';
+                        return;
+                    }
+                    
+                    // Group images by batch ID to match index.html's structure
+                    const batchMap = new Map();
+                    const processedFilenames = new Set();
+                    
+                    // Process images (skip current_image and duplicates)
+                    for (const metadata of allImages) {
+                        if (metadata.id === CURRENT_IMAGE_KEY || !metadata.hasBlob) continue;
+                        
+                        const batchId = metadata.batchId || 'default';
+                        const filename = metadata.filename;
+                        
+                        if (processedFilenames.has(filename)) continue;
+                        processedFilenames.add(filename);
+                        
+                        if (!batchMap.has(batchId)) {
+                            batchMap.set(batchId, []);
                         }
+                        
+                        batchMap.get(batchId).push(metadata);
+                    }
+                    
+                    // Find first image in first batch, exactly as index.html does
+                    if (batchMap.size > 0) {
+                        const firstBatchId = Array.from(batchMap.keys())[0];
+                        const firstBatchImages = batchMap.get(firstBatchId);
+                        
+                        if (firstBatchImages && firstBatchImages.length > 0) {
+                            // Sort by timestamp as index.html does
+                            firstBatchImages.sort((a, b) => a.timestamp - b.timestamp);
+                            const firstImage = firstBatchImages[0];
+                            
+                            log('Loading first image from first batch:', {
+                                batchId: firstBatchId,
+                                imageId: firstImage.id,
+                                filename: firstImage.filename
+                            });
+                            
+                            await loadImageById(firstImage.id);
+                        } else {
+                            log('No images found in first batch');
+                            imageInfo.textContent = 'No valid images found in first batch.';
+                        }
+                    } else {
+                        log('No image batches found');
+                        imageInfo.textContent = 'No image batches found. Please load images in the main viewer first.';
                     }
                 }
                 
@@ -474,37 +372,26 @@
                     document.body.classList.add('transitions-enabled');
                     log('Transitions enabled');
                 }, 500);
-            }, 100);
+            };
             
-            // Start database polling for updates
-            startDatabasePolling();
+            // Execute the loading sequence
+            loadingSequence();
             
-            // Initialize database monitoring
-            log('Starting database change monitoring');
-            startDbMonitoring();
-            
-            // Stop monitoring when the window unloads
-            window.addEventListener('unload', stopDbMonitoring);
+                // Database monitoring already initialized earlier
         });
         
         // Toggle thumbnail panel
         function toggleThumbnailPanel() {
             thumbnailPanel.classList.toggle('active');
-            contentElement.classList.toggle('with-thumbnails');
+            document.getElementById('container').classList.toggle('with-thumbnails');
             
-            // Clear any existing content and ensure proper styling
-            const toggleArrow = toggleHandle.querySelector('.toggle-arrow');
-            if (!toggleArrow) {
-                const newArrow = document.createElement('div');
-                newArrow.className = 'toggle-arrow';
-                toggleHandle.innerHTML = '';
-                toggleHandle.appendChild(newArrow);
-            }
-            
+            // Update button text
             if (thumbnailPanel.classList.contains('active')) {
                 toggleThumbnailsBtn.textContent = 'Hide Thumbnails';
+                toggleHandle.classList.add('resize');
             } else {
                 toggleThumbnailsBtn.textContent = 'Show Thumbnails';
+                toggleHandle.classList.remove('resize');
             }
         }
         
@@ -536,14 +423,27 @@
                 
                 log(`Found ${allImages.length} images in IndexedDB`);
                 
-                // Filter out the special "current_image" entry to avoid duplication
-                // since it's already displayed in the main view
-                const filteredImages = allImages.filter(metadata => metadata.id !== CURRENT_IMAGE_KEY);
+                // Get the current image for highlighting the current selection
+                let currentImageRecord = await getCurrentImage();
+                let currentImageOriginalId = currentImageRecord?.originalId || null;
+                
+                log('Current image info:', {
+                    id: currentImageRecord?.id || 'none',
+                    originalId: currentImageOriginalId || 'none'
+                });
+                
+                // Filter out the special current_image entry and ensure we only get images with blobs
+                const filteredImages = allImages.filter(img => 
+                    img.id !== CURRENT_IMAGE_KEY && // Never include current_image in thumbnails
+                    img.hasBlob // Only include images with actual data
+                );
                 
                 if (filteredImages.length === 0) {
-                    thumbnailsContainer.innerHTML = '<div class="empty-thumbnail-state">No additional images available</div>';
+                    thumbnailsContainer.innerHTML = '<div class="empty-thumbnail-state">No images available</div>';
                     return;
                 }
+                
+                log(`Found ${filteredImages.length} valid images for thumbnails`);
                 
                 // Group images by batch ID
                 const batchMap = new Map();
@@ -567,11 +467,6 @@
                     const batchHeader = document.createElement('div');
                     batchHeader.className = 'batch-header';
                     
-                    // Ensure immediate visibility with inline styles
-                    batchHeader.style.display = 'flex';
-                    batchHeader.style.visibility = 'visible';
-                    batchHeader.style.opacity = '1';
-                    
                     // Create left side container for title and count
                     const leftSide = document.createElement('div');
                     leftSide.className = 'batch-info';
@@ -579,8 +474,8 @@
                     // Create title
                     const title = document.createElement('span');
                     title.className = 'batch-title';
-                    const batchTitle = `Batch ${batchMap.size > 1 ? Array.from(batchMap.keys()).indexOf(batchId) + 1 : ''}`;
-                    title.textContent = batchTitle;
+                    const batchNumber = batchMap.size > 1 ? Array.from(batchMap.keys()).indexOf(batchId) + 1 : '';
+                    title.textContent = `Batch ${batchNumber}`;
                     leftSide.appendChild(title);
                     
                     // Add count badge
@@ -607,7 +502,7 @@
                     
                     // Only apply collapsed state if explicitly found in the stored states
                     // Otherwise, default to expanded (not collapsed)
-                    const wasCollapsed = collapsedBatchStates.has(batchTitle) && collapsedBatchStates.get(batchTitle) === true;
+                    const wasCollapsed = collapsedBatchStates.has(title.textContent) && collapsedBatchStates.get(title.textContent) === true;
                     if (wasCollapsed) {
                         batchHeader.classList.add('collapsed');
                         batchContent.classList.add('collapsed');
@@ -627,7 +522,7 @@
                         
                         // Log toggle action for debugging
                         log('Batch header toggled', {
-                            batchTitle,
+                            batchTitle: title.textContent,
                             isCollapsed: batchHeader.classList.contains('collapsed'),
                             contentId
                         });
@@ -640,11 +535,20 @@
                     
                     // Create thumbnails for each image
                     for (const imageMetadata of imagesList) {
-                        if (!imageMetadata.hasBlob) continue;
-                        
                         const thumbnailItem = document.createElement('div');
-                        thumbnailItem.className = 'thumbnail-item';
+                        
+                        // Add special 'active' class for the image that matches the current image's originalId
+                        if (currentImageOriginalId && imageMetadata.id === currentImageOriginalId) {
+                            thumbnailItem.className = 'thumbnail-item active';
+                        } else {
+                            thumbnailItem.className = 'thumbnail-item';
+                        }
+                        
                         thumbnailItem.dataset.imageId = imageMetadata.id;
+                        
+                        // Create container for thumbnail image to allow overlay positioning
+                        const imgContainer = document.createElement('div');
+                        imgContainer.className = 'thumbnail-image-container';
                         
                         const imgEl = document.createElement('img');
                         imgEl.alt = imageMetadata.filename;
@@ -654,23 +558,64 @@
                         const placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxMTExMTEiLz48cGF0aCBkPSJNMzUgMjVINjVDNjguMyAyNSA3MSAyNy43IDcxIDMxVjY5QzcxIDcyLjMgNjguMyA3NSA2NSA3NUgzNUMzMS43IDc1IDI5IDcyLjMgMjkgNjlWMzFDMjkgMjcuNyAzMS43IDI1IDM1IDI1WiIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI1IiBmaWxsPSIjNTU1Ii8+PHBhdGggZD0iTTMwIDYwTDQwIDUwTDUwIDYwTDYwIDUwTDcwIDYwVjcwSDMwVjYwWiIgZmlsbD0iIzU1NSIvPjwvc3ZnPg==';
                         imgEl.src = placeholderSrc;
                         
-                        thumbnailItem.appendChild(imgEl);
+                        imgContainer.appendChild(imgEl);
                         
-                        // Create a more detailed label with filename and size
+                        // Add delete button overlay
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'thumbnail-delete-btn';
+                        deleteBtn.innerHTML = '×';
+                        deleteBtn.title = 'Delete image';
+                        
+                        imgContainer.appendChild(deleteBtn);
+                        
+                        // Add delete functionality
+                        deleteBtn.addEventListener('click', async (event) => {
+                            event.stopPropagation(); // Prevent thumbnail click
+                            
+                            try {
+                                log(`Deleting image with ID: ${imageMetadata.id}`);
+                                
+                                // Show loading state
+                                imgEl.style.opacity = '0.5';
+                                deleteBtn.disabled = true;
+                                deleteBtn.textContent = '...';
+                                
+                                // Delete from database
+                                await deleteImageFromDb(imageMetadata.id);
+                                
+                                // Remove from UI
+                                thumbnailItem.remove();
+                                
+                                // Update count
+                                count.textContent = parseInt(count.textContent) - 1;
+                                
+                                // If this was the last image in the batch, remove the batch
+                                if (parseInt(count.textContent) === 0) {
+                                    batchHeader.remove();
+                                    batchContent.remove();
+                                }
+                                
+                                log(`Image ${imageMetadata.id} deleted successfully`);
+                            } catch (error) {
+                                log(`Error deleting image: ${error.message}`);
+                                console.error('Error deleting image:', error);
+                                
+                                // Reset UI
+                                imgEl.style.opacity = '1';
+                                deleteBtn.disabled = false;
+                                deleteBtn.textContent = '×';
+                                
+                                // Show error
+                                alert(`Error deleting image: ${error.message}`);
+                            }
+                        });
+                        
+                        thumbnailItem.appendChild(imgContainer);
+                        
+                        // Create a proper thumbnail label with filename
                         const label = document.createElement('div');
-                        let labelText = imageMetadata.filename || 'Unnamed image';
-                        
-                        // Add file size if available
-                        if (imageMetadata.blobSize) {
-                            labelText += ` (${formatFileSize(imageMetadata.blobSize)})`;
-                        }
-                        
-                        // Add dimensions if available
-                        if (imageMetadata.dimensions) {
-                            labelText += `<br>${imageMetadata.dimensions.width || '?'} × ${imageMetadata.dimensions.height || '?'} px`;
-                        }
-                        
-                        label.innerHTML = labelText;
+                        label.className = 'thumbnail-label';
+                        label.textContent = imageMetadata.filename || 'Unnamed image';
                         thumbnailItem.appendChild(label);
                         
                         // Add click event to load the image
@@ -755,7 +700,37 @@
                 // Create an image element from the blob
                 const img = await createImageFromRecord(imageRecord);
                 
-                // Display the image
+                // Import the renderImage function
+                const { getCanvas, getContext, clearCanvas } = await import('./src/ui/canvas/canvasContext.js');
+                const { setState } = await import('./src/core/projectionState.js');
+                
+                // Store the image in state
+                setState({ image: img });
+                
+                // Size the canvas to match the image dimensions
+                const canvas = getCanvas();
+                if (canvas) {
+                    canvas.width = img.naturalWidth || imageRecord.dimensions.width;
+                    canvas.height = img.naturalHeight || imageRecord.dimensions.height;
+                }
+                
+                // Clear and render to the canvas
+                clearCanvas('#222');
+                
+                // Draw the image when it's loaded
+                const ctx = getContext();
+                if (ctx && img) {
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0);
+                    };
+                    
+                    // If already loaded, draw immediately
+                    if (img.complete) {
+                        ctx.drawImage(img, 0, 0);
+                    }
+                }
+                
+                // Keep the img element updated as well (though hidden)
                 imageDisplay.src = img.src;
                 
                 // Update image info
@@ -769,10 +744,8 @@
                     Last Modified: ${new Date(imageRecord.timestamp).toLocaleString()}
                 `;
                 
-                // Update the main viewer with our selection
-                if (imageId !== CURRENT_IMAGE_KEY) {
-                    await setCurrentImageInDatabase(imageRecord);
-                }
+                // Set this image as the current image in database (for the main viewer to access)
+                await setCurrentImageInDatabase(imageRecord);
                 
                 // Highlight the selected thumbnail
                 const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
@@ -798,7 +771,7 @@
         
         /**
          * Set the current image in the database for cross-page access
-         * This function updates the current_image record to point to the selected image
+         * This function updates the current_image in the dedicated store
          */
         async function setCurrentImageInDatabase(imageRecord) {
             if (!imageRecord || !imageRecord.imageBlob) {
@@ -812,23 +785,17 @@
                     filename: imageRecord.filename
                 });
                 
-                // Create a modified copy of the record with current image flag
-                const currentImageRecord = {
+                // Import and use saveCurrentImage directly
+                const { saveCurrentImage } = await import('./src/services/db/currentImageStore.js');
+                
+                // Save to dedicated current image store with original ID reference
+                await saveCurrentImage(null, null, {
                     ...imageRecord,
-                    id: CURRENT_IMAGE_KEY,  // Use the special key
-                    isCurrent: true,
-                    timestamp: Date.now(),  // Update timestamp to trigger detection
+                    selectedFile: imageRecord.imageBlob,
                     originalId: imageRecord.id  // Store the original ID for reference
-                };
-                
-                // Save to database
-                const { saveImageToDb } = await import('./modular_version/src/services/db/imageStore.js');
-                const id = await saveImageToDb(null, null, currentImageRecord);
-                
-                log('Current image set successfully in database', {
-                    id,
-                    filename: currentImageRecord.filename
                 });
+                
+                log('Current image set successfully in database');
                 
                 return true;
             } catch (error) {
@@ -891,11 +858,13 @@
                     filename: imageRecord.filename,
                     hasBlobData: !!imageRecord.imageBlob,
                     blobSize: imageRecord.imageBlob?.size,
-                    dimensions: imageRecord.dimensions
+                    dimensions: imageRecord.dimensions,
+                    originalId: imageRecord.originalId || 'none'
                 });
                 
                 // Store the current image ID for sync detection
                 currentImageId = imageRecord.id;
+                currentImageRecord = imageRecord;
                 
                 if (!imageRecord.imageBlob) {
                     log('Error: Image record has no blob data');
@@ -904,20 +873,30 @@
                     return false;
                 }
                 
-                // Highlight the current image in thumbnails if it exists
-                const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
-                thumbnails.forEach(thumbnail => {
-                    thumbnail.classList.remove('active');
+                // Check if this record points to an original image
+                // In index.html's approach, the current_image might store the original image's ID
+                if (imageRecord.originalId) {
+                    log(`Current image points to original image with ID: ${imageRecord.originalId}`);
                     
-                    // After our filtering, the current image shouldn't exist in thumbnails
-                    // This check remains only for backward compatibility
-                    if (thumbnail.dataset.imageId === imageRecord.id) {
-                        thumbnail.classList.add('active');
+                    // Update thumbnails to highlight the original image
+                    const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
+                    thumbnails.forEach(thumbnail => {
+                        thumbnail.classList.remove('active');
                         
-                        // Scroll to the selected thumbnail
-                        thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                });
+                        // Highlight the original image this current_image points to
+                        if (thumbnail.dataset.imageId === imageRecord.originalId) {
+                            thumbnail.classList.add('active');
+                            // Scroll to the selected thumbnail
+                            thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    });
+                } else {
+                    // Reset thumbnail selection when no original ID exists
+                    const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
+                    thumbnails.forEach(thumbnail => {
+                        thumbnail.classList.remove('active');
+                    });
+                }
                 
                 // Create an image element from the blob
                 log('Creating image element from blob', {
@@ -932,36 +911,59 @@
                     complete: img.complete
                 });
                 
-                // Display the image
-                const objectUrl = img.src;
-                imageDisplay.src = objectUrl;
+                // Import the renderImage function
+                const { getCanvas, getContext, clearCanvas } = await import('./src/ui/canvas/canvasContext.js');
+                const { setState } = await import('./src/core/projectionState.js');
                 
-                // Wait for the image to load
-                imageDisplay.onload = () => {
-                    log('Image loaded and displayed', {
-                        naturalWidth: imageDisplay.naturalWidth,
-                        naturalHeight: imageDisplay.naturalHeight
-                    });
-                    
-                    // Update image info
-                    imageInfo.innerHTML = `
-                        <strong>Image loaded successfully</strong><br>
-                        Filename: ${imageRecord.filename}<br>
-                        Size: ${imageRecord.dimensions.width} x ${imageRecord.dimensions.height} px<br>
-                        File Type: ${imageRecord.fileType || 'Unknown'}<br>
-                        File Size: ${imageRecord.imageBlob.size ? formatFileSize(imageRecord.imageBlob.size) : 'Unknown'}<br>
-                        Last Modified: ${new Date(imageRecord.timestamp).toLocaleString()}
-                    `;
-                    
-                    loadingIndicator.style.display = 'none';
-                };
+                // Store the image in state
+                setState({ image: img });
                 
-                imageDisplay.onerror = (e) => {
-                    log('Error displaying image', e);
-                    imageInfo.textContent = `Error displaying image. See debug info for details.`;
-                    loadingIndicator.style.display = 'none';
-                    return false;
-                };
+                // Size the canvas to match the image dimensions
+                const canvas = getCanvas();
+                if (canvas) {
+                    canvas.width = img.naturalWidth || imageRecord.dimensions.width;
+                    canvas.height = img.naturalHeight || imageRecord.dimensions.height;
+                }
+                
+                // Clear and render to the canvas
+                clearCanvas('#222');
+                
+                // Draw the image when it's loaded
+                const ctx = getContext();
+                if (ctx && img) {
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0);
+                    };
+                    
+                    // If already loaded, draw immediately
+                    if (img.complete) {
+                        ctx.drawImage(img, 0, 0);
+                    }
+                }
+                
+                // Keep the img element updated as well (though hidden)
+                imageDisplay.src = img.src;
+                
+                // Don't wait for onload event - set up info immediately
+                log('Image being displayed', {
+                    naturalWidth: img.naturalWidth,
+                    naturalHeight: img.naturalHeight
+                });
+                
+                // Update image info
+                imageInfo.innerHTML = `
+                    <strong>Image loaded successfully</strong><br>
+                    ${imageRecord.id === CURRENT_IMAGE_KEY ? '<span style="color: #ff9800; font-weight: bold;">Current image from main viewer</span><br>' : ''}
+                    Filename: ${imageRecord.filename}<br>
+                    Size: ${imageRecord.dimensions.width} x ${imageRecord.dimensions.height} px<br>
+                    File Type: ${imageRecord.fileType || 'Unknown'}<br>
+                    File Size: ${imageRecord.imageBlob.size ? formatFileSize(imageRecord.imageBlob.size) : 'Unknown'}<br>
+                    Last Modified: ${new Date(imageRecord.timestamp).toLocaleString()}
+                    ${imageRecord.originalId ? '<br><em>(From main viewer)</em>' : ''}
+                `;
+                
+                loadingIndicator.style.display = 'none';
+                return true;
                 
             } catch (error) {
                 log('Error loading image from IndexedDB', error.message);
@@ -993,17 +995,60 @@
                 
                 log(`Found ${allImages.length} images in database`);
                 
+                // Group images by batch ID to match index.html's structure
+                const batchMap = new Map();
+                
+                // Track filenames to prevent duplication
+                const processedFilenames = new Set();
+                
+                // Organize images into batches, similar to index.html
+                for (const metadata of allImages) {
+                    // Skip the current_image record
+                    if (metadata.id === CURRENT_IMAGE_KEY) continue;
+                    if (!metadata.hasBlob) continue;
+                    
+                    const batchId = metadata.batchId || 'default';
+                    const filename = metadata.filename;
+                    
+                    // Skip duplicates
+                    if (processedFilenames.has(filename)) continue;
+                    processedFilenames.add(filename);
+                    
+                    if (!batchMap.has(batchId)) {
+                        batchMap.set(batchId, []);
+                    }
+                    
+                    batchMap.get(batchId).push(metadata);
+                }
+                
                 // Reset thumbnails
                 await loadThumbnails();
                 
-                // Select the first image with a blob, excluding the current image
-                const imagesWithBlobs = allImages
-                    .filter(img => img.hasBlob && img.id !== CURRENT_IMAGE_KEY);
+                // Find the first image in the first batch - same logic as index.html
+                let firstImage = null;
+                let firstBatchId = null;
                 
-                if (imagesWithBlobs.length > 0) {
-                    loadImageById(imagesWithBlobs[0].id);
+                if (batchMap.size > 0) {
+                    // Find the first batch and its first image
+                    firstBatchId = Array.from(batchMap.keys())[0];
+                    const firstBatchImages = batchMap.get(firstBatchId);
+                    
+                    if (firstBatchImages && firstBatchImages.length > 0) {
+                        // Sort by timestamp as index.html does
+                        firstBatchImages.sort((a, b) => a.timestamp - b.timestamp);
+                        firstImage = firstBatchImages[0];
+                    }
+                }
+                
+                if (firstImage) {
+                    log('Loading first image from first batch:', {
+                        batchId: firstBatchId,
+                        imageId: firstImage.id,
+                        filename: firstImage.filename
+                    });
+                    loadImageById(firstImage.id);
                 } else {
-                    log('No images with blobs found');
+                    log('No valid images found in batches');
                     imageInfo.textContent = 'No valid images found in database.';
                     loadingIndicator.style.display = 'none';
                 }
@@ -1016,30 +1061,42 @@
         }
         
         // Apply a simple visual effect to demonstrate image processing
-        function applyDemoProcessing() {
+        async function applyDemoProcessing() {
+            // Import canvas utilities
+            const { getCanvas, getContext } = await import('./src/ui/canvas/canvasContext.js');
+            const { getState } = await import('./src/core/projectionState.js');
+            
+            // Get the canvas
+            const canvas = getCanvas();
+            if (!canvas) {
+                alert('Canvas element not found');
+                return;
+            }
+            
             loadingIndicator.style.display = 'flex';
             loadingIndicator.textContent = 'Applying demo processing...';
             log('Starting image processing');
             
             setTimeout(() => {
                 try {
-                    // Create a canvas to manipulate the image
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
+                    // Get the context from the main canvas
+                    const ctx = getContext();
                     
-                    // Set canvas dimensions to match the image
-                    canvas.width = imageDisplay.naturalWidth;
-                    canvas.height = imageDisplay.naturalHeight;
+                    if (!ctx) {
+                        throw new Error('Could not get canvas context');
+                    }
                     
-                    log('Created processing canvas', {
+                    // Check if canvas has content
+                    if (canvas.width === 0 || canvas.height === 0) {
+                        throw new Error('Canvas has no dimensions - please load an image first');
+                    }
+                    
+                    log('Processing canvas', {
                         width: canvas.width,
                         height: canvas.height
                     });
                     
-                    // Draw the image onto the canvas
-                    ctx.drawImage(imageDisplay, 0, 0);
-                    
-                    // Apply a simple effect (invert colors)
+                    // Get the image data directly from the main canvas
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const data = imageData.data;
                     
@@ -1058,7 +1115,7 @@
                     // Put the modified image data back to the canvas
                     ctx.putImageData(imageData, 0, 0);
                     
-                    // Update the displayed image with the processed version
+                    // Keep the hidden img element in sync
                     imageDisplay.src = canvas.toDataURL();
                     
                     // Update information
@@ -1132,75 +1189,82 @@
         let currentImageTimestamp = 0;
         const syncStatusIndicator = document.getElementById('syncStatus');
 
-        // Enhanced database monitoring system (replaces old polling mechanism)
-        function startDatabasePolling() {
-            log('Starting enhanced database monitoring');
-            
-            // Use our new monitoring system
-            return startDbMonitoring();
-        }
-        
-        // Constants for database monitoring  
+// This function is no longer needed as we directly use initializeMonitoring
+
+// Constants for database monitoring    
         const CHECK_INTERVAL = 2000; // Check every 2 seconds
+        const CURRENT_IMAGE_KEY = 'current_image'; // Special key for the current image in the database
+
+        // Variables for state tracking
+let lastCurrentImageTimestamp = 0;
+let lastKnownImageCount = 0;
         
-        // Variables for DB monitoring
-        let isMonitoring = false;
-        let monitorInterval = null;
-        let lastCurrentImageTimestamp = 0;
-        let lastKnownImageCount = 0;
-        
-        // Initialize monitoring
-        function startDbMonitoring() {
-            if (isMonitoring) return;
+        // Handle database changes detected by the monitoring system
+        async function handleDatabaseChanges(changeInfo) {
+            log('Received database change notification:', changeInfo);
             
-            log('Starting IndexedDB monitoring');
-            isMonitoring = true;
-            
-            // Initialize timestamps from current state
-            const imageRecord = getCurrentImageRecord();
-            lastCurrentImageTimestamp = imageRecord?.timestamp || 0;
-            
-            // Initialize image count
-            getAllImagesMetadata().then(images => {
-                lastKnownImageCount = images ? images.filter(img => 
-                    img.id !== CURRENT_IMAGE_KEY && img.hasBlob
-                ).length : 0;
+            // If data was refreshed by the monitoring system
+            if (changeInfo.dataRefreshed) {
+                log('Database was refreshed, updating display...');
                 
-                log(`Initial database state: ${lastKnownImageCount} images`);
-            });
-            
-            // Show sync indicator when checking
-            function updateSyncIndicator(isChecking) {
-                if (isChecking) {
-                    syncStatusIndicator.classList.add('active');
-                } else {
-                    syncStatusIndicator.classList.remove('active');
+                // Reload thumbnails
+                await loadThumbnails();
+                
+                // Try to load current image, and if not available, load the first image
+                const currentImageLoaded = await loadCurrentImage();
+                
+                if (!currentImageLoaded) {
+                    log('No current image after refresh, loading first available image...');
+                    await loadAllImagesFromDb();
                 }
+                
+                return;
             }
             
-            // Set up polling interval
-            monitorInterval = setInterval(async () => {
-                updateSyncIndicator(true);
-                await checkForDbChanges();
-                updateSyncIndicator(false);
-            }, CHECK_INTERVAL);
+            // Handle other specific changes
+            if (changeInfo.currentImageChanged) {
+                log('Current image changed, reloading...');
+                await loadCurrentImage();
+            }
             
-            // Return a cleanup function
-            return () => stopDbMonitoring();
-        }
-        
-        // Stop monitoring the database
-        function stopDbMonitoring() {
-            if (!isMonitoring) return;
-            
-            log('Stopping IndexedDB monitoring');
-            isMonitoring = false;
-            
-            if (monitorInterval) {
-                clearInterval(monitorInterval);
-                monitorInterval = null;
+            if (changeInfo.batchCountChanged || changeInfo.imageCountChanged) {
+                log('Image collection changed, updating thumbnails...');
+                await loadThumbnails();
             }
         }
+
+        // Initialize our local monitoring system
+function initializeMonitoring() {
+    log('Initializing database monitoring system');
+    
+    // Register our change handler callback
+    registerChangeObserver(handleDatabaseChanges);
+    
+    // Set up visual indicator for sync status
+    function updateSyncIndicator(isActive) {
+        if (isActive) {
+            syncStatusIndicator.classList.add('active');
+        } else {
+            syncStatusIndicator.classList.remove('active');
+        }
+    }
+    
+    // Show sync indicator briefly every few seconds
+    setInterval(() => {
+        updateSyncIndicator(true);
+        setTimeout(() => updateSyncIndicator(false), 500);
+    }, 5000);
+    
+    // Start the imported monitoring system
+    startDbMonitoring();
+    
+    // Clean up when page unloads
+    window.addEventListener('unload', () => {
+        unregisterChangeObserver(handleDatabaseChanges);
+    });
+    
+    log('Database monitoring initialized');
+}
         
         // Store the current image record
         let currentImageRecord = null;
@@ -1209,96 +1273,30 @@
             return currentImageRecord;
         }
         
-        // Check for changes in the database
-        async function checkForDbChanges() {
-            try {
-                // Skip check if we're in the middle of loading or processing
-                if (loadingIndicator.style.display === 'flex') {
-                    log('Skipping DB check while page is loading/processing');
-                    return;
-                }
-                
-                // Get the current image record
-                const newImageRecord = await getCurrentImage();
-                const currentTimestamp = newImageRecord?.timestamp || 0;
-                
-                // Check if current image has changed
-                const currentImageChanged = currentTimestamp > lastCurrentImageTimestamp;
-                
-                // Get all image metadata
-                const allMetadata = await getAllImagesMetadata();
-                
-                // Count regular images (exclude current image)
-                const newImageCount = allMetadata.filter(img => 
-                    img.id !== CURRENT_IMAGE_KEY && 
-                    img.hasBlob
-                ).length;
-                
-                const imageCountChanged = newImageCount !== lastKnownImageCount;
-                lastKnownImageCount = newImageCount;
-                
-                // Also check if currently displayed image was deleted
-                let currentImageDeleted = false;
-                if (currentImageId && currentImageId !== CURRENT_IMAGE_KEY) {
-                    const imageStillExists = allMetadata.some(img => img.id === currentImageId);
-                    if (!imageStillExists) {
-                        currentImageDeleted = true;
-                    }
-                }
-                
-                // Only process if something has changed
-                if (currentImageChanged || imageCountChanged || currentImageDeleted) {
-                    log('Detected changes in IndexedDB:', {
-                        currentImageChanged,
-                        imageCountChanged,
-                        currentImageDeleted,
-                        oldTimestamp: lastCurrentImageTimestamp,
-                        newTimestamp: currentTimestamp,
-                        oldCount: lastKnownImageCount,
-                        newCount: newImageCount
-                    });
-                    
-                    // Update last known timestamp if current image changed
-                    if (currentImageChanged) {
-                        lastCurrentImageTimestamp = currentTimestamp;
-                        currentImageRecord = newImageRecord;
-                        
-                        // Reload current image since it changed
-                        log('Current image changed in database, reloading...');
-                        await loadCurrentImage();
-                    }
-                    
-                    // If image count changed or an image was deleted
-                    if (imageCountChanged || currentImageDeleted) {
-                        // Reload thumbnails since available images changed
-                        log('Available images changed in database, updating thumbnails...');
-                        await loadThumbnails();
-                        
-                        // If current image was deleted, load the first available image
-                        if (currentImageDeleted) {
-                            log('Current image was deleted, loading first available image...');
-                            
-                            // Reset display
-                            imageDisplay.src = '';
-                            imageInfo.textContent = 'Please select an image';
-                            currentImageId = null;
-                            
-                            // Try to load the first image if available
-                            const firstThumbnail = thumbnailsContainer.querySelector('.thumbnail-item');
-                            if (firstThumbnail) {
-                                const imageId = firstThumbnail.dataset.imageId;
-                                if (imageId) {
-                                    loadImageById(imageId);
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                log('Error checking for database changes:', error.message);
-                console.error('Error checking for database changes:', error);
-            }
+        // Check for database changes
+async function checkForDbChanges() {
+    // This function is now a stub that's kept for backwards compatibility
+    // Actual change detection is now handled by the observer pattern via handleDatabaseChanges
+    // This helps prevent circular dependencies with the core app.js
+    
+    try {
+        // Update timestamps to track last known state
+        const currentImage = await getCurrentImage();
+        if (currentImage && currentImage.timestamp) {
+            lastCurrentImageTimestamp = currentImage.timestamp;
         }
-    </script>
+        
+        // Count images to detect count changes next time
+        const allMetadata = await getAllImagesMetadata();
+        const regularImages = allMetadata ? allMetadata.filter(img => 
+            img.id !== CURRENT_IMAGE_KEY && img.hasBlob
+        ).length : 0;
+        
+        lastKnownImageCount = regularImages;
+    } catch (error) {
+        log('Error in database check:', error.message);
+    }
+}
+</script>
 </body>
 </html> 
