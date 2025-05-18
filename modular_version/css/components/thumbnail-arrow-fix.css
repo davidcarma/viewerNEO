@@ -1,0 +1,26 @@
+/* Override the thumbnail toggle handle arrow direction */
+
+/* Default state (closed) should show a right-facing arrow */
+#thumbnail-toggle-handle::before {
+  border-left: 6px solid rgba(255, 255, 255, 0.9) !important;
+  border-right: none !important;
+  transform: translateX(0) !important;
+}
+
+/* When panel is open, arrow should point left */
+#thumbnail-panel.active ~ #thumbnail-toggle-handle::before,
+#thumbnail-toggle-handle.resize::before {
+  border-left: none !important;
+  border-right: 6px solid rgba(255, 255, 255, 0.9) !important;
+  transform: translateX(0) !important;
+}
+
+/* Remove the vertical bar that appears in resize mode */
+#thumbnail-toggle-handle.resize::after {
+  display: none !important;
+}
+
+/* Also ensure the after pseudo-element is always hidden */
+#thumbnail-toggle-handle::after {
+  display: none !important;
+} 
