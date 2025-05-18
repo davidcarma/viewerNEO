@@ -104,6 +104,26 @@
             transform: translateX(160px);
         }
         
+        /* Ensure thumbnail panel appears below header and controls */
+        body #thumbnail-panel {
+            top: 120px !important;
+            height: calc(100vh - 120px) !important;
+            z-index: 100;
+        }
+        
+        /* Ensure toggle handle is positioned correctly */
+        body #thumbnail-toggle-handle {
+            top: 50% !important;
+            margin-top: 60px !important; /* Shift down by half of the header+controls height */
+        }
+        
+        /* Hide delete buttons on read-only projection page */
+        .thumbnail-delete-btn,
+        .thumbnail-remove-btn,
+        .batch-delete-btn {
+            display: none !important;
+        }
+        
         .status-container {
             position: absolute;
             top: 20px;
@@ -170,7 +190,7 @@
             <button id="toggle-thumbnails" style="background-color: #00BCD4; border-color: #0097A7; color: white;">Show Thumbnails</button>
         </div>
         
-        <div id="thumbnail-panel">
+        <div id="thumbnail-panel" style="top: 120px; height: calc(100vh - 120px);">
             <div class="thumbnail-header">
                 <h3>Images</h3>
                 <button id="close-thumbnails" class="icon-btn" style="background-color: #f44336; border-color: #d32f2f; color: white;" aria-label="Close thumbnails">
@@ -187,21 +207,21 @@
         <div id="thumbnail-toggle-handle" role="button" aria-label="Toggle thumbnail panel" title="Toggle thumbnails"></div>
         
         <div id="container">
-            <div class="content">
-                <div class="image-container">
-                    <canvas id="canvas"></canvas>
-                    <img id="imageDisplay" alt="No image loaded" style="display: none;">
-                </div>
-                
-                <div class="status-container">
-                    <div id="imageInfo">No image loaded</div>
-                </div>
-                
-                <div id="debugLog" class="debug-log" style="display: none;"></div>
-                
-                <div class="loading">Loading...</div>
-            </div>
+        <div class="content">
+                    <div class="image-container">
+            <canvas id="canvas"></canvas>
+            <img id="imageDisplay" alt="No image loaded" style="display: none;">
         </div>
+            
+            <div class="status-container">
+                <div id="imageInfo">No image loaded</div>
+            </div>
+            
+                    <div id="debugLog" class="debug-log" style="display: none;"></div>
+        
+        <div class="loading">Loading...</div>
+    </div>
+    </div>
     
     <script type="module">
         // Import modules and utilities from the modular application
@@ -290,9 +310,9 @@
             closeThumbnailsBtn.addEventListener('click', toggleThumbnailPanel);
             toggleHandle.addEventListener('click', toggleThumbnailPanel);
             
-            // Initialize database monitoring first
-            log('Starting database change monitoring');
-            initializeMonitoring();
+                // Initialize database monitoring first
+    log('Starting database change monitoring');
+    initializeMonitoring();
             
             // Load thumbnails to show available images
             await loadThumbnails();
@@ -546,10 +566,7 @@
                         
                         thumbnailItem.dataset.imageId = imageMetadata.id;
                         
-                        // Create container for thumbnail image to allow overlay positioning
-                        const imgContainer = document.createElement('div');
-                        imgContainer.className = 'thumbnail-image-container';
-                        
+                        // Match the index.html structure - img is direct child of thumbnail-item
                         const imgEl = document.createElement('img');
                         imgEl.alt = imageMetadata.filename;
                         imgEl.loading = 'lazy';
@@ -558,59 +575,9 @@
                         const placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxMTExMTEiLz48cGF0aCBkPSJNMzUgMjVINjVDNjguMyAyNSA3MSAyNy43IDcxIDMxVjY5QzcxIDcyLjMgNjguMyA3NSA2NSA3NUgzNUMzMS43IDc1IDI5IDcyLjMgMjkgNjlWMzFDMjkgMjcuNyAzMS43IDI1IDM1IDI1WiIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI1IiBmaWxsPSIjNTU1Ii8+PHBhdGggZD0iTTMwIDYwTDQwIDUwTDUwIDYwTDYwIDUwTDcwIDYwVjcwSDMwVjYwWiIgZmlsbD0iIzU1NSIvPjwvc3ZnPg==';
                         imgEl.src = placeholderSrc;
                         
-                        imgContainer.appendChild(imgEl);
+                        thumbnailItem.appendChild(imgEl);
                         
-                        // Add delete button overlay
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.className = 'thumbnail-delete-btn';
-                        deleteBtn.innerHTML = '×';
-                        deleteBtn.title = 'Delete image';
-                        
-                        imgContainer.appendChild(deleteBtn);
-                        
-                        // Add delete functionality
-                        deleteBtn.addEventListener('click', async (event) => {
-                            event.stopPropagation(); // Prevent thumbnail click
-                            
-                            try {
-                                log(`Deleting image with ID: ${imageMetadata.id}`);
-                                
-                                // Show loading state
-                                imgEl.style.opacity = '0.5';
-                                deleteBtn.disabled = true;
-                                deleteBtn.textContent = '...';
-                                
-                                // Delete from database
-                                await deleteImageFromDb(imageMetadata.id);
-                                
-                                // Remove from UI
-                                thumbnailItem.remove();
-                                
-                                // Update count
-                                count.textContent = parseInt(count.textContent) - 1;
-                                
-                                // If this was the last image in the batch, remove the batch
-                                if (parseInt(count.textContent) === 0) {
-                                    batchHeader.remove();
-                                    batchContent.remove();
-                                }
-                                
-                                log(`Image ${imageMetadata.id} deleted successfully`);
-                            } catch (error) {
-                                log(`Error deleting image: ${error.message}`);
-                                console.error('Error deleting image:', error);
-                                
-                                // Reset UI
-                                imgEl.style.opacity = '1';
-                                deleteBtn.disabled = false;
-                                deleteBtn.textContent = '×';
-                                
-                                // Show error
-                                alert(`Error deleting image: ${error.message}`);
-                            }
-                        });
-                        
-                        thumbnailItem.appendChild(imgContainer);
+                        // Delete buttons removed from projection.html as it's read-only
                         
                         // Create a proper thumbnail label with filename
                         const label = document.createElement('div');
@@ -655,14 +622,21 @@
             }
         }
         
-        // Load thumbnail image from database
+                // Load thumbnail image from database
         async function loadThumbnailImage(imageId, imgElement) {
             try {
                 const imageRecord = await getImageFromDb(imageId);
                 if (imageRecord && imageRecord.imageBlob) {
                     const objectUrl = URL.createObjectURL(imageRecord.imageBlob);
                     imgElement.src = objectUrl;
-                    imgElement.dataset.objectUrl = objectUrl;
+                    
+                    // Store the objectUrl on the parent thumbnail item for proper cleanup
+                    const thumbnailItem = imgElement.closest('.thumbnail-item');
+                    if (thumbnailItem) {
+                        thumbnailItem.dataset.objectUrl = objectUrl;
+                    } else {
+                        imgElement.dataset.objectUrl = objectUrl;
+                    }
                 }
             } catch (error) {
                 console.error(`Error loading thumbnail for image ${imageId}:`, error);
