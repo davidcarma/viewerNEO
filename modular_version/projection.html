@@ -265,6 +265,9 @@
         import { getCurrentImage, createImageFromRecord } from './src/services/db/currentImageStore.js';
         import { getAllImagesMetadata, getImageFromDb, clearImageDatabase } from './src/services/db/imageStore.js';
         
+        // Import the CURRENT_IMAGE_KEY constant for filtering out current image from thumbnails
+        const CURRENT_IMAGE_KEY = 'current_image';
+        
         const loadingIndicator = document.querySelector('.loading');
         const imageDisplay = document.getElementById('imageDisplay');
         const imageInfo = document.getElementById('imageInfo');
@@ -316,6 +319,7 @@
                 const imageLoaded = await loadCurrentImage();
                 if (!imageLoaded) {
                     // If no current image exists, try to load the first image from the first batch
+                    // (which will now exclude the current image due to our loadThumbnails modification)
                     const firstThumbnail = thumbnailsContainer.querySelector('.thumbnail-item');
                     if (firstThumbnail) {
                         const imageId = firstThumbnail.dataset.imageId;
@@ -366,10 +370,19 @@
                 
                 log(`Found ${allImages.length} images in IndexedDB`);
                 
+                // Filter out the special "current_image" entry to avoid duplication
+                // since it's already displayed in the main view
+                const filteredImages = allImages.filter(metadata => metadata.id !== CURRENT_IMAGE_KEY);
+                
+                if (filteredImages.length === 0) {
+                    thumbnailsContainer.innerHTML = '<div class="empty-thumbnail-state">No additional images available</div>';
+                    return;
+                }
+                
                 // Group images by batch ID
                 const batchMap = new Map();
                 
-                allImages.forEach(metadata => {
+                filteredImages.forEach(metadata => {
                     const batchId = metadata.batchId || 'default';
                     
                     if (!batchMap.has(batchId)) {
@@ -497,6 +510,8 @@
                 const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
                 thumbnails.forEach(thumbnail => {
                     thumbnail.classList.remove('active');
+                    
+                    // The current image may not be in thumbnails after our filtering
                     if (thumbnail.dataset.imageId === imageId) {
                         thumbnail.classList.add('active');
                         
@@ -631,6 +646,9 @@
                 const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
                 thumbnails.forEach(thumbnail => {
                     thumbnail.classList.remove('active');
+                    
+                    // After our filtering, the current image shouldn't exist in thumbnails
+                    // This check remains only for backward compatibility
                     if (thumbnail.dataset.imageId === imageRecord.id) {
                         thumbnail.classList.add('active');
                         
@@ -718,8 +736,9 @@
                 // Reset thumbnails
                 await loadThumbnails();
                 
-                // Select the first image with a blob
-                const imagesWithBlobs = allImages.filter(img => img.hasBlob);
+                // Select the first image with a blob, excluding the current image
+                const imagesWithBlobs = allImages
+                    .filter(img => img.hasBlob && img.id !== CURRENT_IMAGE_KEY);
                 
                 if (imagesWithBlobs.length > 0) {
                     loadImageById(imagesWithBlobs[0].id);
