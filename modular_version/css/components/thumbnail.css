@@ -14,7 +14,7 @@
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 50;
   user-select: none;
   transition: background-color 0.2s ease;
   min-height: 22px;
@@ -76,6 +76,9 @@
   transition: max-height 0.3s ease, opacity 0.3s ease;
   height: auto;
   opacity: 1;
+  position: relative;
+  padding-top: 5px;
+  z-index: 5;
 }
 
 .batch-content.collapsed {
@@ -90,6 +93,8 @@
   height: 2px;
   background: linear-gradient(to right, transparent, rgba(255, 0, 89, 0.3), transparent);
   margin: 15px 10px;
+  position: relative;
+  z-index: 5;
 }
 
 .thumbnail-item {
@@ -107,6 +112,7 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   box-sizing: border-box;
   user-select: none; /* Prevent text selection during drag */
+  z-index: 10; /* Lower z-index than header */
 }
 
 .thumbnail-item.active {
