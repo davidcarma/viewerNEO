@@ -3,7 +3,7 @@
   top: 0;
   bottom: 0;
   left: 0;
-  width: 120px;
+  width: 160px;
   background: #111;
   border-right: 1px solid #333;
   transform: translateX(-100%);
@@ -214,12 +214,12 @@
 /* When panel is active, position the handle at the panel's edge */
 #thumbnail-panel.active ~ #thumbnail-toggle-handle,
 #thumbnail-panel.active + #thumbnail-toggle-handle {
-  left: 120px; /* Match the panel width */
+  left: 160px; /* Match the panel width */
 }
 
 /* Adjust container when thumbnails are visible */
 #container.with-thumbnails {
-  transform: translateX(120px); /* Use transform instead of margin */
+  transform: translateX(160px); /* Use transform instead of margin */
   transition: transform 0.25s ease; /* Synchronized timing */
   will-change: transform; /* Optimize for animation */
 }
@@ -289,5 +289,5 @@ canvas {
 
 /* The handle should stay with the panel when it's active */
 #thumbnail-panel.active #thumbnail-toggle-handle {
-  left: 120px; /* Match the panel width */
+  left: 160px; /* Match the panel width */
 } 

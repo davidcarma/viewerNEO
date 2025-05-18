@@ -39,43 +39,19 @@ function createBatchId() {
 }
 
 /**
- * Generate a batch title based on first file and count
+ * Generate a batch title based on batch count
  */
-function generateBatchTitle(files) {
-  if (files.length === 0) return 'Empty Batch';
-  if (files.length === 1) return files[0].name;
+function generateBatchTitle(files, currentState) {
+  // Get the next batch number
+  const batchCount = currentState.batches.length + 1;
+  // Format with leading zeros (001, 002, etc.)
+  const batchNumber = String(batchCount).padStart(3, '0');
   
-  // Look for common prefix if multiple files
-  const firstFile = files[0].name;
-  
-  // Try to extract a descriptive folder name from path-like file names
-  const pathMatch = firstFile.match(/^(.*?)[/\\]/);
-  if (pathMatch) {
-    return `${pathMatch[1]} (${files.length} files)`;
+  if (files.length === 1) {
+    return `Batch ${batchNumber} (${files[0].name})`;
   }
   
-  // Try to find prefix shared by all files
-  let prefix = '';
-  const minLen = Math.min(...files.map(f => f.name.length));
-  
-  for (let i = 0; i < minLen; i++) {
-    const char = files[0].name[i];
-    if (files.every(f => f.name[i] === char)) {
-      prefix += char;
-    } else {
-      break;
-    }
-  }
-  
-  // Clean up the prefix - remove trailing non-word chars
-  prefix = prefix.replace(/[^a-z0-9]+$/i, '');
-  
-  // If we don't have a meaningful prefix, use the first filename
-  if (prefix.length < 3) {
-    return `Batch: ${firstFile} + ${files.length - 1} more`;
-  }
-  
-  return `${prefix} (${files.length} files)`;
+  return `Batch ${batchNumber} (${files.length} files)`;
 }
 
 export async function handleIncomingFiles(files) {
@@ -120,7 +96,7 @@ export async function handleIncomingFiles(files) {
     // Create a new batch for these images
     const newBatch = {
       id: createBatchId(),
-      title: generateBatchTitle(images),
+      title: generateBatchTitle(images, currentState),
       expanded: true, // New batches are expanded by default
       files: images
     };

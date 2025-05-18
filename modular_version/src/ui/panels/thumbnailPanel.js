@@ -46,10 +46,20 @@ function createBatchHeader(batch, batchIndex) {
     header.classList.add('collapsed');
   }
   
-  // Create title span
+  // Create title span - showing just batch number to save space
   const title = document.createElement('span');
   title.className = 'batch-title';
-  title.textContent = batch.title;
+  
+  // Extract just the batch number part (e.g., "Batch 001")
+  const batchNumberMatch = batch.title.match(/^(Batch \d+)/);
+  const batchNumber = batchNumberMatch ? batchNumberMatch[1] : batch.title;
+  
+  // Set the shortened title to display
+  title.textContent = batchNumber;
+  
+  // Set the full title as a tooltip
+  title.title = batch.title;
+  
   header.appendChild(title);
   
   // Create count badge
