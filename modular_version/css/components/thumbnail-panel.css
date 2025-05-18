@@ -116,10 +116,21 @@
   font-size: 18px;
   padding: 2px 6px;
   transition: color 0.2s;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #close-thumbnails:hover {
   color: #ff0059; /* Use accent color */
+  opacity: 1;
+}
+
+#close-thumbnails svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.5;
 }
 
 /* Icon button general styles */
@@ -129,6 +140,9 @@
   cursor: pointer;
   color: #aaa;
   padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .icon-btn:hover {
   color: var(--accent, #ff0059);

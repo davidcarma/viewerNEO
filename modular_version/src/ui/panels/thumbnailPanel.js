@@ -1,7 +1,7 @@
 import { getState, setState, getAllFiles, getGlobalIndex, getBatchFileIndex, getSelectedFile } from '../../core/state.js';
 import { loadImageFile } from '../../loaders/imageLoader.js';
 import { refreshCanvas, scheduleRedraw, setPanelTransitionState, fitImageWithPadding } from '../canvas/renderImage.js';
-import { setCanvasSize, getCanvas } from '../canvas/canvasContext.js';
+import { setCanvasSize, getCanvas, clearCanvas } from '../canvas/canvasContext.js';
 
 const container = document.getElementById('thumbnails-container');
 const panelWrapper = document.getElementById('thumbnail-panel');
@@ -67,6 +67,19 @@ function createBatchHeader(batch, batchIndex) {
   count.className = 'batch-count';
   count.textContent = batch.files.length;
   header.appendChild(count);
+  
+  // Add delete button for batch
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'batch-delete-btn';
+  deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  deleteBtn.setAttribute('title', 'Delete batch');
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Prevent triggering batch toggle
+    if (confirm(`Delete entire batch "${batch.title}" with ${batch.files.length} images?`)) {
+      deleteBatch(batchIndex);
+    }
+  });
+  header.appendChild(deleteBtn);
   
   // Create collapse indicator
   const indicator = document.createElement('span');
@@ -155,7 +168,8 @@ function createThumbnail(file, batchIndex, fileIndex) {
   // Add remove button (red X)
   const removeBtn = document.createElement('button');
   removeBtn.className = 'thumbnail-remove-btn';
-  removeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  removeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  removeBtn.setAttribute('title', 'Delete image');
   removeBtn.addEventListener('click', (e) => {
     e.stopPropagation(); // Prevent triggering thumbnail click
     removeImage(batchIndex, fileIndex);
@@ -623,7 +637,7 @@ function removeImage(batchIndex, fileIndex) {
     });
     
     // Clear the canvas
-    refreshCanvas();
+    clearCanvas('#222');
     
     // Update thumbnails
     updateThumbnails();
@@ -652,5 +666,52 @@ function removeImage(batchIndex, fileIndex) {
   
   // Always highlight the new selection and update thumbnails
   highlightSelectedThumbnail(newSelectedIndex.batchIndex, newSelectedIndex.fileIndex);
+  updateThumbnails();
+}
+
+/**
+ * Delete an entire batch of images
+ */
+function deleteBatch(batchIndex) {
+  const { batches, selectedImageIndex } = getState();
+  if (batchIndex < 0 || batchIndex >= batches.length) return;
+  
+  // Create a new array without the deleted batch
+  const updatedBatches = batches.filter((_, index) => index !== batchIndex);
+  
+  // Update state with new batches array
+  setState({ batches: updatedBatches });
+  
+  // If the selected image was in this batch, we need to select a new image
+  if (selectedImageIndex.batchIndex === batchIndex) {
+    // Try to select an image in the same position in the previous batch
+    if (updatedBatches.length > 0) {
+      let newBatchIndex = batchIndex > 0 ? batchIndex - 1 : 0;
+      let newFileIndex = Math.min(
+        selectedImageIndex.fileIndex, 
+        updatedBatches[newBatchIndex].files.length - 1
+      );
+      selectImage(newBatchIndex, newFileIndex);
+    } else {
+      // No batches left
+      setState({ 
+        image: null,
+        selectedImageIndex: { batchIndex: -1, fileIndex: -1 }
+      });
+      
+      // Clear canvas when no images remain
+      clearCanvas('#222');
+    }
+  } else if (selectedImageIndex.batchIndex > batchIndex) {
+    // If selected image is in a batch after the deleted one, adjust its index
+    setState({
+      selectedImageIndex: {
+        batchIndex: selectedImageIndex.batchIndex - 1,
+        fileIndex: selectedImageIndex.fileIndex
+      }
+    });
+  }
+  
+  // Update the thumbnails display
   updateThumbnails();
 } 

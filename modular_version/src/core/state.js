@@ -7,6 +7,7 @@ export const State = {
   batches: [], // Array of batch objects: {id, title, expanded, files}
   zoom: 1,
   offset: { x: 0, y: 0 },
+  rotation: 0, // Rotation in degrees (0, 90, 180, 270)
   grid: {
     show: false,
     size: 100,

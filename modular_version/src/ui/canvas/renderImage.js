@@ -18,7 +18,7 @@ export function setPanelTransitionState(isTransitioning) {
  * respecting the control panel on the right and thumbnail panel if visible
  */
 export function fitImageWithPadding() {
-  const { image } = getState();
+  const { image, rotation } = getState();
   if (!image) return { zoom: 1, offset: { x: 0, y: 0 } };
   
   const canvas = getCanvas();
@@ -46,9 +46,19 @@ export function fitImageWithPadding() {
   const availableWidth = effectiveWidth * (1 - paddingFactor * 2);
   const availableHeight = canvasHeight * (1 - paddingFactor * 2);
   
+  // Determine image dimensions considering rotation
+  let imageWidth = image.width;
+  let imageHeight = image.height;
+  
+  // If rotated by 90 or 270 degrees, swap dimensions
+  if (rotation === 90 || rotation === 270) {
+    imageWidth = image.height;
+    imageHeight = image.width;
+  }
+  
   // Calculate zoom to fit image in available space
-  const hZoom = availableWidth / image.width;
-  const vZoom = availableHeight / image.height;
+  const hZoom = availableWidth / imageWidth;
+  const vZoom = availableHeight / imageHeight;
   const zoom = Math.min(hZoom, vZoom);
   
   // Calculate centered position with padding
@@ -57,8 +67,8 @@ export function fitImageWithPadding() {
   const yPadding = canvasHeight * paddingFactor;
   
   // Center the image in the available space (considering the control panel)
-  const offsetX = xPadding + (availableWidth - (image.width * zoom)) / 2;
-  const offsetY = yPadding + (availableHeight - (image.height * zoom)) / 2;
+  const offsetX = xPadding + (availableWidth - (imageWidth * zoom)) / 2;
+  const offsetY = yPadding + (availableHeight - (imageHeight * zoom)) / 2;
   
   return { 
     zoom, 
@@ -70,7 +80,7 @@ export function fitImageWithPadding() {
 }
 
 export function refreshCanvas() {
-  const { image, grid } = getState();
+  const { image, grid, rotation } = getState();
   let { zoom: currentZoom, offset: currentOffset } = getState();
 
   const canvas = getCanvas();
@@ -115,6 +125,17 @@ export function refreshCanvas() {
       ctx.scale(currentZoom, currentZoom);
     }
     
+    // Apply rotation if needed
+    if (rotation !== 0) {
+      // Move to center of the image for rotation
+      const imgCenterX = image.width / 2;
+      const imgCenterY = image.height / 2;
+      
+      ctx.translate(imgCenterX, imgCenterY);
+      ctx.rotate(rotation * Math.PI / 180);
+      ctx.translate(-imgCenterX, -imgCenterY);
+    }
+    
     ctx.drawImage(image, 0, 0);
     ctx.restore();
   }
@@ -147,7 +168,8 @@ window.addEventListener('state:changed', (e) => {
   if (e.detail.hasOwnProperty('image') || 
       e.detail.hasOwnProperty('grid') || 
       e.detail.hasOwnProperty('zoom') || 
-      e.detail.hasOwnProperty('offset')) {
+      e.detail.hasOwnProperty('offset') ||
+      e.detail.hasOwnProperty('rotation')) {
     scheduleRedraw();
   }
 }); 
