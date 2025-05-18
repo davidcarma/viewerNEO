@@ -1,4 +1,4 @@
-import { getState, setState } from '../../core/state.js';
+import { getState, setState, getAllFiles, getGlobalIndex, getBatchFileIndex, getSelectedFile } from '../../core/state.js';
 import { loadImageFile } from '../../loaders/imageLoader.js';
 import { refreshCanvas, scheduleRedraw, setPanelTransitionState, fitImageWithPadding } from '../canvas/renderImage.js';
 import { setCanvasSize, getCanvas } from '../canvas/canvasContext.js';
@@ -33,9 +33,109 @@ if (toggleHandle) {
   toggleHandle.style.display = 'flex';
 }
 
-async function createThumbnail(file, index) {
+/**
+ * Create a batch header element
+ */
+function createBatchHeader(batch, batchIndex) {
+  const header = document.createElement('div');
+  header.className = 'batch-header';
+  header.dataset.batchId = batch.id;
+  header.dataset.batchIndex = batchIndex;
+  
+  if (!batch.expanded) {
+    header.classList.add('collapsed');
+  }
+  
+  // Create title span
+  const title = document.createElement('span');
+  title.className = 'batch-title';
+  title.textContent = batch.title;
+  header.appendChild(title);
+  
+  // Create count badge
+  const count = document.createElement('span');
+  count.className = 'batch-count';
+  count.textContent = batch.files.length;
+  header.appendChild(count);
+  
+  // Create collapse indicator
+  const indicator = document.createElement('span');
+  indicator.className = 'collapse-indicator';
+  header.appendChild(indicator);
+  
+  // Set up toggle functionality
+  header.addEventListener('click', () => {
+    toggleBatchExpansion(batchIndex);
+  });
+  
+  return header;
+}
+
+/**
+ * Create a batch content container
+ */
+function createBatchContent(batch, batchIndex) {
+  const content = document.createElement('div');
+  content.className = 'batch-content';
+  content.dataset.batchId = batch.id;
+  
+  if (!batch.expanded) {
+    content.classList.add('collapsed');
+  }
+  
+  console.log(`Creating batch content for batch ${batchIndex} with ${batch.files.length} files`);
+  
+  // Create thumbnails for each file in the batch
+  batch.files.forEach((file, fileIndex) => {
+    const thumbnailItem = createThumbnail(file, batchIndex, fileIndex);
+    content.appendChild(thumbnailItem);
+  });
+  
+  console.log(`Finished creating batch ${batchIndex}, added ${batch.files.length} thumbnails`);
+  
+  return content;
+}
+
+/**
+ * Toggle a batch's expanded state
+ */
+function toggleBatchExpansion(batchIndex) {
+  const { batches } = getState();
+  if (batchIndex < 0 || batchIndex >= batches.length) return;
+  
+  // Create a new array with the updated batch
+  const updatedBatches = [...batches];
+  updatedBatches[batchIndex] = {
+    ...batches[batchIndex],
+    expanded: !batches[batchIndex].expanded
+  };
+  
+  // Update state
+  setState({ batches: updatedBatches });
+  
+  // Update UI
+  const header = container.querySelector(`.batch-header[data-batch-index="${batchIndex}"]`);
+  const content = container.querySelector(`.batch-content[data-batch-id="${batches[batchIndex].id}"]`);
+  
+  if (header && content) {
+    if (updatedBatches[batchIndex].expanded) {
+      header.classList.remove('collapsed');
+      content.classList.remove('collapsed');
+    } else {
+      header.classList.add('collapsed');
+      content.classList.add('collapsed');
+    }
+  }
+}
+
+/**
+ * Create a thumbnail element
+ */
+function createThumbnail(file, batchIndex, fileIndex) {
   const item = document.createElement('div');
   item.className = 'thumbnail-item';
+  item.dataset.batchIndex = batchIndex;
+  item.dataset.fileIndex = fileIndex;
 
   const imgEl = document.createElement('img');
   imgEl.alt = file.name;
@@ -48,7 +148,7 @@ async function createThumbnail(file, index) {
   removeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
   removeBtn.addEventListener('click', (e) => {
     e.stopPropagation(); // Prevent triggering thumbnail click
-    removeImage(index);
+    removeImage(batchIndex, fileIndex);
   });
   item.appendChild(removeBtn);
 
@@ -56,80 +156,95 @@ async function createThumbnail(file, index) {
   label.textContent = file.name;
   item.appendChild(label);
 
+  // Calculate the global index for z-index ordering
+  const globalIndex = getGlobalIndex(batchIndex, fileIndex);
   // Make sure z-index works properly
-  item.style.zIndex = (100 - index); // Ensure thumbnails on top are given higher priority
+  item.style.zIndex = (1000 - globalIndex); // Ensure thumbnails on top are given higher priority
   
-  item.addEventListener('click', () => selectImage(index));
+  item.addEventListener('click', () => selectImage(batchIndex, fileIndex));
   
-  // Append to container
-  container.appendChild(item);
-
-  // Default placeholder - embedded data URI for image icon
-  const placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxMTExMTEiLz48cGF0aCBkPSJNMzUgMjVINjVDNjguMyAyNSA3MSAyNy43IDcxIDMxVjY5QzcxIDcyLjMgNjguMyA3NSA2NSA3NUgzNUMzMS43IDc1IDI5IDcyLjMgMjkgNjlWMzFDMjkgMjcuNyAzMS43IDI1IDM1IDI1WiIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI1IiBmaWxsPSIjNTU1Ii8+PHBhdGggZD0iTTMwIDYwTDQwIDUwTDUwIDYwTDYwIDUwTDcwIDYwVjcwSDMwVjYwWiIgZmlsbD0iIzU1NSIvPjwvc3ZnPg==';
-
-  // generate preview
+  // Generate preview
   if (file.type.startsWith('image/') && !/\.tiff?$/.test(file.name.toLowerCase())) {
     imgEl.src = URL.createObjectURL(file);
   } else {
     // TIFF or other files use placeholder
+    const placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxMTExMTEiLz48cGF0aCBkPSJNMzUgMjVINjVDNjguMyAyNSA3MSAyNy43IDcxIDMxVjY5QzcxIDcyLjMgNjguMyA3NSA2NSA3NUgzNUMzMS43IDc1IDI5IDcyLjMgMjkgNjlWMzFDMjkgMjcuNyAzMS43IDI1IDM1IDI1WiIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI1IiBmaWxsPSIjNTU1Ii8+PHBhdGggZD0iTTMwIDYwTDQwIDUwTDUwIDYwTDYwIDUwTDcwIDYwVjcwSDMwVjYwWiIgZmlsbD0iIzU1NSIvPjwvc3ZnPg==';
     imgEl.src = placeholderSrc;
   }
 
   // Highlight if active
   const { selectedImageIndex } = getState();
-  if (index === selectedImageIndex) {
+  if (batchIndex === selectedImageIndex.batchIndex && fileIndex === selectedImageIndex.fileIndex) {
     item.classList.add('active');
-    // Make sure the active item is visible
-    setTimeout(() => {
-      try {
-        if (container.scrollHeight > container.clientHeight) {
-          item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      } catch (e) {
-        console.warn('Failed to scroll to thumbnail', e);
-      }
-    }, 100);
   }
+  
+  return item;
 }
 
+/**
+ * Update the thumbnail panel with all batches and images
+ */
 export function updateThumbnails() {
   if (!container) return;
-  container.innerHTML = '';
-  const { imageFiles, selectedImageIndex } = getState();
   
-  // Create all thumbnails
-  imageFiles.forEach((f, idx) => {
-    createThumbnail(f, idx);
+  // Clear existing content
+  container.innerHTML = '';
+  
+  const { batches, selectedImageIndex } = getState();
+  
+  if (batches.length === 0) {
+    // Empty state - no images
+    const emptyState = document.createElement('div');
+    emptyState.className = 'empty-thumbnail-state';
+    emptyState.textContent = 'No images loaded';
+    container.appendChild(emptyState);
+    return;
+  }
+
+  // Create elements for each batch
+  batches.forEach((batch, batchIndex) => {
+    // Add batch header
+    const header = createBatchHeader(batch, batchIndex);
+    container.appendChild(header);
+    
+    // Add batch content container
+    const content = createBatchContent(batch, batchIndex);
+    container.appendChild(content);
+    
+    // Add divider if not the last batch
+    if (batchIndex < batches.length - 1) {
+      const divider = document.createElement('div');
+      divider.className = 'batch-divider';
+      container.appendChild(divider);
+    }
   });
 
   // Auto-show panel if there are images
-  if (panelWrapper && imageFiles.length > 0) {
+  if (panelWrapper && batches.length > 0) {
     // Make sure the panel is visible
     panelWrapper.style.display = 'block';
     
-    // If more than one image, show the gallery
-    if (imageFiles.length > 1) {
-      const wasActive = panelWrapper.classList.contains('active');
-      
-      // Only trigger transition if not already active
-      if (!wasActive) {
-        if (!isPanelTransitioning) {
-          isPanelTransitioning = true;
-          
-          // Start panel animation - both panel and container simultaneously
-          panelWrapper.classList.add('active');
-          document.getElementById('container').classList.add('with-thumbnails');
-          
-          // Set up panel transition handler
-          handlePanelTransition();
-        } else {
-          // Panel is already transitioning, just mark that we need a redraw when done
-          pendingRedraw = true;
-        }
+    // If any images, show the gallery
+    const wasActive = panelWrapper.classList.contains('active');
+    
+    // Only trigger transition if not already active
+    if (!wasActive) {
+      if (!isPanelTransitioning) {
+        isPanelTransitioning = true;
+        
+        // Start panel animation - both panel and container simultaneously
+        panelWrapper.classList.add('active');
+        document.getElementById('container').classList.add('with-thumbnails');
+        
+        // Set up panel transition handler
+        handlePanelTransition();
       } else {
-        // Panel already open, just highlight the selection
-        highlightSelectedThumbnail(selectedImageIndex);
+        // Panel is already transitioning, just mark that we need a redraw when done
+        pendingRedraw = true;
       }
+    } else {
+      // Panel already open, just highlight the selection
+      highlightSelectedThumbnail(selectedImageIndex.batchIndex, selectedImageIndex.fileIndex);
     }
   }
 
@@ -140,36 +255,33 @@ export function updateThumbnails() {
   }
 }
 
-export async function selectImage(index, force = false) {
-  const { imageFiles, selectedImageIndex } = getState();
+/**
+ * Select an image by batch and file indices
+ */
+export async function selectImage(batchIndex, fileIndex, force = false) {
+  const { batches, selectedImageIndex } = getState();
   
   // Skip if invalid index or already selected
-  if (index < 0 || index >= imageFiles.length) return;
-  if (!force && index === selectedImageIndex) return; // Already selected
+  if (batchIndex < 0 || batchIndex >= batches.length) return;
+  const batch = batches[batchIndex];
+  if (!batch || fileIndex < 0 || fileIndex >= batch.files.length) return;
   
-  // Find all thumbnails
-  const thumbnails = container.querySelectorAll('.thumbnail-item');
-  const currentSelectedItem = thumbnails[selectedImageIndex];
-  const newSelectedItem = thumbnails[index];
-
+  // Skip if already selected and not forced
+  if (!force && batchIndex === selectedImageIndex.batchIndex && fileIndex === selectedImageIndex.fileIndex) return;
+  
+  // Ensure batch is expanded
+  if (!batch.expanded) {
+    toggleBatchExpansion(batchIndex);
+  }
+  
   // Update the selected index in state - do this early
-  setState({ selectedImageIndex: index });
+  setState({ selectedImageIndex: { batchIndex, fileIndex } });
 
-  // Directly update classes on the relevant thumbnails
-  if (currentSelectedItem && currentSelectedItem !== newSelectedItem) {
-    currentSelectedItem.classList.remove('active');
-  }
-  if (newSelectedItem) {
-    newSelectedItem.classList.add('active');
-  }
-  
-  // Handle scrolling after a brief moment
-  requestAnimationFrame(() => {
-    highlightSelectedThumbnail(index);
-  });
+  // Update visual highlight
+  highlightSelectedThumbnail(batchIndex, fileIndex);
   
   // Load the new image
-  const file = imageFiles[index];
+  const file = batch.files[fileIndex];
   console.log('Loading image:', file.name);
   
   try {
@@ -311,46 +423,50 @@ function handlePanelTransition() {
   }, 350);
 }
 
-function highlightSelectedThumbnail(selectedIndex) {
-  if (selectedIndex < 0 || !container) return;
+/**
+ * Highlight the selected thumbnail and ensure it's visible
+ */
+function highlightSelectedThumbnail(batchIndex, fileIndex) {
+  if (!container) return;
 
+  // Get all thumbnail items
   const thumbnails = container.querySelectorAll('.thumbnail-item');
-  if (selectedIndex >= thumbnails.length) return;
-
-  const selectedItem = thumbnails[selectedIndex];
-
-  // Ensure only the current item is active
-  thumbnails.forEach((item, idx) => {
-    if (idx === selectedIndex) {
-      if (!item.classList.contains('active')) item.classList.add('active');
-    } else {
-      if (item.classList.contains('active')) item.classList.remove('active');
-    }
+  
+  // Remove active class from all thumbnails
+  thumbnails.forEach(item => {
+    item.classList.remove('active');
   });
   
+  // Find and highlight the selected thumbnail
+  const selectedItem = container.querySelector(`.thumbnail-item[data-batch-index="${batchIndex}"][data-file-index="${fileIndex}"]`);
   if (selectedItem) {
-    // Get the current positions using absolute coordinates
-    const containerRect = container.getBoundingClientRect();
-    const itemRect = selectedItem.getBoundingClientRect();
-
-    const containerScrollTop = container.scrollTop;
-    const containerVisibleHeight = container.clientHeight;
+    selectedItem.classList.add('active');
     
-    // Calculate item's position relative to the scrollable content of the container
-    const itemOffsetTop = selectedItem.offsetTop;
-    const itemHeight = selectedItem.offsetHeight;
-
-    // Desired visible portion when scrolling
-    const scrollMargin = 12; 
-
-    // Check if item is above the visible area
-    if (itemOffsetTop < containerScrollTop + scrollMargin) {
-      container.scrollTop = Math.max(0, itemOffsetTop - scrollMargin);
-    } 
-    // Check if item is below the visible area
-    else if (itemOffsetTop + itemHeight > containerScrollTop + containerVisibleHeight - scrollMargin) {
-      container.scrollTop = itemOffsetTop + itemHeight - containerVisibleHeight + scrollMargin;
-    }
+    // Ensure it's visible by scrolling to it
+    setTimeout(() => {
+      // Get the current positions using absolute coordinates
+      const containerRect = container.getBoundingClientRect();
+      const itemRect = selectedItem.getBoundingClientRect();
+  
+      const containerScrollTop = container.scrollTop;
+      const containerVisibleHeight = container.clientHeight;
+      
+      // Calculate item's position relative to the scrollable content of the container
+      const itemOffsetTop = selectedItem.offsetTop;
+      const itemHeight = selectedItem.offsetHeight;
+  
+      // Desired visible portion when scrolling
+      const scrollMargin = 12; 
+  
+      // Check if item is above the visible area
+      if (itemOffsetTop < containerScrollTop + scrollMargin) {
+        container.scrollTop = Math.max(0, itemOffsetTop - scrollMargin);
+      } 
+      // Check if item is below the visible area
+      else if (itemOffsetTop + itemHeight > containerScrollTop + containerVisibleHeight - scrollMargin) {
+        container.scrollTop = itemOffsetTop + itemHeight - containerVisibleHeight + scrollMargin;
+      }
+    }, 10);
   }
 }
 
@@ -402,42 +518,104 @@ function togglePanel() {
     }
   }
   
-  // Handle the transition events
+  // Handle panel transition
   handlePanelTransition();
 }
 
-// Add function to remove an image
-function removeImage(index) {
-  const { imageFiles, selectedImageIndex } = getState();
+/**
+ * Remove an image from a batch
+ */
+function removeImage(batchIndex, fileIndex) {
+  const { batches, selectedImageIndex } = getState();
   
-  // Validate index
-  if (index < 0 || index >= imageFiles.length) return;
+  if (batchIndex < 0 || batchIndex >= batches.length) return;
+  const batch = batches[batchIndex];
+  if (!batch || fileIndex < 0 || fileIndex >= batch.files.length) return;
   
-  // Create new array without the removed image
-  const newFiles = [...imageFiles];
-  newFiles.splice(index, 1);
+  // Create a copy of the batches
+  const updatedBatches = [...batches];
   
-  // Update state with new file list
-  setState({ imageFiles: newFiles });
+  // Remove the file from its batch
+  const updatedBatch = {...batch};
+  updatedBatch.files = [...batch.files];
+  updatedBatch.files.splice(fileIndex, 1);
   
-  // If we removed the selected image, select another one
-  if (index === selectedImageIndex) {
-    // Select previous image or first if this was the first
-    const newIndex = index > 0 ? index - 1 : (newFiles.length > 0 ? 0 : -1);
+  // If this was the last file in the batch, remove the batch
+  if (updatedBatch.files.length === 0) {
+    updatedBatches.splice(batchIndex, 1);
+  } else {
+    // Otherwise update the batch
+    updatedBatches[batchIndex] = updatedBatch;
     
-    if (newIndex >= 0) {
-      // We have another image to select
-      selectImage(newIndex, true); // Pass true to force selection
-    } else {
-      // No images left
-      setState({ image: null, imageData: null, selectedImageIndex: -1 });
-      refreshCanvas(); // Clear canvas
+    // Update the batch title if needed
+    if (updatedBatch.files.length === 1) {
+      updatedBatch.title = updatedBatch.files[0].name;
     }
-  } else if (selectedImageIndex > index) {
-    // If we removed an image before the selected one, update the index
-    setState({ selectedImageIndex: selectedImageIndex - 1 });
   }
   
-  // Rebuild thumbnails
+  // Determine the new selected image index
+  let newSelectedIndex = {...selectedImageIndex};
+  
+  // If we removed the currently selected image
+  if (batchIndex === selectedImageIndex.batchIndex && fileIndex === selectedImageIndex.fileIndex) {
+    // If this was the last file in the batch
+    if (updatedBatch.files.length === 0) {
+      // Select another batch if possible
+      if (updatedBatches.length > 0) {
+        const newBatchIndex = Math.min(batchIndex, updatedBatches.length - 1);
+        newSelectedIndex = { 
+          batchIndex: newBatchIndex, 
+          fileIndex: 0 
+        };
+      } else {
+        // No more images
+        newSelectedIndex = { batchIndex: -1, fileIndex: -1 };
+      }
+    } else {
+      // Select adjacent file in same batch
+      newSelectedIndex = {
+        batchIndex,
+        fileIndex: Math.min(fileIndex, updatedBatch.files.length - 1)
+      };
+    }
+  } 
+  // If we removed a file before the selected file in the same batch
+  else if (batchIndex === selectedImageIndex.batchIndex && fileIndex < selectedImageIndex.fileIndex) {
+    // Just adjust the file index
+    newSelectedIndex = {
+      batchIndex,
+      fileIndex: selectedImageIndex.fileIndex - 1
+    };
+  }
+  // If we removed a batch before the selected batch
+  else if (batchIndex < selectedImageIndex.batchIndex && updatedBatch.files.length === 0) {
+    // Adjust the batch index
+    newSelectedIndex = {
+      batchIndex: selectedImageIndex.batchIndex - 1,
+      fileIndex: selectedImageIndex.fileIndex
+    };
+  }
+  
+  // Update state
+  if (updatedBatches.length === 0) {
+    // No more images
+    setState({
+      batches: [],
+      image: null,
+      imageData: null,
+      selectedImageIndex: { batchIndex: -1, fileIndex: -1 }
+    });
+  } else {
+    // Update batches and selected index
+    setState({ batches: updatedBatches, selectedImageIndex: newSelectedIndex });
+    
+    // Load the newly selected image if needed
+    if (newSelectedIndex.batchIndex !== selectedImageIndex.batchIndex || 
+        newSelectedIndex.fileIndex !== selectedImageIndex.fileIndex) {
+      selectImage(newSelectedIndex.batchIndex, newSelectedIndex.fileIndex, true);
+    }
+  }
+  
+  // Update thumbnails
   updateThumbnails();
 } 

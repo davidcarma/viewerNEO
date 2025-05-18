@@ -1,5 +1,5 @@
 import { loadImageFile } from './imageLoader.js';
-import { setState, getState } from '../core/state.js';
+import { setState, getState, getGlobalIndex } from '../core/state.js';
 import { renderImage } from '../ui/canvas/renderImage.js';
 
 // Enhanced image file detection
@@ -13,6 +13,69 @@ function isImageFile(file) {
   const filename = file.name.toLowerCase();
   const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tif', '.tiff', '.svg'];
   return validExtensions.some(ext => filename.endsWith(ext));
+}
+
+/**
+ * Natural sort comparison function for filenames
+ * Correctly handles numerical parts in filenames (e.g., "file1.jpg" comes before "file10.jpg")
+ */
+function naturalSortCompare(a, b) {
+  const aParts = a.name.replace(/(\d+)/g, (match, number) => {
+    // Pad the number with leading zeros
+    return String(number).padStart(10, '0');
+  });
+  const bParts = b.name.replace(/(\d+)/g, (match, number) => {
+    return String(number).padStart(10, '0');
+  });
+  
+  return aParts.localeCompare(bParts);
+}
+
+/**
+ * Create a unique batch ID
+ */
+function createBatchId() {
+  return 'batch_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+}
+
+/**
+ * Generate a batch title based on first file and count
+ */
+function generateBatchTitle(files) {
+  if (files.length === 0) return 'Empty Batch';
+  if (files.length === 1) return files[0].name;
+  
+  // Look for common prefix if multiple files
+  const firstFile = files[0].name;
+  
+  // Try to extract a descriptive folder name from path-like file names
+  const pathMatch = firstFile.match(/^(.*?)[/\\]/);
+  if (pathMatch) {
+    return `${pathMatch[1]} (${files.length} files)`;
+  }
+  
+  // Try to find prefix shared by all files
+  let prefix = '';
+  const minLen = Math.min(...files.map(f => f.name.length));
+  
+  for (let i = 0; i < minLen; i++) {
+    const char = files[0].name[i];
+    if (files.every(f => f.name[i] === char)) {
+      prefix += char;
+    } else {
+      break;
+    }
+  }
+  
+  // Clean up the prefix - remove trailing non-word chars
+  prefix = prefix.replace(/[^a-z0-9]+$/i, '');
+  
+  // If we don't have a meaningful prefix, use the first filename
+  if (prefix.length < 3) {
+    return `Batch: ${firstFile} + ${files.length - 1} more`;
+  }
+  
+  return `${prefix} (${files.length} files)`;
 }
 
 export async function handleIncomingFiles(files) {
@@ -29,16 +92,19 @@ export async function handleIncomingFiles(files) {
     return;
   }
   
-  // Sort images alphabetically by name
-  images.sort((a, b) => a.name.localeCompare(b.name));
+  // Debug logging for large batches
+  console.log(`Processing ${images.length} valid images from ${files.length} files`);
   
-  // Combine with existing files
-  const currentState = getState();
-  const combined = [...currentState.imageFiles, ...images];
+  // Sort images using natural sort by name
+  images.sort(naturalSortCompare);
   
-  // Calculate the index of the first new image
-  const newImageIndex = currentState.imageFiles.length;
-  const targetIndex = images.length > 0 ? newImageIndex : currentState.selectedImageIndex;
+  // Debug - log some sample filenames after sorting
+  if (images.length > 10) {
+    console.log('Sample sorted filenames:', 
+      images.slice(0, 5).map(f => f.name).join(', ') + '... ' + 
+      images.slice(-5).map(f => f.name).join(', ')
+    );
+  }
   
   // Show loading indicator
   const loadingIndicator = document.querySelector('.loading');
@@ -48,15 +114,34 @@ export async function handleIncomingFiles(files) {
   }
   
   try {
-    // Load the image first before updating state
-    const { image, imageData } = await loadImageFile(combined[targetIndex]);
+    // Get current state
+    const currentState = getState();
     
-    // Update state with the files and loaded image
+    // Create a new batch for these images
+    const newBatch = {
+      id: createBatchId(),
+      title: generateBatchTitle(images),
+      expanded: true, // New batches are expanded by default
+      files: images
+    };
+    
+    // Add the new batch to our existing batches
+    const newBatches = [...currentState.batches, newBatch];
+    
+    // Calculate indices for the first image in the new batch
+    const newBatchIndex = newBatches.length - 1;
+    const newFileIndex = 0;
+    
+    // Load the first image from the new batch
+    const targetFile = newBatch.files[newFileIndex];
+    const { image, imageData } = await loadImageFile(targetFile);
+    
+    // Update state with the new batch and loaded image
     setState({ 
-      imageFiles: combined,
+      batches: newBatches,
       image, 
       imageData, 
-      selectedImageIndex: targetIndex 
+      selectedImageIndex: { batchIndex: newBatchIndex, fileIndex: newFileIndex }
     });
     
     // Render the image on canvas
@@ -75,7 +160,6 @@ export async function handleIncomingFiles(files) {
     
   } catch (err) {
     console.error('Error loading image:', err);
-    setState({ imageFiles: combined });
   } finally {
     // Hide loading indicator
     if (loadingIndicator) {

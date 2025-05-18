@@ -1,3 +1,90 @@
+/* Add batch header styles at the top */
+.batch-header {
+  cursor: pointer;
+  background: linear-gradient(to bottom, #404050, #2a2a35);
+  margin: 10px 0 5px 0;
+  padding: 8px 10px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.batch-header:hover {
+  background: linear-gradient(to bottom, #4a4a5a, #35353f);
+}
+
+.batch-header .batch-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 10px;
+}
+
+.batch-header .batch-count {
+  font-size: 11px;
+  color: #aaa;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.batch-header .collapse-indicator {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.batch-header .collapse-indicator::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #fff;
+  display: block;
+}
+
+.batch-header.collapsed .collapse-indicator::before {
+  transform: rotate(-90deg);
+}
+
+.batch-content {
+  overflow: visible;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  height: auto;
+  opacity: 1;
+}
+
+.batch-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+.batch-divider {
+  height: 2px;
+  background: linear-gradient(to right, transparent, rgba(255, 0, 89, 0.3), transparent);
+  margin: 15px 10px;
+}
+
 .thumbnail-item {
   display: block;
   margin: 12px auto;
