@@ -545,6 +545,10 @@ function removeImage(batchIndex, fileIndex) {
   // Create a copy of the batches
   const updatedBatches = [...batches];
   
+  // Remember if we're removing the currently selected image
+  const isRemovingSelected = batchIndex === selectedImageIndex.batchIndex && 
+                            fileIndex === selectedImageIndex.fileIndex;
+  
   // Remove the file from its batch
   const updatedBatch = {...batch};
   updatedBatch.files = [...batch.files];
@@ -567,7 +571,7 @@ function removeImage(batchIndex, fileIndex) {
   let newSelectedIndex = {...selectedImageIndex};
   
   // If we removed the currently selected image
-  if (batchIndex === selectedImageIndex.batchIndex && fileIndex === selectedImageIndex.fileIndex) {
+  if (isRemovingSelected) {
     // If this was the last file in the batch
     if (updatedBatch.files.length === 0) {
       // Select another batch if possible
@@ -606,26 +610,47 @@ function removeImage(batchIndex, fileIndex) {
     };
   }
   
-  // Update state
+  // Store the batches update
+  setState({ batches: updatedBatches });
+  
+  // Handle the case where there are no more images
   if (updatedBatches.length === 0) {
-    // No more images
+    // Clear the image and update the state in one go
     setState({
-      batches: [],
       image: null,
       imageData: null,
       selectedImageIndex: { batchIndex: -1, fileIndex: -1 }
     });
-  } else {
-    // Update batches and selected index
-    setState({ batches: updatedBatches, selectedImageIndex: newSelectedIndex });
     
-    // Load the newly selected image if needed
-    if (newSelectedIndex.batchIndex !== selectedImageIndex.batchIndex || 
-        newSelectedIndex.fileIndex !== selectedImageIndex.fileIndex) {
-      selectImage(newSelectedIndex.batchIndex, newSelectedIndex.fileIndex, true);
+    // Clear the canvas
+    refreshCanvas();
+    
+    // Update thumbnails
+    updateThumbnails();
+    return;
+  }
+  
+  // Set the new selection index
+  setState({ selectedImageIndex: newSelectedIndex });
+  
+  // If we removed the currently selected image, need to load a new one
+  if (isRemovingSelected) {
+    // Get the new file to load based on the new indices
+    const newBatch = updatedBatches[newSelectedIndex.batchIndex];
+    if (newBatch && newSelectedIndex.fileIndex >= 0 && newSelectedIndex.fileIndex < newBatch.files.length) {
+      const newFile = newBatch.files[newSelectedIndex.fileIndex];
+      
+      // Load the new image immediately
+      loadImageFile(newFile).then(({ image, imageData }) => {
+        setState({ image, imageData });
+        refreshCanvas();
+      }).catch(err => {
+        console.error('Failed to load next image after deletion:', err);
+      });
     }
   }
   
-  // Update thumbnails
+  // Always highlight the new selection and update thumbnails
+  highlightSelectedThumbnail(newSelectedIndex.batchIndex, newSelectedIndex.fileIndex);
   updateThumbnails();
 } 
