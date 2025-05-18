@@ -149,23 +149,44 @@ export async function handleIncomingFiles(files) {
     try {
       console.log('Saving all batch images to IndexedDB in background...');
       
-      // Prepare image objects array for batch saving
-      const imageObjects = images.map(file => ({
-        file,
-        metadata: {
-          filename: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          batchId: newBatch.id
+      // Load and save each image properly with its data
+      const savePromises = images.map(async (file) => {
+        try {
+          // Load the image to get both image and imageData
+          const { image, imageData } = await loadImageFile(file);
+          
+          // Prepare metadata with a unique ID for each image
+          const uniqueId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const metadata = {
+            id: uniqueId, // Ensure each image gets a unique ID
+            filename: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            batchId: newBatch.id,
+            isBatchSave: true
+          };
+          
+          // Import and use saveImageToDb directly to avoid ID conflicts
+          const { saveImageToDb } = await import('../services/db/imageStore.js');
+          return saveImageToDb(image, imageData, { 
+            selectedFile: file,
+            ...metadata
+          });
+        } catch (err) {
+          console.error(`Failed to process image ${file.name} for saving:`, err);
+          return null;
         }
-      }));
-      
-      // Start saving in background
-      saveAllImagesToDb(imageObjects).then(savedIds => {
-        console.log(`Successfully saved ${savedIds.length} of ${images.length} images to IndexedDB`);
-      }).catch(error => {
-        console.error('Error during batch save to IndexedDB:', error);
       });
+      
+      // Wait for all saves to complete
+      Promise.all(savePromises)
+        .then(results => {
+          const savedCount = results.filter(Boolean).length;
+          console.log(`Successfully saved ${savedCount} of ${images.length} images to IndexedDB`);
+        })
+        .catch(error => {
+          console.error('Error during batch save to IndexedDB:', error);
+        });
       
     } catch (batchError) {
       console.error('Failed to start batch save to IndexedDB:', batchError);

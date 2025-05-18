@@ -246,6 +246,12 @@ export async function getAllImagesMetadata() {
         if (cursor) {
           // Create a copy without the blob to reduce memory usage
           const { imageBlob, ...metadata } = cursor.value;
+          // Add a flag to indicate the presence of a blob
+          metadata.hasBlob = !!imageBlob;
+          // Also add the blob size for debugging purposes
+          if (imageBlob) {
+            metadata.blobSize = imageBlob.size;
+          }
           images.push(metadata);
           cursor.continue();
         } else {
@@ -357,21 +363,40 @@ export async function saveAllImagesToDb(images) {
   
   console.log(`Saving ${images.length} images to IndexedDB...`);
   
+  // Get existing images to check for duplicates
+  const existingImages = await getAllImagesMetadata();
+  const existingFilenames = new Set(existingImages.map(img => img.filename));
+  
+  console.log(`Found ${existingFilenames.size} existing images in database`);
+  
   const savedIds = [];
   let count = 0;
+  let skippedCount = 0;
   
   // Process images one by one to avoid transaction timing issues
   for (const imageObj of images) {
     try {
+      // Extract metadata to get the filename
+      const { file, metadata = {} } = imageObj;
+      const filename = file?.name || metadata.filename || 'unnamed_image';
+      
+      // Skip if the image already exists in the database
+      if (existingFilenames.has(filename)) {
+        console.log(`Skipping duplicate image: ${filename}`);
+        skippedCount++;
+        continue;
+      }
+      
       // Generate a unique ID for each image
       const id = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${count++}`;
       
-      // Extract image, imageData, and metadata from the object
-      const { image, imageData, file, metadata = {} } = imageObj;
+      // Extract image, imageData, and file 
+      const { image, imageData } = imageObj;
       
       // Save the image with combined metadata
       const combinedMetadata = {
         ...metadata,
+        filename,
         selectedFile: file,
         id, // Use the generated ID
         lastAccessed: Date.now(),
@@ -388,6 +413,77 @@ export async function saveAllImagesToDb(images) {
     }
   }
   
-  console.log(`Finished saving ${savedIds.length} of ${images.length} images to IndexedDB`);
+  console.log(`Finished saving ${savedIds.length} of ${images.length} images to IndexedDB (skipped ${skippedCount} duplicates)`);
   return savedIds;
+}
+
+// Add this function to remove duplicate images from the database
+export async function deduplicateImagesByFilename() {
+  try {
+    console.log('Starting image deduplication process...');
+    
+    // Get all image metadata
+    const allImages = await getAllImagesMetadata();
+    console.log(`Found ${allImages.length} total images in database`);
+    
+    // Group by filename
+    const imagesByFilename = {};
+    allImages.forEach(img => {
+      if (!img.filename) return; // Skip images without filenames
+      
+      if (!imagesByFilename[img.filename]) {
+        imagesByFilename[img.filename] = [];
+      }
+      imagesByFilename[img.filename].push(img);
+    });
+    
+    // Find duplicates
+    const filenamesToDeduplicate = Object.keys(imagesByFilename).filter(
+      filename => imagesByFilename[filename].length > 1
+    );
+    
+    if (filenamesToDeduplicate.length === 0) {
+      console.log('No duplicate images found in database');
+      return 0;
+    }
+    
+    console.log(`Found ${filenamesToDeduplicate.length} filenames with duplicates`);
+    
+    // For each filename with duplicates, keep only the most recent one
+    let deletedCount = 0;
+    
+    for (const filename of filenamesToDeduplicate) {
+      const duplicates = imagesByFilename[filename];
+      console.log(`Found ${duplicates.length} copies of ${filename}`);
+      
+      // Sort by timestamp (newest first)
+      duplicates.sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Keep the newest (first after sorting), and any image marked as current
+      const toKeep = [duplicates[0]];
+      const currentImage = duplicates.find(img => img.isCurrent || img.id === 'current_image');
+      
+      if (currentImage && currentImage.id !== toKeep[0].id) {
+        toKeep.push(currentImage);
+      }
+      
+      // Get IDs to keep
+      const keepIds = new Set(toKeep.map(img => img.id));
+      
+      // Delete all others
+      for (const img of duplicates) {
+        if (!keepIds.has(img.id)) {
+          await deleteImageFromDb(img.id);
+          deletedCount++;
+          console.log(`Deleted duplicate image: ${img.id} (${img.filename})`);
+        }
+      }
+    }
+    
+    console.log(`Deduplication complete. Deleted ${deletedCount} duplicate images.`);
+    return deletedCount;
+  } catch (error) {
+    console.error('Error during image deduplication:', error);
+    throw error;
+  }
 } 

@@ -11,7 +11,7 @@ import { initClipboardPaste } from '../features/clipboard/clipboardPaste.js';
 import { initImageRotation } from '../features/rotation/rotationHandlers.js';
 import { getCurrentImage, createImageFromRecord } from '../services/db/currentImageStore.js';
 import { renderImage } from '../ui/canvas/renderImage.js';
-import { clearImageDatabase, getAllImagesMetadata } from '../services/db/imageStore.js';
+import { clearImageDatabase, getAllImagesMetadata, getImageFromDb } from '../services/db/imageStore.js';
 import { clearCanvas } from '../ui/canvas/canvasContext.js';
 
 // Basic Phase-1 bootstrap
@@ -74,10 +74,67 @@ async function start() {
     clearDbBtn.addEventListener('click', clearDatabase);
   }
   
+  // Set up a button to deduplicate images if needed
+  const deduplicateBtn = document.getElementById('deduplicate-btn');
+  if (deduplicateBtn) {
+    deduplicateBtn.addEventListener('click', runDeduplication);
+  } else {
+    // If no dedicated button, add context menu to clear DB button
+    if (clearDbBtn) {
+      clearDbBtn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (confirm('Run deduplication without clearing the database?')) {
+          runDeduplication();
+        }
+      });
+    }
+  }
+  
   // Set up projection page button (already implemented with <a> tag)
   
   // Check if we're coming back from another page and need to restore image state
   await restoreImagesFromDb();
+}
+
+/**
+ * Run deduplication on the image database
+ */
+async function runDeduplication() {
+  console.log('Running database deduplication...');
+  
+  // Show loading indicator
+  const loadingIndicator = document.querySelector('.loading');
+  if (loadingIndicator) {
+    loadingIndicator.style.display = 'flex';
+    loadingIndicator.textContent = 'Running deduplication...';
+  }
+  
+  try {
+    // Import the deduplication function
+    const { deduplicateImagesByFilename } = await import('../services/db/imageStore.js');
+    
+    // Run deduplication
+    const deletedCount = await deduplicateImagesByFilename();
+    
+    // Show message
+    if (deletedCount > 0) {
+      alert(`Deduplication complete. Removed ${deletedCount} duplicate images.`);
+    } else {
+      alert('No duplicate images found.');
+    }
+    
+    // After deduplication, refresh the current state
+    await restoreImagesFromDb();
+    
+  } catch (error) {
+    console.error('Error running deduplication:', error);
+    alert('Error running deduplication: ' + error.message);
+  } finally {
+    // Hide loading indicator
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+    }
+  }
 }
 
 /**
@@ -149,6 +206,18 @@ async function restoreImagesFromDb() {
       loadingIndicator.textContent = 'Restoring images...';
     }
     
+    // Automatically run deduplication on first load
+    try {
+      const { deduplicateImagesByFilename } = await import('../services/db/imageStore.js');
+      const deletedCount = await deduplicateImagesByFilename();
+      if (deletedCount > 0) {
+        console.log(`Auto-deduplication removed ${deletedCount} duplicate images`);
+      }
+    } catch (dedupError) {
+      console.error('Error during auto-deduplication:', dedupError);
+      // Continue with restoration even if deduplication fails
+    }
+    
     // Try to get all available image metadata from DB
     const allImageMetadata = await getAllImagesMetadata();
     
@@ -161,6 +230,14 @@ async function restoreImagesFromDb() {
     
     console.log(`Found ${allImageMetadata.length} images in IndexedDB`);
     
+    // Count images by batch for debugging
+    const batchCounts = {};
+    allImageMetadata.forEach(metadata => {
+      const batchId = metadata.batchId || 'default';
+      batchCounts[batchId] = (batchCounts[batchId] || 0) + 1;
+    });
+    console.log('Image counts by batch:', batchCounts);
+    
     // Group images by batchId
     const batchMap = new Map();
     
@@ -171,7 +248,30 @@ async function restoreImagesFromDb() {
         batchMap.set(batchId, []);
       }
       
-      batchMap.get(batchId).push(metadata);
+      // Only add each image once by filename (prevent duplication)
+      const existingIndex = batchMap.get(batchId).findIndex(
+        m => m.filename === metadata.filename
+      );
+      
+      if (existingIndex === -1) {
+        // Image not already in batch, add it
+        batchMap.get(batchId).push(metadata);
+      } else {
+        // Image already exists in batch - special handling
+        const existing = batchMap.get(batchId)[existingIndex];
+        
+        // If this is the current image, replace the existing one
+        if (metadata.isCurrent || metadata.id === 'current_image') {
+          console.log(`Replacing existing entry with current image: ${metadata.filename}`);
+          batchMap.get(batchId)[existingIndex] = metadata;
+        } else if (metadata.timestamp > existing.timestamp) {
+          // Otherwise keep the most recent version
+          console.log(`Replacing with newer version: ${metadata.filename}`);
+          batchMap.get(batchId)[existingIndex] = metadata;
+        } else {
+          console.log(`Skipping duplicate image: ${metadata.filename}`);
+        }
+      }
     });
     
     console.log(`Grouped into ${batchMap.size} batches`);
@@ -189,16 +289,31 @@ async function restoreImagesFromDb() {
       imagesList.sort((a, b) => a.timestamp - b.timestamp);
       
       // Create File objects for each image
-      const files = imagesList.map(metadata => {
-        if (metadata.imageBlob) {
-          return new File(
-            [metadata.imageBlob],
-            metadata.filename || 'image.png',
-            { type: metadata.fileType || 'image/png' }
-          );
+      const files = await Promise.all(imagesList.map(async metadata => {
+        if (metadata.hasBlob) {
+          try {
+            // Fetch the full image record to get the blob
+            const fullRecord = await getImageFromDb(metadata.id);
+            if (fullRecord && fullRecord.imageBlob) {
+              console.log(`Creating File object for ${metadata.filename} with blob size ${fullRecord.imageBlob.size} bytes`);
+              return new File(
+                [fullRecord.imageBlob],
+                metadata.filename || 'image.png',
+                { type: metadata.fileType || 'image/png' }
+              );
+            } else {
+              console.warn(`Missing blob data for image ${metadata.id}`);
+              return null;
+            }
+          } catch (err) {
+            console.error(`Error creating File for ${metadata.filename}:`, err);
+            return null;
+          }
+        } else {
+          console.warn(`Skipping image ${metadata.id} (${metadata.filename}) - no blob data available`);
         }
         return null;
-      }).filter(file => file !== null);
+      })).then(results => results.filter(file => file !== null));
       
       if (files.length > 0) {
         // Create batch with original ID or a new one if default
@@ -272,12 +387,19 @@ async function restoreImagesFromDb() {
     // Update thumbnails with a delay
     setTimeout(async () => {
       try {
+        console.log('Updating thumbnails after restore...');
         const { updateThumbnails } = await import('../ui/panels/thumbnailPanel.js');
         updateThumbnails();
+        
+        // Force another update after a longer delay to ensure all thumbnails are loaded
+        setTimeout(() => {
+          console.log('Forcing second thumbnail update to ensure all are loaded');
+          updateThumbnails();
+        }, 1000);
       } catch (err) {
         console.error('Error updating thumbnails:', err);
       }
-    }, 200);
+    }, 500);
     
   } catch (error) {
     console.error('Error restoring images from IndexedDB:', error);

@@ -189,7 +189,16 @@ function createThumbnail(file, batchIndex, fileIndex) {
 
   // Generate preview
   if (file.type.startsWith('image/') && !/\.tiff?$/.test(file.name.toLowerCase())) {
-    imgEl.src = URL.createObjectURL(file);
+    // Create object URL for the thumbnail and ensure it's properly stored
+    const objectUrl = URL.createObjectURL(file);
+    
+    // Store URL for cleanup
+    item.dataset.objectUrl = objectUrl;
+    
+    // Set image source
+    imgEl.src = objectUrl;
+    
+    console.log(`Created thumbnail for ${file.name} (size: ${Math.round(file.size/1024)} KB)`);
   } else {
     // TIFF or other files use placeholder
     const placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxMTExMTEiLz48cGF0aCBkPSJNMzUgMjVINjVDNjguMyAyNSA3MSAyNy43IDcxIDMxVjY5QzcxIDcyLjMgNjguMyA3NSA2NSA3NUgzNUMzMS43IDc1IDI5IDcyLjMgMjkgNjlWMzFDMjkgMjcuNyAzMS43IDI1IDM1IDI1WiIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI1IiBmaWxsPSIjNTU1Ii8+PHBhdGggZD0iTTMwIDYwTDQwIDUwTDUwIDYwTDYwIDUwTDcwIDYwVjcwSDMwVjYwWiIgZmlsbD0iIzU1NSIvPjwvc3ZnPg==';
@@ -206,10 +215,27 @@ function createThumbnail(file, batchIndex, fileIndex) {
 }
 
 /**
+ * Clean up object URLs to prevent memory leaks
+ */
+function cleanupObjectUrls() {
+  const thumbnails = container.querySelectorAll('.thumbnail-item[data-object-url]');
+  thumbnails.forEach(thumbnail => {
+    const objectUrl = thumbnail.dataset.objectUrl;
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      console.log('Revoked object URL:', objectUrl.substring(0, 30) + '...');
+        }
+  });
+}
+
+/**
  * Update the thumbnail panel with all batches and images
  */
 export function updateThumbnails() {
   if (!container) return;
+  
+  // Clean up existing object URLs before clearing
+  cleanupObjectUrls();
   
   // Clear existing content
   container.innerHTML = '';
@@ -563,169 +589,301 @@ function togglePanel() {
 /**
  * Remove an image from a batch
  */
-function removeImage(batchIndex, fileIndex) {
+async function removeImage(batchIndex, fileIndex) {
+  // Get the current state
   const { batches, selectedImageIndex } = getState();
   
+  // Validate indices
   if (batchIndex < 0 || batchIndex >= batches.length) return;
   const batch = batches[batchIndex];
   if (!batch || fileIndex < 0 || fileIndex >= batch.files.length) return;
   
-  // Create a copy of the batches
-  const updatedBatches = [...batches];
+  // Get the file we're removing (for info)
+  const fileToRemove = batch.files[fileIndex];
   
-  // Remember if we're removing the currently selected image
-  const isRemovingSelected = batchIndex === selectedImageIndex.batchIndex && 
-                            fileIndex === selectedImageIndex.fileIndex;
-  
-  // Remove the file from its batch
-  const updatedBatch = {...batch};
-  updatedBatch.files = [...batch.files];
-  updatedBatch.files.splice(fileIndex, 1);
-  
-  // If this was the last file in the batch, remove the batch
-  if (updatedBatch.files.length === 0) {
-    updatedBatches.splice(batchIndex, 1);
-  } else {
-    // Otherwise update the batch
-    updatedBatches[batchIndex] = updatedBatch;
-    
-    // Update the batch title if needed
-    if (updatedBatch.files.length === 1) {
-      updatedBatch.title = updatedBatch.files[0].name;
-    }
-  }
-  
-  // Determine the new selected image index
-  let newSelectedIndex = {...selectedImageIndex};
-  
-  // If we removed the currently selected image
-  if (isRemovingSelected) {
-    // If this was the last file in the batch
-    if (updatedBatch.files.length === 0) {
-      // Select another batch if possible
-      if (updatedBatches.length > 0) {
-        const newBatchIndex = Math.min(batchIndex, updatedBatches.length - 1);
-        newSelectedIndex = { 
-          batchIndex: newBatchIndex, 
-          fileIndex: 0 
-        };
-      } else {
-        // No more images
-        newSelectedIndex = { batchIndex: -1, fileIndex: -1 };
-      }
-    } else {
-      // Select adjacent file in same batch
-      newSelectedIndex = {
-        batchIndex,
-        fileIndex: Math.min(fileIndex, updatedBatch.files.length - 1)
-      };
-    }
-  } 
-  // If we removed a file before the selected file in the same batch
-  else if (batchIndex === selectedImageIndex.batchIndex && fileIndex < selectedImageIndex.fileIndex) {
-    // Just adjust the file index
-    newSelectedIndex = {
-      batchIndex,
-      fileIndex: selectedImageIndex.fileIndex - 1
-    };
-  }
-  // If we removed a batch before the selected batch
-  else if (batchIndex < selectedImageIndex.batchIndex && updatedBatch.files.length === 0) {
-    // Adjust the batch index
-    newSelectedIndex = {
-      batchIndex: selectedImageIndex.batchIndex - 1,
-      fileIndex: selectedImageIndex.fileIndex
-    };
-  }
-  
-  // Store the batches update
-  setState({ batches: updatedBatches });
-  
-  // Handle the case where there are no more images
-  if (updatedBatches.length === 0) {
-    // Clear the image and update the state in one go
-    setState({
-      image: null,
-      imageData: null,
-      selectedImageIndex: { batchIndex: -1, fileIndex: -1 }
-    });
-    
-    // Clear the canvas
-    clearCanvas('#222');
-    
-    // Update thumbnails
-    updateThumbnails();
+  // Confirm with user
+  if (!confirm(`Delete ${fileToRemove.name} from the batch?\nThis will also delete it from the database.`)) {
     return;
   }
   
-  // Set the new selection index
-  setState({ selectedImageIndex: newSelectedIndex });
+  try {
+    // Show loading indicator
+    const loadingIndicator = document.querySelector('.loading');
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'flex';
+      loadingIndicator.textContent = 'Deleting image...';
+    }
+    
+    // Clean up any object URL associated with this thumbnail
+    const thumbnailItem = container.querySelector(`.thumbnail-item[data-batch-index="${batchIndex}"][data-file-index="${fileIndex}"]`);
+    if (thumbnailItem && thumbnailItem.dataset.objectUrl) {
+      URL.revokeObjectURL(thumbnailItem.dataset.objectUrl);
+      console.log(`Revoked URL for removed image: ${fileToRemove.name}`);
+    }
+    
+    // If this is the last file in the batch, remove the whole batch
+    if (batch.files.length === 1) {
+      return deleteBatch(batchIndex);
+    }
+    
+    // Import needed functions
+    const { getAllImagesMetadata, deleteImageFromDb } = await import('../../services/db/imageStore.js');
+    
+    // Get all images from the database
+    const allImages = await getAllImagesMetadata();
+    
+    // Find image to delete by matching filename
+    const imageToDelete = allImages.find(img => img.filename === fileToRemove.name);
+    
+    if (imageToDelete) {
+      try {
+        await deleteImageFromDb(imageToDelete.id);
+        console.log(`Deleted image ${imageToDelete.id} (${imageToDelete.filename}) from database`);
+      } catch (error) {
+        console.error(`Failed to delete image ${imageToDelete.id} from database:`, error);
+      }
+    } else {
+      console.warn(`Image ${fileToRemove.name} not found in database`);
+    }
+    
+    // Create a copy of the batches
+    const updatedBatches = [...batches];
+    
+    // Remember if we're removing the currently selected image
+    const isRemovingSelected = batchIndex === selectedImageIndex.batchIndex && 
+                              fileIndex === selectedImageIndex.fileIndex;
   
-  // If we removed the currently selected image, need to load a new one
-  if (isRemovingSelected) {
-    // Get the new file to load based on the new indices
-    const newBatch = updatedBatches[newSelectedIndex.batchIndex];
-    if (newBatch && newSelectedIndex.fileIndex >= 0 && newSelectedIndex.fileIndex < newBatch.files.length) {
-      const newFile = newBatch.files[newSelectedIndex.fileIndex];
+    // Remove the file from its batch
+    const updatedBatch = {...batch};
+    updatedBatch.files = [...batch.files];
+    updatedBatch.files.splice(fileIndex, 1);
+    
+    // If this was the last file in the batch, remove the batch
+    if (updatedBatch.files.length === 0) {
+      updatedBatches.splice(batchIndex, 1);
+    } else {
+      // Otherwise update the batch
+      updatedBatches[batchIndex] = updatedBatch;
       
-      // Load the new image immediately
-      loadImageFile(newFile).then(({ image, imageData }) => {
-        setState({ image, imageData });
-        refreshCanvas();
-      }).catch(err => {
-        console.error('Failed to load next image after deletion:', err);
+      // Update the batch title if needed
+      if (updatedBatch.files.length === 1) {
+        updatedBatch.title = updatedBatch.files[0].name;
+      }
+    }
+    
+    // Determine the new selected image index
+    let newSelectedIndex = {...selectedImageIndex};
+  
+    // If we removed the currently selected image
+    if (isRemovingSelected) {
+      // If this was the last file in the batch
+      if (updatedBatch.files.length === 0) {
+        // Select another batch if possible
+        if (updatedBatches.length > 0) {
+          const newBatchIndex = Math.min(batchIndex, updatedBatches.length - 1);
+          newSelectedIndex = { 
+            batchIndex: newBatchIndex, 
+            fileIndex: 0 
+          };
+        } else {
+          // No more images
+          newSelectedIndex = { batchIndex: -1, fileIndex: -1 };
+        }
+      } else {
+        // Select adjacent file in same batch
+        newSelectedIndex = {
+          batchIndex,
+          fileIndex: Math.min(fileIndex, updatedBatch.files.length - 1)
+        };
+      }
+    } 
+    // If we removed a file before the selected file in the same batch
+    else if (batchIndex === selectedImageIndex.batchIndex && fileIndex < selectedImageIndex.fileIndex) {
+      // Just adjust the file index
+      newSelectedIndex = {
+        batchIndex,
+        fileIndex: selectedImageIndex.fileIndex - 1
+      };
+    }
+    // If we removed a batch before the selected batch
+    else if (batchIndex < selectedImageIndex.batchIndex && updatedBatch.files.length === 0) {
+      // Adjust the batch index
+      newSelectedIndex = {
+        batchIndex: selectedImageIndex.batchIndex - 1,
+        fileIndex: selectedImageIndex.fileIndex
+      };
+    }
+    
+    // Store the batches update
+    setState({ batches: updatedBatches });
+    
+    // Handle the case where there are no more images
+    if (updatedBatches.length === 0) {
+      // Clear the image and update the state in one go
+      setState({
+        image: null,
+        imageData: null,
+        selectedImageIndex: { batchIndex: -1, fileIndex: -1 }
       });
+      
+      // Clear the canvas
+      clearCanvas('#222');
+      
+      // Update thumbnails
+      updateThumbnails();
+      
+      // Hide loading indicator
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+      }
+      return;
+    }
+    
+    // Set the new selection index
+    setState({ selectedImageIndex: newSelectedIndex });
+    
+    // If we removed the currently selected image, need to load a new one
+    if (isRemovingSelected) {
+      // Get the new file to load based on the new indices
+      const newBatch = updatedBatches[newSelectedIndex.batchIndex];
+      if (newBatch && newSelectedIndex.fileIndex >= 0 && newSelectedIndex.fileIndex < newBatch.files.length) {
+        const newFile = newBatch.files[newSelectedIndex.fileIndex];
+        
+        // Load the new image immediately
+        loadImageFile(newFile).then(({ image, imageData }) => {
+          setState({ image, imageData });
+          refreshCanvas();
+          
+          // Hide loading indicator
+          if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+          }
+        }).catch(err => {
+          console.error('Failed to load next image after deletion:', err);
+          if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+          }
+        });
+      } else {
+        if (loadingIndicator) {
+          loadingIndicator.style.display = 'none';
+        }
+      }
+    } else {
+      // Hide loading indicator if we're not loading a new image
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+      }
+    }
+    
+    // Always highlight the new selection and update thumbnails
+    highlightSelectedThumbnail(newSelectedIndex.batchIndex, newSelectedIndex.fileIndex);
+    updateThumbnails();
+  } catch (error) {
+    console.error('Error removing image:', error);
+    // Hide loading indicator
+    const loadingIndicator = document.querySelector('.loading');
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
     }
   }
-  
-  // Always highlight the new selection and update thumbnails
-  highlightSelectedThumbnail(newSelectedIndex.batchIndex, newSelectedIndex.fileIndex);
-  updateThumbnails();
 }
 
 /**
  * Delete an entire batch of images
  */
-function deleteBatch(batchIndex) {
+async function deleteBatch(batchIndex) {
   const { batches, selectedImageIndex } = getState();
   if (batchIndex < 0 || batchIndex >= batches.length) return;
   
-  // Create a new array without the deleted batch
-  const updatedBatches = batches.filter((_, index) => index !== batchIndex);
+  const batchToDelete = batches[batchIndex];
   
-  // Update state with new batches array
-  setState({ batches: updatedBatches });
-  
-  // If the selected image was in this batch, we need to select a new image
-  if (selectedImageIndex.batchIndex === batchIndex) {
-    // Try to select an image in the same position in the previous batch
-    if (updatedBatches.length > 0) {
-      let newBatchIndex = batchIndex > 0 ? batchIndex - 1 : 0;
-      let newFileIndex = Math.min(
-        selectedImageIndex.fileIndex, 
-        updatedBatches[newBatchIndex].files.length - 1
-      );
-      selectImage(newBatchIndex, newFileIndex);
-    } else {
-      // No batches left
-      setState({ 
-        image: null,
-        selectedImageIndex: { batchIndex: -1, fileIndex: -1 }
-      });
-      
-      // Clear canvas when no images remain
-      clearCanvas('#222');
-    }
-  } else if (selectedImageIndex.batchIndex > batchIndex) {
-    // If selected image is in a batch after the deleted one, adjust its index
-    setState({
-      selectedImageIndex: {
-        batchIndex: selectedImageIndex.batchIndex - 1,
-        fileIndex: selectedImageIndex.fileIndex
-      }
-    });
+  // Confirm deletion
+  if (!confirm(`Delete entire batch "${batchToDelete.title}" with ${batchToDelete.files.length} images?\nThis will also delete them from the database.`)) {
+    return;
   }
   
-  // Update the thumbnails display
+  try {
+    // Show loading indicator
+    const loadingIndicator = document.querySelector('.loading');
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'flex';
+      loadingIndicator.textContent = 'Deleting batch...';
+    }
+    
+    // Import needed functions
+    const { getAllImagesMetadata, deleteImageFromDb } = await import('../../services/db/imageStore.js');
+    
+    // Get all images from the database
+    const allImages = await getAllImagesMetadata();
+    
+    // Get filenames of files in this batch
+    const batchFilenames = new Set(batchToDelete.files.map(file => file.name));
+    
+    // Find images to delete by matching filenames
+    const imagesToDelete = allImages.filter(img => batchFilenames.has(img.filename));
+    
+    console.log(`Found ${imagesToDelete.length} images to delete from database for batch ${batchIndex}`);
+    
+    // Delete all images from the database
+    for (const image of imagesToDelete) {
+      try {
+        await deleteImageFromDb(image.id);
+        console.log(`Deleted image ${image.id} (${image.filename}) from database`);
+      } catch (error) {
+        console.error(`Failed to delete image ${image.id} from database:`, error);
+      }
+    }
+    
+    // Create a new array without the deleted batch for UI state
+    const updatedBatches = batches.filter((_, index) => index !== batchIndex);
+    
+    // Update state with new batches array
+    setState({ batches: updatedBatches });
+    
+    // If the selected image was in this batch, we need to select a new image
+    if (selectedImageIndex.batchIndex === batchIndex) {
+      // Try to select an image in the same position in the previous batch
+      if (updatedBatches.length > 0) {
+        let newBatchIndex = batchIndex > 0 ? batchIndex - 1 : 0;
+        let newFileIndex = Math.min(
+          selectedImageIndex.fileIndex, 
+          updatedBatches[newBatchIndex].files.length - 1
+        );
+        selectImage(newBatchIndex, newFileIndex);
+      } else {
+        // No batches left
+        setState({ 
+          image: null,
+          selectedImageIndex: { batchIndex: -1, fileIndex: -1 }
+        });
+        
+        // Clear canvas when no images remain
+        clearCanvas('#222');
+      }
+    } else if (selectedImageIndex.batchIndex > batchIndex) {
+      // If selected image is in a batch after the deleted one, adjust its index
+      setState({
+        selectedImageIndex: {
+          batchIndex: selectedImageIndex.batchIndex - 1,
+          fileIndex: selectedImageIndex.fileIndex
+        }
+      });
+  }
+  
+    // Hide loading indicator
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+    }
+    
+    // Update the thumbnails display
   updateThumbnails();
+  } catch (error) {
+    console.error('Error deleting batch from database:', error);
+    // Hide loading indicator
+    const loadingIndicator = document.querySelector('.loading');
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+    }
+  }
 } 
