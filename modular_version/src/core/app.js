@@ -237,40 +237,85 @@ async function restoreImagesFromDb() {
     // Group images by batchId
     const batchMap = new Map();
     
-    allImageMetadata.forEach(metadata => {
+    // Track filenames to prevent cross-batch duplication
+    const processedFilenames = new Set();
+    // Track the current image separately
+    let currentImageMetadata = null;
+    
+    // First pass: find the current image
+    for (const metadata of allImageMetadata) {
+      if (metadata.isCurrent || metadata.id === 'current_image') {
+        // Keep the most recent current image
+        if (!currentImageMetadata || metadata.timestamp > currentImageMetadata.timestamp) {
+          currentImageMetadata = metadata;
+        }
+      }
+    }
+    
+    // Second pass: organize images into batches, avoiding duplicates
+    for (const metadata of allImageMetadata) {
       const batchId = metadata.batchId || 'default';
+      const filename = metadata.filename;
       
+      // Skip the current image in this pass - we'll handle it separately
+      if (metadata.isCurrent || metadata.id === 'current_image') {
+        continue;
+      }
+      
+      // Initialize batch if needed
       if (!batchMap.has(batchId)) {
         batchMap.set(batchId, []);
       }
       
-      // Only add each image once by filename (prevent duplication)
-      const existingIndex = batchMap.get(batchId).findIndex(
-        m => m.filename === metadata.filename
-      );
+      // Skip if this filename has been processed in any batch
+      if (processedFilenames.has(filename)) {
+        console.log(`Skipping duplicate image: ${filename} (already processed in another batch)`);
+        continue;
+      }
+      
+      // Check for duplicates within this batch
+      const existingIndex = batchMap.get(batchId).findIndex(m => m.filename === filename);
       
       if (existingIndex === -1) {
-        // Image not already in batch, add it
+        // New image - add it to the batch
         batchMap.get(batchId).push(metadata);
+        processedFilenames.add(filename);
       } else {
-        // Image already exists in batch - special handling
+        // Duplicate in same batch - keep the newer version
         const existing = batchMap.get(batchId)[existingIndex];
-        
-        // If this is the current image, replace the existing one
-        if (metadata.isCurrent || metadata.id === 'current_image') {
-          console.log(`Replacing existing entry with current image: ${metadata.filename}`);
-          batchMap.get(batchId)[existingIndex] = metadata;
-        } else if (metadata.timestamp > existing.timestamp) {
-          // Otherwise keep the most recent version
+        if (metadata.timestamp > existing.timestamp) {
           console.log(`Replacing with newer version: ${metadata.filename}`);
           batchMap.get(batchId)[existingIndex] = metadata;
         } else {
-          console.log(`Skipping duplicate image: ${metadata.filename}`);
+          console.log(`Skipping older duplicate image: ${metadata.filename}`);
         }
       }
-    });
+    }
     
-    console.log(`Grouped into ${batchMap.size} batches`);
+    // Now add the current image to the appropriate batch if needed
+    if (currentImageMetadata) {
+      const batchId = currentImageMetadata.batchId || 'default';
+      const filename = currentImageMetadata.filename;
+      
+      // Initialize batch if needed
+      if (!batchMap.has(batchId)) {
+        batchMap.set(batchId, []);
+      }
+      
+      // Check if we already have this file in the batch
+      const existingIndex = batchMap.get(batchId).findIndex(m => m.filename === filename);
+      
+      if (existingIndex !== -1) {
+        // Update the existing image to mark it as current
+        batchMap.get(batchId)[existingIndex].isCurrent = true;
+      } else if (!processedFilenames.has(filename)) {
+        // Add the current image if it's not a duplicate
+        batchMap.get(batchId).push(currentImageMetadata);
+        processedFilenames.add(filename);
+      }
+    }
+    
+    console.log(`Grouped into ${batchMap.size} batches after deduplication`);
     
     // Now create the batches structure
     const batches = [];
@@ -330,7 +375,6 @@ async function restoreImagesFromDb() {
           
           // Get the current image for display
           try {
-            const { getCurrentImage, createImageFromRecord } = await import('../services/db/currentImageStore.js');
             const currentImageRecord = await getCurrentImage();
             if (currentImageRecord && currentImageRecord.imageBlob) {
               currentImage = await createImageFromRecord(currentImageRecord);
