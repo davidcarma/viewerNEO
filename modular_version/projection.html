@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Projection</title>
+    <link rel="stylesheet" href="css/components/thumbnail.css">
+    <link rel="stylesheet" href="css/components/thumbnail-panel.css">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -22,6 +24,7 @@
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 100;
         }
         h1 {
             margin: 0;
@@ -32,6 +35,7 @@
             background-color: #333;
             display: flex;
             gap: 10px;
+            z-index: 100;
         }
         button {
             background-color: #444;
@@ -112,6 +116,97 @@
             font-family: monospace;
             color: #aaffaa;
         }
+        
+        /* Adjust content when thumbnails are visible */
+        .content.with-thumbnails {
+            transform: translateX(250px);
+            transition: transform 0.25s ease;
+            will-change: transform;
+        }
+        
+        /* Make the thumbnail panel wider for projection page */
+        #thumbnail-panel {
+            width: 250px !important;
+        }
+        
+        /* Ensure the toggle handle is visible on this page */
+        #thumbnail-toggle-handle {
+            display: flex !important;
+            left: 0px;
+        }
+        
+        /* Position the handle correctly when panel is open */
+        #thumbnail-panel.active ~ #thumbnail-toggle-handle {
+            left: 250px !important;
+        }
+        
+        /* Improve thumbnail styling for projection page */
+        .thumbnail-item {
+            width: 230px;
+            margin: 10px auto;
+            border-radius: 6px;
+            background: #222;
+        }
+        
+        .thumbnail-item img {
+            height: 150px;
+            object-fit: contain;
+            background: #111;
+        }
+        
+        /* Improve thumbnail label styling */
+        .thumbnail-item div {
+            font-size: 11px;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.7);
+            padding: 6px;
+            text-align: left;
+        }
+        
+        /* Style for active thumbnail */
+        .thumbnail-item.active {
+            border: 2px solid #ff0059;
+            box-shadow: 0 0 8px rgba(255,0,89,0.4);
+        }
+        
+        /* Sync status indicator */
+        .sync-status {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            padding: 5px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .sync-status.active {
+            opacity: 0.6;
+        }
+        
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body>
@@ -124,9 +219,28 @@
     
     <div class="controls">
         <button id="loadCurrentImage">Load Current Image</button>
+        <button id="loadAllImages">Load All Images</button>
+        <button id="clear-db-btn">Clear DB</button>
         <button id="applyProcessing">Apply Processing (Demo)</button>
         <button id="showDebug">Show Debug Info</button>
+        <button id="toggle-thumbnails">Show Thumbnails</button>
     </div>
+    
+    <div id="thumbnail-panel">
+        <div class="thumbnail-header">
+            <h3>Images</h3>
+            <button id="close-thumbnails" class="icon-btn" aria-label="Close thumbnails">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div id="thumbnails-container"></div>
+    </div>
+    
+    <!-- Thumbnail toggle handle -->
+    <div id="thumbnail-toggle-handle" role="button" aria-label="Toggle thumbnail panel" title="Toggle thumbnails"></div>
     
     <div class="content">
         <div class="image-container">
@@ -140,10 +254,16 @@
         <div id="debugLog" class="debug-log" style="display: none;"></div>
         
         <div class="loading">Loading...</div>
+        
+        <div class="sync-status" id="syncStatus">
+            <div class="sync-indicator"></div>
+            <span>Syncing with database...</span>
+        </div>
     </div>
     
     <script type="module">
         import { getCurrentImage, createImageFromRecord } from './src/services/db/currentImageStore.js';
+        import { getAllImagesMetadata, getImageFromDb, clearImageDatabase } from './src/services/db/imageStore.js';
         
         const loadingIndicator = document.querySelector('.loading');
         const imageDisplay = document.getElementById('imageDisplay');
@@ -153,6 +273,12 @@
         const applyProcessingButton = document.getElementById('applyProcessing');
         const backButton = document.getElementById('backToViewer');
         const showDebugButton = document.getElementById('showDebug');
+        const thumbnailPanel = document.getElementById('thumbnail-panel');
+        const thumbnailsContainer = document.getElementById('thumbnails-container');
+        const toggleThumbnailsBtn = document.getElementById('toggle-thumbnails');
+        const toggleHandle = document.getElementById('thumbnail-toggle-handle');
+        const closeThumbnailsBtn = document.getElementById('close-thumbnails');
+        const contentElement = document.querySelector('.content');
         
         // Debug logging
         function log(message, data) {
@@ -171,15 +297,274 @@
         }
         
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             log('Projection page loaded');
             
+            // Set up thumbnail panel toggle functionality
+            toggleThumbnailsBtn.addEventListener('click', toggleThumbnailPanel);
+            closeThumbnailsBtn.addEventListener('click', toggleThumbnailPanel);
+            toggleHandle.addEventListener('click', toggleThumbnailPanel);
+            
+            // Load thumbnails
+            await loadThumbnails();
+            
+            // Show thumbnail panel by default
+            toggleThumbnailPanel();
+            
             // Try to load the current image automatically on page load
-            setTimeout(() => loadCurrentImage(), 100);
+            setTimeout(async () => {
+                const imageLoaded = await loadCurrentImage();
+                if (!imageLoaded) {
+                    // If no current image exists, try to load the first image from the first batch
+                    const firstThumbnail = thumbnailsContainer.querySelector('.thumbnail-item');
+                    if (firstThumbnail) {
+                        const imageId = firstThumbnail.dataset.imageId;
+                        if (imageId) {
+                            loadImageById(imageId);
+                        }
+                    }
+                }
+            }, 100);
+            
+            // Start database polling for updates
+            startDatabasePolling();
         });
+        
+        // Toggle thumbnail panel
+        function toggleThumbnailPanel() {
+            thumbnailPanel.classList.toggle('active');
+            contentElement.classList.toggle('with-thumbnails');
+            
+            // Update toggle handle position
+            if (thumbnailPanel.classList.contains('active')) {
+                toggleHandle.style.left = '250px';
+                toggleHandle.classList.add('resize');
+                toggleThumbnailsBtn.textContent = 'Hide Thumbnails';
+            } else {
+                toggleHandle.style.left = '0px';
+                toggleHandle.classList.remove('resize');
+                toggleThumbnailsBtn.textContent = 'Show Thumbnails';
+            }
+        }
+        
+        // Load thumbnails from IndexedDB
+        async function loadThumbnails() {
+            try {
+                log('Loading thumbnails from IndexedDB');
+                
+                // Clear existing thumbnails
+                thumbnailsContainer.innerHTML = '';
+                
+                // Get all images from IndexedDB
+                const allImages = await getAllImagesMetadata();
+                
+                if (!allImages || allImages.length === 0) {
+                    log('No images found in IndexedDB');
+                    thumbnailsContainer.innerHTML = '<div class="empty-thumbnail-state">No images found</div>';
+                    return;
+                }
+                
+                log(`Found ${allImages.length} images in IndexedDB`);
+                
+                // Group images by batch ID
+                const batchMap = new Map();
+                
+                allImages.forEach(metadata => {
+                    const batchId = metadata.batchId || 'default';
+                    
+                    if (!batchMap.has(batchId)) {
+                        batchMap.set(batchId, []);
+                    }
+                    
+                    batchMap.get(batchId).push(metadata);
+                });
+                
+                // Create a batch element for each batch
+                for (const [batchId, imagesList] of batchMap.entries()) {
+                    // Sort images by timestamp
+                    imagesList.sort((a, b) => a.timestamp - b.timestamp);
+                    
+                    // Create batch header
+                    const batchHeader = document.createElement('div');
+                    batchHeader.className = 'batch-header';
+                    
+                    // Create title
+                    const title = document.createElement('span');
+                    title.className = 'batch-title';
+                    title.textContent = `Batch ${batchMap.size > 1 ? Array.from(batchMap.keys()).indexOf(batchId) + 1 : ''}`;
+                    batchHeader.appendChild(title);
+                    
+                    // Add count badge
+                    const count = document.createElement('span');
+                    count.className = 'batch-count';
+                    count.textContent = imagesList.length;
+                    batchHeader.appendChild(count);
+                    
+                    thumbnailsContainer.appendChild(batchHeader);
+                    
+                    // Create batch content
+                    const batchContent = document.createElement('div');
+                    batchContent.className = 'batch-content';
+                    
+                    // Create thumbnails for each image
+                    for (const imageMetadata of imagesList) {
+                        if (!imageMetadata.hasBlob) continue;
+                        
+                        const thumbnailItem = document.createElement('div');
+                        thumbnailItem.className = 'thumbnail-item';
+                        thumbnailItem.dataset.imageId = imageMetadata.id;
+                        
+                        const imgEl = document.createElement('img');
+                        imgEl.alt = imageMetadata.filename;
+                        imgEl.loading = 'lazy';
+                        
+                        // Use placeholder initially
+                        const placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxMTExMTEiLz48cGF0aCBkPSJNMzUgMjVINjVDNjguMyAyNSA3MSAyNy43IDcxIDMxVjY5QzcxIDcyLjMgNjguMyA3NSA2NSA3NUgzNUMzMS43IDc1IDI5IDcyLjMgMjkgNjlWMzFDMjkgMjcuNyAzMS43IDI1IDM1IDI1WiIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI1IiBmaWxsPSIjNTU1Ii8+PHBhdGggZD0iTTMwIDYwTDQwIDUwTDUwIDYwTDYwIDUwTDcwIDYwVjcwSDMwVjYwWiIgZmlsbD0iIzU1NSIvPjwvc3ZnPg==';
+                        imgEl.src = placeholderSrc;
+                        
+                        thumbnailItem.appendChild(imgEl);
+                        
+                        // Create a more detailed label with filename and size
+                        const label = document.createElement('div');
+                        let labelText = imageMetadata.filename || 'Unnamed image';
+                        
+                        // Add file size if available
+                        if (imageMetadata.blobSize) {
+                            labelText += ` (${formatFileSize(imageMetadata.blobSize)})`;
+                        }
+                        
+                        // Add dimensions if available
+                        if (imageMetadata.dimensions) {
+                            labelText += `<br>${imageMetadata.dimensions.width || '?'} × ${imageMetadata.dimensions.height || '?'} px`;
+                        }
+                        
+                        label.innerHTML = labelText;
+                        thumbnailItem.appendChild(label);
+                        
+                        // Add click event to load the image
+                        thumbnailItem.addEventListener('click', () => loadImageById(imageMetadata.id));
+                        
+                        batchContent.appendChild(thumbnailItem);
+                        
+                        // Load the actual thumbnail asynchronously
+                        loadThumbnailImage(imageMetadata.id, imgEl);
+                    }
+                    
+                    thumbnailsContainer.appendChild(batchContent);
+                    
+                    // Add divider after each batch except the last one
+                    if (Array.from(batchMap.keys()).indexOf(batchId) < batchMap.size - 1) {
+                        const divider = document.createElement('div');
+                        divider.className = 'batch-divider';
+                        thumbnailsContainer.appendChild(divider);
+                    }
+                }
+                
+            } catch (error) {
+                log('Error loading thumbnails', error.message);
+                console.error('Error loading thumbnails:', error);
+                thumbnailsContainer.innerHTML = '<div class="empty-thumbnail-state">Error loading thumbnails</div>';
+            }
+        }
+        
+        // Load thumbnail image from database
+        async function loadThumbnailImage(imageId, imgElement) {
+            try {
+                const imageRecord = await getImageFromDb(imageId);
+                if (imageRecord && imageRecord.imageBlob) {
+                    const objectUrl = URL.createObjectURL(imageRecord.imageBlob);
+                    imgElement.src = objectUrl;
+                    imgElement.dataset.objectUrl = objectUrl;
+                }
+            } catch (error) {
+                console.error(`Error loading thumbnail for image ${imageId}:`, error);
+            }
+        }
+        
+        // Load image by ID from IndexedDB
+        async function loadImageById(imageId) {
+            try {
+                // Show loading indicator
+                loadingIndicator.style.display = 'flex';
+                loadingIndicator.textContent = 'Loading selected image...';
+                
+                log(`Loading image ${imageId} from IndexedDB`);
+                
+                // Store current image ID for sync detection
+                currentImageId = imageId;
+                
+                // Highlight the selected thumbnail
+                const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
+                thumbnails.forEach(thumbnail => {
+                    thumbnail.classList.remove('active');
+                    if (thumbnail.dataset.imageId === imageId) {
+                        thumbnail.classList.add('active');
+                        
+                        // Scroll to the selected thumbnail
+                        thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+                
+                // Get the image from IndexedDB
+                const imageRecord = await getImageFromDb(imageId);
+                
+                if (!imageRecord) {
+                    log(`Image ${imageId} not found in IndexedDB`);
+                    imageInfo.textContent = 'Image not found in database.';
+                    loadingIndicator.style.display = 'none';
+                    return false;
+                }
+                
+                // Store the timestamp for change detection
+                currentImageTimestamp = imageRecord.timestamp || Date.now();
+                
+                if (!imageRecord.imageBlob) {
+                    log(`Image ${imageId} has no blob data`);
+                    imageInfo.textContent = 'Error: Image record exists but contains no image data.';
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+                
+                // Create an image element from the blob
+                const img = await createImageFromRecord(imageRecord);
+                
+                // Display the image
+                const objectUrl = img.src;
+                imageDisplay.src = objectUrl;
+                
+                // Wait for the image to load
+                imageDisplay.onload = () => {
+                    // Update image info
+                    imageInfo.innerHTML = `
+                        <strong>Image loaded successfully</strong><br>
+                        Filename: ${imageRecord.filename}<br>
+                        Size: ${imageRecord.dimensions.width} x ${imageRecord.dimensions.height} px<br>
+                        File Type: ${imageRecord.fileType || 'Unknown'}<br>
+                        File Size: ${imageRecord.imageBlob.size ? formatFileSize(imageRecord.imageBlob.size) : 'Unknown'}<br>
+                        Last Modified: ${new Date(imageRecord.timestamp).toLocaleString()}
+                    `;
+                    
+                    loadingIndicator.style.display = 'none';
+                };
+                
+                imageDisplay.onerror = (e) => {
+                    log('Error displaying image', e);
+                    imageInfo.textContent = `Error displaying image. See debug info for details.`;
+                    loadingIndicator.style.display = 'none';
+                };
+                
+            } catch (error) {
+                log('Error loading image', error.message);
+                console.error('Error loading image:', error);
+                imageInfo.textContent = `Error loading image: ${error.message}`;
+                loadingIndicator.style.display = 'none';
+            }
+        }
         
         // Set up button handlers
         loadButton.addEventListener('click', loadCurrentImage);
+        document.getElementById('loadAllImages').addEventListener('click', loadAllImagesFromDb);
+        document.getElementById('clear-db-btn').addEventListener('click', clearDatabase);
         backButton.addEventListener('click', () => {
             window.location.href = 'index.html';
         });
@@ -221,7 +606,7 @@
                     log('No image record found in IndexedDB');
                     imageInfo.textContent = 'No image found in storage. Please load an image in the main viewer first.';
                     loadingIndicator.style.display = 'none';
-                    return;
+                    return false;
                 }
                 
                 log('Retrieved image record', {
@@ -232,12 +617,27 @@
                     dimensions: imageRecord.dimensions
                 });
                 
+                // Store the current image ID for sync detection
+                currentImageId = imageRecord.id;
+                
                 if (!imageRecord.imageBlob) {
                     log('Error: Image record has no blob data');
                     imageInfo.textContent = 'Error: Image record exists but contains no image data.';
                     loadingIndicator.style.display = 'none';
-                    return;
+                    return false;
                 }
+                
+                // Highlight the current image in thumbnails if it exists
+                const thumbnails = thumbnailsContainer.querySelectorAll('.thumbnail-item');
+                thumbnails.forEach(thumbnail => {
+                    thumbnail.classList.remove('active');
+                    if (thumbnail.dataset.imageId === imageRecord.id) {
+                        thumbnail.classList.add('active');
+                        
+                        // Scroll to the selected thumbnail
+                        thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
                 
                 // Create an image element from the blob
                 log('Creating image element from blob', {
@@ -280,12 +680,58 @@
                     log('Error displaying image', e);
                     imageInfo.textContent = `Error displaying image. See debug info for details.`;
                     loadingIndicator.style.display = 'none';
+                    return false;
                 };
+                
+                return true;
                 
             } catch (error) {
                 log('Error loading image from IndexedDB', error.message);
                 console.error('Error loading image from IndexedDB:', error);
                 imageInfo.textContent = `Error loading image: ${error.message}`;
+                loadingIndicator.style.display = 'none';
+                return false;
+            }
+        }
+        
+        // Load all images from IndexedDB
+        async function loadAllImagesFromDb() {
+            log('Loading all images from database');
+            
+            // Show loading indicator
+            loadingIndicator.style.display = 'flex';
+            loadingIndicator.textContent = 'Loading all images...';
+            
+            try {
+                // Get all images metadata
+                const allImages = await getAllImagesMetadata();
+                
+                if (!allImages || allImages.length === 0) {
+                    log('No images found in database');
+                    imageInfo.textContent = 'No images found in database.';
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+                
+                log(`Found ${allImages.length} images in database`);
+                
+                // Reset thumbnails
+                await loadThumbnails();
+                
+                // Select the first image with a blob
+                const imagesWithBlobs = allImages.filter(img => img.hasBlob);
+                
+                if (imagesWithBlobs.length > 0) {
+                    loadImageById(imagesWithBlobs[0].id);
+                } else {
+                    log('No images with blobs found');
+                    imageInfo.textContent = 'No valid images found in database.';
+                    loadingIndicator.style.display = 'none';
+                }
+            } catch (error) {
+                log('Error loading all images', error.message);
+                console.error('Error loading all images:', error);
+                imageInfo.textContent = `Error loading images: ${error.message}`;
                 loadingIndicator.style.display = 'none';
             }
         }
@@ -358,6 +804,169 @@
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // Clear all images from IndexedDB
+        async function clearDatabase() {
+            log('Clearing image database...');
+            
+            // Show loading indicator
+            loadingIndicator.style.display = 'flex';
+            loadingIndicator.textContent = 'Clearing database...';
+            
+            try {
+                // Clear the database without confirmation
+                await clearImageDatabase();
+                
+                // Clear the current display
+                imageDisplay.src = '';
+                imageInfo.textContent = 'Database cleared. No images loaded.';
+                
+                // Clear thumbnails
+                thumbnailsContainer.innerHTML = '<div class="empty-thumbnail-state">No images found</div>';
+                
+                // Log success message to debug panel
+                log('Database cleared successfully');
+                
+            } catch (error) {
+                log('Error clearing database:', error.message);
+                console.error('Error clearing database:', error);
+            } finally {
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
+            }
+        }
+        
+        // Clean up resources when page unloads
+        window.addEventListener('beforeunload', () => {
+            // Revoke all object URLs
+            document.querySelectorAll('[data-object-url]').forEach(el => {
+                if (el.dataset.objectUrl) {
+                    URL.revokeObjectURL(el.dataset.objectUrl);
+                }
+            });
+        });
+        
+        // Database update tracking
+        let lastImageCount = 0;
+        let lastDatabaseTimestamp = Date.now();
+        let currentImageId = null;
+        let currentImageTimestamp = 0;
+        const syncStatusIndicator = document.getElementById('syncStatus');
+
+        // Start polling for database changes
+        function startDatabasePolling() {
+            log('Starting database change detection');
+            
+            // Store initial state
+            getAllImagesMetadata().then(images => {
+                lastImageCount = images ? images.length : 0;
+                lastDatabaseTimestamp = Date.now();
+                log(`Initial database state: ${lastImageCount} images`);
+            });
+            
+            // Set up a separate interval for checking the current image changes more frequently
+            const currentImageCheckInterval = setInterval(async () => {
+                try {
+                    // Only check if we have a current image loaded
+                    if (currentImageId) {
+                        const currentImageRecord = await getCurrentImage();
+                        
+                        // Check if current image has changed
+                        if (currentImageRecord && currentImageRecord.timestamp > currentImageTimestamp) {
+                            // Store new timestamp
+                            currentImageTimestamp = currentImageRecord.timestamp;
+                            
+                            // Reload the current image quietly
+                            await loadCurrentImage();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking current image updates:', error);
+                }
+            }, 500); // Check current image every 500ms
+            
+            // Check for changes in all images every second
+            const pollingInterval = setInterval(async () => {
+                try {
+                    // Quick flash of sync indicator (minimal visibility)
+                    syncStatusIndicator.classList.add('active');
+                    
+                    // Get current database state
+                    const allImages = await getAllImagesMetadata();
+                    const currentCount = allImages ? allImages.length : 0;
+                    
+                    // Check if image count changed
+                    if (currentCount !== lastImageCount) {
+                        // Update our stored count
+                        lastImageCount = currentCount;
+                        lastDatabaseTimestamp = Date.now();
+                        
+                        // Refresh thumbnails to reflect changes
+                        await loadThumbnails();
+                        
+                        // If we have no current image but there are images in the database, 
+                        // select the first one
+                        if ((!imageDisplay.src || imageDisplay.src.endsWith('No image loaded')) && currentCount > 0) {
+                            const firstThumbnail = thumbnailsContainer.querySelector('.thumbnail-item');
+                            if (firstThumbnail) {
+                                const imageId = firstThumbnail.dataset.imageId;
+                                if (imageId) {
+                                    loadImageById(imageId);
+                                }
+                            }
+                        }
+                        
+                        // Check if currently displayed image has been deleted
+                        if (currentImageId) {
+                            const imageStillExists = allImages.some(img => img.id === currentImageId);
+                            if (!imageStillExists) {
+                                // Reset display
+                                imageDisplay.src = '';
+                                imageInfo.textContent = 'Please select an image';
+                                currentImageId = null;
+                                
+                                // Try to load the first image if available
+                                const firstThumbnail = thumbnailsContainer.querySelector('.thumbnail-item');
+                                if (firstThumbnail) {
+                                    const imageId = firstThumbnail.dataset.imageId;
+                                    if (imageId) {
+                                        loadImageById(imageId);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Even if the count hasn't changed, check for updates to individual images
+                        // This could catch cases where an image was replaced but the count stayed the same
+                        const timeSinceLastCheck = Date.now() - lastDatabaseTimestamp;
+                        
+                        // Only do the more intensive check if enough time has passed (5 seconds)
+                        if (timeSinceLastCheck > 5000) {
+                            // Check if any image has a newer timestamp than our last update
+                            const hasNewerImages = allImages.some(img => img.timestamp > lastDatabaseTimestamp);
+                            if (hasNewerImages) {
+                                lastDatabaseTimestamp = Date.now();
+                                
+                                // Refresh thumbnails
+                                await loadThumbnails();
+                            }
+                        }
+                    }
+                    
+                    // Hide sync indicator immediately
+                    syncStatusIndicator.classList.remove('active');
+                } catch (error) {
+                    console.error('Error checking for database updates:', error);
+                    syncStatusIndicator.classList.remove('active');
+                }
+            }, 1000); // Check every second
+            
+            // Clean up the interval when the page is unloaded
+            window.addEventListener('beforeunload', () => {
+                clearInterval(pollingInterval);
+                clearInterval(currentImageCheckInterval);
+            });
         }
     </script>
 </body>

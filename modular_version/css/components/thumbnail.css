@@ -341,4 +341,36 @@
   width: 14px;
   height: 14px;
   stroke-width: 1.5;
+}
+
+/* Empty thumbnail state */
+.empty-thumbnail-state {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  margin-top: 50px;
+}
+
+/* Specific styles for projection page */
+.projection-thumbnail {
+  margin: 8px;
+  width: 120px;
+  height: 120px;
+  display: inline-block;
+}
+
+/* Batch content layout for projection page */
+.batch-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 5px;
+}
+
+/* Additional batch styles for projection page */
+.batch-header {
+  margin: 12px 5px 8px 5px;
+  padding: 8px 10px;
 } 

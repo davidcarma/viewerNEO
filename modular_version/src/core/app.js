@@ -151,14 +151,7 @@ async function clearDatabase() {
   }
   
   try {
-    // Confirm with user before proceeding
-    if (!confirm('Are you sure you want to clear all images from the database?')) {
-      console.log('Database clear operation cancelled by user');
-      if (loadingIndicator) loadingIndicator.style.display = 'none';
-      return;
-    }
-    
-    // Clear the database
+    // Clear the database without confirmation
     await clearImageDatabase();
     
     // Also clear the current image and state
@@ -172,12 +165,15 @@ async function clearDatabase() {
     // Clear the canvas
     clearCanvas('#222');
     
-    // Show success message
-    alert('Image database cleared successfully');
+    // Refresh the thumbnail panel
+    const { updateThumbnails } = await import('../ui/panels/thumbnailPanel.js');
+    updateThumbnails();
+    
+    // Show info message (not an alert)
+    console.log('Database cleared successfully');
     
   } catch (error) {
     console.error('Error clearing database:', error);
-    alert('Error clearing database: ' + error.message);
   } finally {
     // Hide loading indicator
     if (loadingIndicator) {

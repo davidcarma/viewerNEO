@@ -75,9 +75,7 @@ function createBatchHeader(batch, batchIndex) {
   deleteBtn.setAttribute('title', 'Delete batch');
   deleteBtn.addEventListener('click', (e) => {
     e.stopPropagation(); // Prevent triggering batch toggle
-    if (confirm(`Delete entire batch "${batch.title}" with ${batch.files.length} images?`)) {
-      deleteBatch(batchIndex);
-    }
+    deleteBatch(batchIndex);
   });
   header.appendChild(deleteBtn);
   
@@ -601,10 +599,7 @@ async function removeImage(batchIndex, fileIndex) {
   // Get the file we're removing (for info)
   const fileToRemove = batch.files[fileIndex];
   
-  // Confirm with user
-  if (!confirm(`Delete ${fileToRemove.name} from the batch?\nThis will also delete it from the database.`)) {
-    return;
-  }
+  // No confirmation, just proceed with deletion
   
   try {
     // Show loading indicator
@@ -798,10 +793,7 @@ async function deleteBatch(batchIndex) {
   
   const batchToDelete = batches[batchIndex];
   
-  // Confirm deletion
-  if (!confirm(`Delete entire batch "${batchToDelete.title}" with ${batchToDelete.files.length} images?\nThis will also delete them from the database.`)) {
-    return;
-  }
+  // No confirmation, just proceed with deletion
   
   try {
     // Show loading indicator
