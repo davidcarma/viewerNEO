@@ -63,16 +63,18 @@
             align-items: center;
             overflow: hidden;
             position: relative;
-            margin-top: 10px; /* Add some spacing between controls and content */
+            margin-top: 10px;
+            width: 100%;
+            height: 100%;
         }
         .image-container {
             position: relative;
-            max-width: 100%;
-            max-height: 100%;
-            overflow: hidden;
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            background-color: #222;
         }
         #imageDisplay {
             max-width: 100%;
@@ -81,11 +83,13 @@
             display: none; /* Hide the image since we're using canvas */
         }
         #canvas {
-            max-width: 100%;
-            max-height: 100%;
+            /* Fixed size canvas that doesn't change dimensions */
+            display: block;
             background-color: #222;
-            position: relative; /* Prevent position issues */
-            z-index: 5; /* Ensure canvas is above other elements */
+            position: relative;
+            /* We'll maintain this size even with small images */
+            width: 80%;
+            height: 80%;
         }
         
         /* Container styles to match main viewer */
@@ -102,6 +106,7 @@
         /* Match the behavior of index.html */
         #container.with-thumbnails {
             transform: translateX(160px);
+            width: calc(100% - 160px);
         }
         
         /* Ensure thumbnail panel appears below header and controls */
@@ -124,17 +129,21 @@
             display: none !important;
         }
         
+        /* Status container positioned on the right side as requested */
         .status-container {
             position: absolute;
             top: 20px;
-            left: 20px;
+            right: 20px;
             background-color: rgba(0, 0, 0, 0.7);
             padding: 10px;
             border-radius: 5px;
             font-size: 14px;
-            max-width: 300px;
+            width: 250px;
             z-index: 100;
-            width: 350px;
+            max-height: 80%;
+            overflow-y: auto;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .loading {
             position: absolute;
@@ -208,19 +217,20 @@
         
         <div id="container">
         <div class="content">
-                    <div class="image-container">
-            <canvas id="canvas"></canvas>
-            <img id="imageDisplay" alt="No image loaded" style="display: none;">
-        </div>
-            
-            <div class="status-container">
-                <div id="imageInfo">No image loaded</div>
+            <div class="image-container">
+                <canvas id="canvas"></canvas>
+                <img id="imageDisplay" alt="No image loaded" style="display: none;">
             </div>
             
-                    <div id="debugLog" class="debug-log" style="display: none;"></div>
-        
-        <div class="loading">Loading...</div>
-    </div>
+            <div id="debugLog" class="debug-log" style="display: none;"></div>
+            
+            
+        </div>
+            
+        <!-- Moved outside the image-container to float on the right -->
+        <div class="status-container">
+            <div id="imageInfo">No image loaded</div>
+        </div>
     </div>
     
     <script type="module">
@@ -229,25 +239,10 @@
         import { getAllImagesMetadata, getImageFromDb, clearImageDatabase } from './src/services/db/imageStore.js';
         import { registerChangeObserver, unregisterChangeObserver, startDbMonitoring } from './src/services/db/dbMonitor.js';
         
-        // Helper function to size and position canvas properly
+        // Helper function now just uses our new drawImageOnCanvas function
         async function sizeCanvasToImage(img, imageRecord) {
-            const { getCanvas } = await import('./src/ui/canvas/canvasContext.js');
-            const canvas = getCanvas();
-            if (!canvas) return;
-            
-            // Make sure we have valid dimensions
-            const width = img.naturalWidth || imageRecord.dimensions.width || 640;
-            const height = img.naturalHeight || imageRecord.dimensions.height || 480;
-            
-            // Set canvas dimensions
-            canvas.width = width;
-            canvas.height = height;
-            
-            // Make sure the canvas is visible and properly sized
-            canvas.style.maxWidth = '100%';
-            canvas.style.maxHeight = '100%';
-            canvas.style.display = 'block';
-            canvas.style.margin = 'auto';
+            // Use our new drawing function to handle scaling and positioning
+            await drawImageOnCanvas(img, imageRecord);
         }
         
         /**
@@ -287,7 +282,6 @@
         }
         
         // Get references to DOM elements - making them globally accessible
-        const loadingIndicator = document.querySelector('.loading');
         const imageDisplay = document.getElementById('imageDisplay');
         const imageInfo = document.getElementById('imageInfo');
         const debugLog = document.getElementById('debugLog');
@@ -652,10 +646,6 @@
             
             log(`Loading image ${imageId} from IndexedDB`);
             
-            // Show loading indicator
-            loadingIndicator.style.display = 'flex';
-            loadingIndicator.textContent = 'Loading image...';
-            
             try {
                 // Get the image from IndexedDB
                 const imageRecord = await getImageFromDb(imageId);
@@ -663,7 +653,6 @@
                 if (!imageRecord) {
                     log(`Image ${imageId} not found in IndexedDB`);
                     imageInfo.textContent = `Error: Image with ID ${imageId} not found.`;
-                    loadingIndicator.style.display = 'none';
                     return;
                 }
                 
@@ -675,33 +664,19 @@
                 const img = await createImageFromRecord(imageRecord);
                 
                 // Import the renderImage function
-                const { getCanvas, getContext, clearCanvas } = await import('./src/ui/canvas/canvasContext.js');
                 const { setState } = await import('./src/core/projectionState.js');
                 
                 // Store the image in state
                 setState({ image: img });
                 
-                // Size the canvas to match the image dimensions
-                const canvas = getCanvas();
-                if (canvas) {
-                    canvas.width = img.naturalWidth || imageRecord.dimensions.width;
-                    canvas.height = img.naturalHeight || imageRecord.dimensions.height;
-                }
+                // Use our drawing function that handles fixed canvas and scaling
+                await drawImageOnCanvas(img, imageRecord);
                 
-                // Clear and render to the canvas
-                clearCanvas('#222');
-                
-                // Draw the image when it's loaded
-                const ctx = getContext();
-                if (ctx && img) {
+                // Set up handler for when image loads (if it hasn't already)
+                if (!img.complete) {
                     img.onload = function() {
-                        ctx.drawImage(img, 0, 0);
+                        drawImageOnCanvas(img, imageRecord);
                     };
-                    
-                    // If already loaded, draw immediately
-                    if (img.complete) {
-                        ctx.drawImage(img, 0, 0);
-                    }
                 }
                 
                 // Keep the img element updated as well (though hidden)
@@ -732,14 +707,10 @@
                     }
                 });
                 
-                // Hide loading indicator
-                loadingIndicator.style.display = 'none';
-                
             } catch (error) {
                 log('Error loading image:', error.message);
                 console.error('Error loading image:', error);
                 imageInfo.textContent = `Error loading image: ${error.message}`;
-                loadingIndicator.style.display = 'none';
             }
         }
         
@@ -811,10 +782,6 @@
         // Load the current image from IndexedDB
         async function loadCurrentImage() {
             try {
-                // Show loading indicator
-                loadingIndicator.style.display = 'flex';
-                loadingIndicator.textContent = 'Loading image from IndexedDB...';
-                
                 log('Requesting image from IndexedDB');
                 
                 // Get the current image from IndexedDB
@@ -823,7 +790,6 @@
                 if (!imageRecord) {
                     log('No image record found in IndexedDB');
                     imageInfo.textContent = 'No image found in storage. Please load an image in the main viewer first.';
-                    loadingIndicator.style.display = 'none';
                     return false;
                 }
                 
@@ -843,7 +809,6 @@
                 if (!imageRecord.imageBlob) {
                     log('Error: Image record has no blob data');
                     imageInfo.textContent = 'Error: Image record exists but contains no image data.';
-                    loadingIndicator.style.display = 'none';
                     return false;
                 }
                 
@@ -886,33 +851,19 @@
                 });
                 
                 // Import the renderImage function
-                const { getCanvas, getContext, clearCanvas } = await import('./src/ui/canvas/canvasContext.js');
                 const { setState } = await import('./src/core/projectionState.js');
                 
                 // Store the image in state
                 setState({ image: img });
                 
-                // Size the canvas to match the image dimensions
-                const canvas = getCanvas();
-                if (canvas) {
-                    canvas.width = img.naturalWidth || imageRecord.dimensions.width;
-                    canvas.height = img.naturalHeight || imageRecord.dimensions.height;
-                }
+                // Use our drawing function that handles fixed canvas and scaling
+                await drawImageOnCanvas(img, imageRecord);
                 
-                // Clear and render to the canvas
-                clearCanvas('#222');
-                
-                // Draw the image when it's loaded
-                const ctx = getContext();
-                if (ctx && img) {
+                // Set up handler for when image loads (if it hasn't already)
+                if (!img.complete) {
                     img.onload = function() {
-                        ctx.drawImage(img, 0, 0);
+                        drawImageOnCanvas(img, imageRecord);
                     };
-                    
-                    // If already loaded, draw immediately
-                    if (img.complete) {
-                        ctx.drawImage(img, 0, 0);
-                    }
                 }
                 
                 // Keep the img element updated as well (though hidden)
@@ -936,14 +887,12 @@
                     ${imageRecord.originalId ? '<br><em>(From main viewer)</em>' : ''}
                 `;
                 
-                loadingIndicator.style.display = 'none';
                 return true;
                 
             } catch (error) {
                 log('Error loading image from IndexedDB', error.message);
                 console.error('Error loading image from IndexedDB:', error);
                 imageInfo.textContent = `Error loading image: ${error.message}`;
-                loadingIndicator.style.display = 'none';
                 return false;
             }
         }
@@ -952,10 +901,6 @@
         async function loadAllImagesFromDb() {
             log('Loading all images from database');
             
-            // Show loading indicator
-            loadingIndicator.style.display = 'flex';
-            loadingIndicator.textContent = 'Loading all images...';
-            
             try {
                 // Get all images metadata
                 const allImages = await getAllImagesMetadata();
@@ -963,7 +908,6 @@
                 if (!allImages || allImages.length === 0) {
                     log('No images found in database');
                     imageInfo.textContent = 'No images found in database.';
-                    loadingIndicator.style.display = 'none';
                     return;
                 }
                 
@@ -1024,13 +968,11 @@
                 } else {
                     log('No valid images found in batches');
                     imageInfo.textContent = 'No valid images found in database.';
-                    loadingIndicator.style.display = 'none';
                 }
             } catch (error) {
                 log('Error loading all images', error.message);
                 console.error('Error loading all images:', error);
                 imageInfo.textContent = `Error loading images: ${error.message}`;
-                loadingIndicator.style.display = 'none';
             }
         }
         
@@ -1047,8 +989,6 @@
                 return;
             }
             
-            loadingIndicator.style.display = 'flex';
-            loadingIndicator.textContent = 'Applying demo processing...';
             log('Starting image processing');
             
             setTimeout(() => {
@@ -1070,12 +1010,31 @@
                         height: canvas.height
                     });
                     
-                    // Get the image data directly from the main canvas
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    // Get the image from state 
+                    const { getState } = require('./src/core/projectionState.js');
+                    const state = getState();
+                    const img = state.image;
+                    
+                    if (!img) {
+                        throw new Error('No image found in state to process');
+                    }
+                    
+                    // Create an offscreen canvas for processing
+                    const offscreen = document.createElement('canvas');
+                    offscreen.width = img.naturalWidth;
+                    offscreen.height = img.naturalHeight;
+                    const offCtx = offscreen.getContext('2d');
+                    
+                    // Draw the original image to the offscreen canvas
+                    offCtx.drawImage(img, 0, 0);
+                    
+                    // Get the image data from the offscreen canvas
+                    const imageData = offCtx.getImageData(0, 0, offscreen.width, offscreen.height);
                     const data = imageData.data;
                     
                     log('Processing image data', {
-                        pixelCount: data.length / 4
+                        pixelCount: data.length / 4,
+                        dimensions: `${offscreen.width}x${offscreen.height}`
                     });
                     
                     // Invert all colors as a simple demo effect
@@ -1086,11 +1045,25 @@
                         // data[i + 3] is alpha (transparency)
                     }
                     
-                    // Put the modified image data back to the canvas
-                    ctx.putImageData(imageData, 0, 0);
+                    // Put the modified image data back to the offscreen canvas
+                    offCtx.putImageData(imageData, 0, 0);
+                    
+                    // Create a new Image from the processed canvas
+                    const processedImg = new Image();
+                    processedImg.src = offscreen.toDataURL();
+                    
+                    // When the new image is ready, draw it to the main canvas using our scaling function
+                    processedImg.onload = function() {
+                        drawImageOnCanvas(processedImg, {
+                            dimensions: {
+                                width: img.naturalWidth,
+                                height: img.naturalHeight
+                            }
+                        });
+                    };
                     
                     // Keep the hidden img element in sync
-                    imageDisplay.src = canvas.toDataURL();
+                    imageDisplay.src = offscreen.toDataURL();
                     
                     // Update information
                     imageInfo.innerHTML += '<br><strong>Status: Processed (colors inverted)</strong>';
@@ -1100,7 +1073,7 @@
                     console.error('Error applying processing:', error);
                     alert('Error applying processing: ' + error.message);
                 } finally {
-                    loadingIndicator.style.display = 'none';
+                    
                 }
             }, 500); // Small delay to allow the loading indicator to display
         }
@@ -1119,10 +1092,6 @@
         // Clear all images from IndexedDB
         async function clearDatabase() {
             log('Clearing image database...');
-            
-            // Show loading indicator
-            loadingIndicator.style.display = 'flex';
-            loadingIndicator.textContent = 'Clearing database...';
             
             try {
                 // Clear the database without confirmation
@@ -1143,7 +1112,7 @@
                 console.error('Error clearing database:', error);
             } finally {
                 // Hide loading indicator
-                loadingIndicator.style.display = 'none';
+                
             }
         }
         
@@ -1271,6 +1240,70 @@ async function checkForDbChanges() {
         log('Error in database check:', error.message);
     }
 }
-</script>
+
+        // Helper function to draw images on fixed-size canvas
+        async function drawImageOnCanvas(img, imageRecord) {
+            const { getCanvas, getContext, clearCanvas } = await import('./src/ui/canvas/canvasContext.js');
+            const canvas = getCanvas();
+            const ctx = getContext();
+            
+            if (!canvas || !ctx) return;
+            
+            // Set canvas to a fixed size - this is important to keep it stable
+            canvas.width = 800;
+            canvas.height = 600;
+            
+            // Clear the canvas
+            clearCanvas('#222');
+            
+            // Get image dimensions
+            const imgWidth = img.naturalWidth || imageRecord.dimensions.width || 640;
+            const imgHeight = img.naturalHeight || imageRecord.dimensions.height || 480;
+            
+            // Calculate scaling to ensure small images are visible (at least 60% of canvas)
+            // For small images, scale up to 60% of canvas size
+            const widthRatio = imgWidth / canvas.width;
+            const heightRatio = imgHeight / canvas.height;
+            
+            // If image is tiny (less than 60% of canvas in both dimensions)
+            if (widthRatio < 0.6 && heightRatio < 0.6) {
+                // Scale up to 60% of canvas while maintaining aspect ratio
+                const scaleFactor = 0.6 / Math.max(widthRatio, heightRatio);
+                const newWidth = imgWidth * scaleFactor;
+                const newHeight = imgHeight * scaleFactor;
+                
+                // Center the image on canvas
+                const x = (canvas.width - newWidth) / 2;
+                const y = (canvas.height - newHeight) / 2;
+                
+                // Draw the scaled image
+                ctx.drawImage(img, x, y, newWidth, newHeight);
+            } else {
+                // For normal or large images, scale to fit within 80% of canvas
+                const scale = Math.min(
+                    (canvas.width * 0.8) / imgWidth,
+                    (canvas.height * 0.8) / imgHeight
+                );
+                
+                const newWidth = imgWidth * scale;
+                const newHeight = imgHeight * scale;
+                
+                // Center the image on canvas
+                const x = (canvas.width - newWidth) / 2;
+                const y = (canvas.height - newHeight) / 2;
+                
+                // Draw the scaled image
+                ctx.drawImage(img, x, y, newWidth, newHeight);
+            }
+            
+            // Log the drawing information
+            log('Drawing image', {
+                originalSize: `${imgWidth}x${imgHeight}`,
+                canvasSize: `${canvas.width}x${canvas.height}`,
+                scale: widthRatio < 0.6 && heightRatio < 0.6 ? 
+                    '60% (small image enlarged)' : 'fit to 80%'
+            });
+        }
+    </script>
 </body>
 </html> 
