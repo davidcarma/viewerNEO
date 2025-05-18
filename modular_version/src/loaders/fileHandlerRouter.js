@@ -2,6 +2,7 @@ import { loadImageFile } from './imageLoader.js';
 import { setState, getState, getGlobalIndex } from '../core/state.js';
 import { renderImage } from '../ui/canvas/renderImage.js';
 import { saveCurrentImage } from '../services/db/currentImageStore.js';
+import { saveAllImagesToDb } from '../services/db/imageStore.js';
 
 // Enhanced image file detection
 function isImageFile(file) {
@@ -131,17 +132,44 @@ export async function handleIncomingFiles(files) {
     
     // Save the current image to IndexedDB for cross-page access
     try {
-      console.log('Saving image to IndexedDB for cross-page access');
+      console.log('Saving current image to IndexedDB for cross-page access');
       
       await saveCurrentImage(image, imageData, {
         selectedFile: targetFile,
         rotation: currentState.rotation
       });
       
-      console.log('Image successfully saved to IndexedDB');
+      console.log('Current image successfully saved to IndexedDB');
     } catch (dbError) {
-      console.error('Failed to save image to IndexedDB:', dbError);
+      console.error('Failed to save current image to IndexedDB:', dbError);
       // Continue even if DB save fails - won't block the main functionality
+    }
+    
+    // Save all images in the batch to IndexedDB
+    try {
+      console.log('Saving all batch images to IndexedDB in background...');
+      
+      // Prepare image objects array for batch saving
+      const imageObjects = images.map(file => ({
+        file,
+        metadata: {
+          filename: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          batchId: newBatch.id
+        }
+      }));
+      
+      // Start saving in background
+      saveAllImagesToDb(imageObjects).then(savedIds => {
+        console.log(`Successfully saved ${savedIds.length} of ${images.length} images to IndexedDB`);
+      }).catch(error => {
+        console.error('Error during batch save to IndexedDB:', error);
+      });
+      
+    } catch (batchError) {
+      console.error('Failed to start batch save to IndexedDB:', batchError);
+      // Continue even if batch save fails
     }
     
     // Render the image on canvas

@@ -312,4 +312,82 @@ export async function clearImageStore() {
     console.error('Failed to clear images from IndexedDB:', error);
     throw error;
   }
+}
+
+// Add this function to clear the entire database
+export async function clearImageDatabase() {
+  try {
+    console.log('Clearing all images from IndexedDB...');
+    
+    const db = await initDB();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      
+      const request = store.clear();
+      
+      transaction.onerror = (event) => {
+        console.error('Transaction error when clearing database:', event.target.error);
+        reject(event.target.error);
+      };
+      
+      request.onsuccess = () => {
+        console.log('Successfully cleared all images from database');
+        resolve(true);
+      };
+      
+      request.onerror = (event) => {
+        console.error('Error clearing image database:', event.target.error);
+        reject(event.target.error);
+      };
+    });
+  } catch (error) {
+    console.error('Failed to clear image database:', error);
+    throw error;
+  }
+}
+
+// Add this function to save multiple images at once
+export async function saveAllImagesToDb(images) {
+  if (!images || images.length === 0) {
+    console.log('No images to save');
+    return [];
+  }
+  
+  console.log(`Saving ${images.length} images to IndexedDB...`);
+  
+  const savedIds = [];
+  let count = 0;
+  
+  // Process images one by one to avoid transaction timing issues
+  for (const imageObj of images) {
+    try {
+      // Generate a unique ID for each image
+      const id = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${count++}`;
+      
+      // Extract image, imageData, and metadata from the object
+      const { image, imageData, file, metadata = {} } = imageObj;
+      
+      // Save the image with combined metadata
+      const combinedMetadata = {
+        ...metadata,
+        selectedFile: file,
+        id, // Use the generated ID
+        lastAccessed: Date.now(),
+        isBatchSave: true
+      };
+      
+      await saveImageToDb(image, imageData, combinedMetadata);
+      savedIds.push(id);
+      
+      console.log(`Saved image ${count} of ${images.length} to IndexedDB with ID: ${id}`);
+    } catch (error) {
+      console.error(`Error saving image ${count} of ${images.length}:`, error);
+      // Continue with next image even if one fails
+    }
+  }
+  
+  console.log(`Finished saving ${savedIds.length} of ${images.length} images to IndexedDB`);
+  return savedIds;
 } 

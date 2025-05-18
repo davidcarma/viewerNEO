@@ -11,6 +11,8 @@ import { initClipboardPaste } from '../features/clipboard/clipboardPaste.js';
 import { initImageRotation } from '../features/rotation/rotationHandlers.js';
 import { getCurrentImage, createImageFromRecord } from '../services/db/currentImageStore.js';
 import { renderImage } from '../ui/canvas/renderImage.js';
+import { clearImageDatabase, getAllImagesMetadata } from '../services/db/imageStore.js';
+import { clearCanvas } from '../ui/canvas/canvasContext.js';
 
 // Basic Phase-1 bootstrap
 console.log('%cViewer bootstrap (Phase 1)', 'color:#00c8ff;font-weight:bold');
@@ -66,27 +68,76 @@ async function start() {
     updateInfo({ pointer: { x: imgX, y: imgY } });
   });
   
-  // Set up projection button
-  const projectionBtn = document.getElementById('projection-btn');
-  if (projectionBtn) {
-    projectionBtn.addEventListener('click', () => {
-      window.location.href = 'projection.html';
-    });
+  // Set up clear DB button
+  const clearDbBtn = document.getElementById('clear-db-btn');
+  if (clearDbBtn) {
+    clearDbBtn.addEventListener('click', clearDatabase);
   }
   
+  // Set up projection page button (already implemented with <a> tag)
+  
   // Check if we're coming back from another page and need to restore image state
-  await restoreImageFromDb();
+  await restoreImagesFromDb();
 }
 
 /**
- * Attempt to restore the current image from IndexedDB if available
+ * Clear all images from IndexedDB
  */
-async function restoreImageFromDb() {
-  console.log('Checking for saved image in IndexedDB...');
+async function clearDatabase() {
+  console.log('Clearing image database...');
+  
+  // Show loading indicator
+  const loadingIndicator = document.querySelector('.loading');
+  if (loadingIndicator) {
+    loadingIndicator.style.display = 'flex';
+    loadingIndicator.textContent = 'Clearing database...';
+  }
+  
+  try {
+    // Confirm with user before proceeding
+    if (!confirm('Are you sure you want to clear all images from the database?')) {
+      console.log('Database clear operation cancelled by user');
+      if (loadingIndicator) loadingIndicator.style.display = 'none';
+      return;
+    }
+    
+    // Clear the database
+    await clearImageDatabase();
+    
+    // Also clear the current image and state
+    setState({
+      image: null,
+      imageData: null,
+      batches: [],
+      selectedImageIndex: { batchIndex: -1, fileIndex: -1 }
+    });
+    
+    // Clear the canvas
+    clearCanvas('#222');
+    
+    // Show success message
+    alert('Image database cleared successfully');
+    
+  } catch (error) {
+    console.error('Error clearing database:', error);
+    alert('Error clearing database: ' + error.message);
+  } finally {
+    // Hide loading indicator
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Restore images from IndexedDB to provide a seamless experience
+ */
+async function restoreImagesFromDb() {
+  console.log('Checking for saved images in IndexedDB...');
   
   // Only restore if we don't already have an image loaded
   if (State.image) {
-    console.log('Image already loaded, skipping restore from IndexedDB');
+    console.log('Images already loaded, skipping restore from IndexedDB');
     return;
   }
   
@@ -95,90 +146,141 @@ async function restoreImageFromDb() {
     const loadingIndicator = document.querySelector('.loading');
     if (loadingIndicator) {
       loadingIndicator.style.display = 'flex';
-      loadingIndicator.textContent = 'Restoring image...';
+      loadingIndicator.textContent = 'Restoring images...';
     }
     
-    // Try to get current image from DB
-    const imageRecord = await getCurrentImage();
+    // Try to get all available image metadata from DB
+    const allImageMetadata = await getAllImagesMetadata();
     
-    if (!imageRecord || !imageRecord.imageBlob) {
-      console.log('No image found in IndexedDB to restore');
+    // If no images found, just return
+    if (!allImageMetadata || allImageMetadata.length === 0) {
+      console.log('No images found in IndexedDB to restore');
       if (loadingIndicator) loadingIndicator.style.display = 'none';
       return;
     }
     
-    console.log('Found image in IndexedDB, restoring...', {
-      filename: imageRecord.filename,
-      dimensions: imageRecord.dimensions
+    console.log(`Found ${allImageMetadata.length} images in IndexedDB`);
+    
+    // Group images by batchId
+    const batchMap = new Map();
+    
+    allImageMetadata.forEach(metadata => {
+      const batchId = metadata.batchId || 'default';
+      
+      if (!batchMap.has(batchId)) {
+        batchMap.set(batchId, []);
+      }
+      
+      batchMap.get(batchId).push(metadata);
     });
     
-    // Create image element from the saved record
-    const image = await createImageFromRecord(imageRecord);
+    console.log(`Grouped into ${batchMap.size} batches`);
     
-    // Create a simple file-like object if the image came from a file
-    let file = null;
-    if (imageRecord.filename && imageRecord.fileType) {
-      // Create a synthetic File object for compatibility with our app
-      file = new File(
-        [imageRecord.imageBlob], 
-        imageRecord.filename, 
-        { type: imageRecord.fileType || 'image/png' }
-      );
+    // Now create the batches structure
+    const batches = [];
+    let selectedBatchIndex = 0;
+    let selectedFileIndex = 0;
+    let currentImage = null;
+    let currentImageData = null;
+    
+    // Process each batch
+    for (const [batchId, imagesList] of batchMap.entries()) {
+      // Sort images by timestamp
+      imagesList.sort((a, b) => a.timestamp - b.timestamp);
+      
+      // Create File objects for each image
+      const files = imagesList.map(metadata => {
+        if (metadata.imageBlob) {
+          return new File(
+            [metadata.imageBlob],
+            metadata.filename || 'image.png',
+            { type: metadata.fileType || 'image/png' }
+          );
+        }
+        return null;
+      }).filter(file => file !== null);
+      
+      if (files.length > 0) {
+        // Create batch with original ID or a new one if default
+        const batch = {
+          id: batchId === 'default' ? ('batch_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)) : batchId,
+          title: `Batch ${batches.length + 1} (${files.length} files)`,
+          expanded: true,
+          files
+        };
+        
+        batches.push(batch);
+        
+        // If this batch has the current image, note its position
+        const currentImageIndex = imagesList.findIndex(img => img.isCurrent);
+        if (currentImageIndex >= 0 && files[currentImageIndex]) {
+          selectedBatchIndex = batches.length - 1;
+          selectedFileIndex = currentImageIndex;
+          
+          // Get the current image for display
+          try {
+            const { getCurrentImage, createImageFromRecord } = await import('../services/db/currentImageStore.js');
+            const currentImageRecord = await getCurrentImage();
+            if (currentImageRecord && currentImageRecord.imageBlob) {
+              currentImage = await createImageFromRecord(currentImageRecord);
+              // For simplicity, we're not populating imageData here
+            }
+          } catch (err) {
+            console.error('Error loading current image:', err);
+          }
+        }
+      }
     }
     
-    // If we have a real image but no batches, create a temporary batch
-    if (image && State.batches.length === 0 && file) {
-      const newBatch = {
-        id: 'restored_batch_' + Date.now(),
-        title: `Restored (${imageRecord.filename})`,
-        expanded: true,
-        files: [file]
-      };
-      
-      // Set state with the new batch and image
-      setState({
-        batches: [newBatch],
-        image,
-        selectedImageIndex: { batchIndex: 0, fileIndex: 0 },
-        rotation: imageRecord.rotation || 0
-      });
-      
-      console.log('Created temporary batch for restored image');
-    } else {
-      // Just restore the image without changing batches
-      setState({
-        image,
-        rotation: imageRecord.rotation || 0
-      });
-      
-      console.log('Restored image only, no batch updates');
+    // If we have batches but no current image selected, select the first image
+    if (batches.length > 0 && !currentImage && batches[0].files.length > 0) {
+      try {
+        const { loadImageFile } = await import('../loaders/imageLoader.js');
+        const { image, imageData } = await loadImageFile(batches[0].files[0]);
+        currentImage = image;
+        currentImageData = imageData;
+        selectedBatchIndex = 0;
+        selectedFileIndex = 0;
+      } catch (err) {
+        console.error('Error loading first image:', err);
+      }
     }
     
-    // Render the image on the canvas
-    renderImage();
-    
-    console.log('Image successfully restored from IndexedDB');
+    // Update state with restored batches and selected image
+    if (batches.length > 0) {
+      setState({
+        batches,
+        image: currentImage,
+        imageData: currentImageData,
+        selectedImageIndex: { 
+          batchIndex: selectedBatchIndex, 
+          fileIndex: selectedFileIndex 
+        }
+      });
+      
+      console.log(`Restored ${batches.length} batches with ${batches.reduce((sum, batch) => sum + batch.files.length, 0)} total images`);
+      
+      // Render the current image
+      if (currentImage) {
+        renderImage();
+      }
+    }
     
     // Hide loading indicator
     if (loadingIndicator) loadingIndicator.style.display = 'none';
     
-    // Force a second render to ensure everything is visible
-    setTimeout(() => {
-      renderImage();
-      
-      // Update thumbnails with a delay if needed
-      setTimeout(async () => {
-        try {
-          const { updateThumbnails } = await import('../ui/panels/thumbnailPanel.js');
-          updateThumbnails();
-        } catch (err) {
-          console.error('Error updating thumbnails:', err);
-        }
-      }, 200);
-    }, 100);
+    // Update thumbnails with a delay
+    setTimeout(async () => {
+      try {
+        const { updateThumbnails } = await import('../ui/panels/thumbnailPanel.js');
+        updateThumbnails();
+      } catch (err) {
+        console.error('Error updating thumbnails:', err);
+      }
+    }, 200);
     
   } catch (error) {
-    console.error('Error restoring image from IndexedDB:', error);
+    console.error('Error restoring images from IndexedDB:', error);
     
     // Hide loading indicator
     const loadingIndicator = document.querySelector('.loading');
