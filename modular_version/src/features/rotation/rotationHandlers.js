@@ -1,39 +1,128 @@
-import { getState, setState } from '../../core/state.js';
+import { getState, setState, getSelectedFile } from '../../core/state.js';
+import { getCanvas } from '../../ui/canvas/canvasContext.js';
+import { rotateImageData, createRotatedFile } from './imageRotator.js';
+import { loadImageFile } from '../../loaders/imageLoader.js';
+import { updateThumbnails } from '../../ui/panels/thumbnailPanel.js';
 import { fitImageWithPadding } from '../../ui/canvas/renderImage.js';
 
 /**
- * Rotates the image 90 degrees counterclockwise
+ * Rotates the current image 90 degrees counterclockwise by physically 
+ * rotating the image data and replacing it in the state
  */
-export function rotateLeft() {
-  const { rotation } = getState();
+export async function rotateLeft() {
+  const { selectedImageIndex, batches } = getState();
+  const { batchIndex, fileIndex } = selectedImageIndex;
   
-  // Calculate new rotation (0, 90, 180, 270)
-  let newRotation = rotation - 90;
-  if (newRotation < 0) newRotation += 360;
+  // Check if we have a valid selection
+  if (batchIndex < 0 || fileIndex < 0 || batchIndex >= batches.length) return;
+  const batch = batches[batchIndex];
+  if (!batch || fileIndex >= batch.files.length) return;
   
-  // Update rotation in state
-  setState({ rotation: newRotation });
+  // Get the current file
+  const currentFile = batch.files[fileIndex];
+  if (!currentFile) return;
   
-  // Recalculate fit after rotation
-  const { zoom, offset } = fitImageWithPadding();
-  setState({ zoom, offset });
+  try {
+    // Show loading indicator
+    const loadingEl = document.querySelector('.loading');
+    if (loadingEl) loadingEl.style.display = 'flex';
+    
+    // Create a physically rotated file
+    const rotatedFile = await createRotatedFile(currentFile, 'left');
+    
+    // Load the new rotated image
+    const { image, imageData } = await loadImageFile(rotatedFile);
+    
+    // Update the file in the batch
+    const updatedBatches = [...batches];
+    updatedBatches[batchIndex].files[fileIndex] = rotatedFile;
+    
+    // First update the image and reset rotation
+    setState({ 
+      batches: updatedBatches,
+      image,
+      imageData,
+      rotation: 0 // Reset rotation state since the image is physically rotated
+    });
+    
+    // Then calculate fit parameters
+    const { zoom, offset } = fitImageWithPadding();
+    
+    // Update zoom and offset to fit the image
+    setState({ zoom, offset });
+    
+    // Update thumbnails to reflect the new image
+    updateThumbnails();
+    
+    // Hide loading indicator
+    if (loadingEl) loadingEl.style.display = 'none';
+  } catch (error) {
+    console.error('Error rotating image:', error);
+    
+    // Hide loading indicator if there was an error
+    const loadingEl = document.querySelector('.loading');
+    if (loadingEl) loadingEl.style.display = 'none';
+  }
 }
 
 /**
- * Rotates the image 90 degrees clockwise
+ * Rotates the current image 90 degrees clockwise by physically 
+ * rotating the image data and replacing it in the state
  */
-export function rotateRight() {
-  const { rotation } = getState();
+export async function rotateRight() {
+  const { selectedImageIndex, batches } = getState();
+  const { batchIndex, fileIndex } = selectedImageIndex;
   
-  // Calculate new rotation (0, 90, 180, 270)
-  const newRotation = (rotation + 90) % 360;
+  // Check if we have a valid selection
+  if (batchIndex < 0 || fileIndex < 0 || batchIndex >= batches.length) return;
+  const batch = batches[batchIndex];
+  if (!batch || fileIndex >= batch.files.length) return;
   
-  // Update rotation in state
-  setState({ rotation: newRotation });
+  // Get the current file
+  const currentFile = batch.files[fileIndex];
+  if (!currentFile) return;
   
-  // Recalculate fit after rotation
-  const { zoom, offset } = fitImageWithPadding();
-  setState({ zoom, offset });
+  try {
+    // Show loading indicator
+    const loadingEl = document.querySelector('.loading');
+    if (loadingEl) loadingEl.style.display = 'flex';
+    
+    // Create a physically rotated file
+    const rotatedFile = await createRotatedFile(currentFile, 'right');
+    
+    // Load the new rotated image
+    const { image, imageData } = await loadImageFile(rotatedFile);
+    
+    // Update the file in the batch
+    const updatedBatches = [...batches];
+    updatedBatches[batchIndex].files[fileIndex] = rotatedFile;
+    
+    // First update the image and reset rotation
+    setState({ 
+      batches: updatedBatches,
+      image,
+      imageData,
+      rotation: 0 // Reset rotation state since the image is physically rotated
+    });
+    
+    // Then calculate fit parameters
+    const { zoom, offset } = fitImageWithPadding();
+    
+    // Update zoom and offset to fit the image
+    setState({ zoom, offset });
+    
+    // Update thumbnails to reflect the new image
+    updateThumbnails();
+    
+    // Hide loading indicator
+    if (loadingEl) loadingEl.style.display = 'none';
+  } catch (error) {
+    console.error('Error rotating image:', error);
+    
+    // Hide loading indicator if there was an error
+    const loadingEl = document.querySelector('.loading');
+    if (loadingEl) loadingEl.style.display = 'none';
+  }
 }
 
 /**

@@ -166,4 +166,47 @@
   accent-color: #5a4a5a;
   width: 16px;
   height: 16px;
+}
+
+/* Rotation buttons styling */
+#rotate-left-btn,
+#rotate-right-btn {
+  background: linear-gradient(to bottom, #2f2f3d, #252533);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 5px;
+  border: 1px solid #3d3d4d;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  width: auto;
+  min-width: 140px;
+}
+
+#rotate-left-btn:hover,
+#rotate-right-btn:hover {
+  background: linear-gradient(to bottom, #383848, #2f2f3d);
+}
+
+#rotate-left-btn:active,
+#rotate-right-btn:active {
+  background: linear-gradient(to bottom, #252533, #2f2f3d);
+  transform: translateY(1px);
+}
+
+#rotate-left-btn svg,
+#rotate-right-btn svg {
+  flex-shrink: 0;
+  stroke-width: 1.75;
+}
+
+/* Make the icons match better */
+#rotate-left-btn svg {
+  transform: scale(1.1);
+}
+
+#rotate-right-btn svg {
+  transform: scale(1.1);
 } 

@@ -186,7 +186,7 @@ function createThumbnail(file, batchIndex, fileIndex) {
   item.style.zIndex = (1000 - globalIndex); // Ensure thumbnails on top are given higher priority
   
   item.addEventListener('click', () => selectImage(batchIndex, fileIndex));
-  
+
   // Generate preview
   if (file.type.startsWith('image/') && !/\.tiff?$/.test(file.name.toLowerCase())) {
     imgEl.src = URL.createObjectURL(file);
@@ -203,7 +203,7 @@ function createThumbnail(file, batchIndex, fileIndex) {
   }
   
   return item;
-}
+        }
 
 /**
  * Update the thumbnail panel with all batches and images
@@ -249,25 +249,25 @@ export function updateThumbnails() {
     panelWrapper.style.display = 'block';
     
     // If any images, show the gallery
-    const wasActive = panelWrapper.classList.contains('active');
-    
-    // Only trigger transition if not already active
-    if (!wasActive) {
-      if (!isPanelTransitioning) {
-        isPanelTransitioning = true;
-        
-        // Start panel animation - both panel and container simultaneously
-        panelWrapper.classList.add('active');
-        document.getElementById('container').classList.add('with-thumbnails');
-        
-        // Set up panel transition handler
-        handlePanelTransition();
+      const wasActive = panelWrapper.classList.contains('active');
+      
+      // Only trigger transition if not already active
+      if (!wasActive) {
+        if (!isPanelTransitioning) {
+          isPanelTransitioning = true;
+          
+          // Start panel animation - both panel and container simultaneously
+          panelWrapper.classList.add('active');
+          document.getElementById('container').classList.add('with-thumbnails');
+          
+          // Set up panel transition handler
+          handlePanelTransition();
+        } else {
+          // Panel is already transitioning, just mark that we need a redraw when done
+          pendingRedraw = true;
+        }
       } else {
-        // Panel is already transitioning, just mark that we need a redraw when done
-        pendingRedraw = true;
-      }
-    } else {
-      // Panel already open, just highlight the selection
+        // Panel already open, just highlight the selection
       highlightSelectedThumbnail(selectedImageIndex.batchIndex, selectedImageIndex.fileIndex);
     }
   }
@@ -297,10 +297,10 @@ export async function selectImage(batchIndex, fileIndex, force = false) {
   if (!batch.expanded) {
     toggleBatchExpansion(batchIndex);
   }
-  
+
   // Update the selected index in state - do this early
   setState({ selectedImageIndex: { batchIndex, fileIndex } });
-
+  
   // Update visual highlight
   highlightSelectedThumbnail(batchIndex, fileIndex);
   
@@ -468,28 +468,28 @@ function highlightSelectedThumbnail(batchIndex, fileIndex) {
     
     // Ensure it's visible by scrolling to it
     setTimeout(() => {
-      // Get the current positions using absolute coordinates
-      const containerRect = container.getBoundingClientRect();
-      const itemRect = selectedItem.getBoundingClientRect();
-  
-      const containerScrollTop = container.scrollTop;
-      const containerVisibleHeight = container.clientHeight;
-      
-      // Calculate item's position relative to the scrollable content of the container
-      const itemOffsetTop = selectedItem.offsetTop;
-      const itemHeight = selectedItem.offsetHeight;
-  
-      // Desired visible portion when scrolling
-      const scrollMargin = 12; 
-  
-      // Check if item is above the visible area
-      if (itemOffsetTop < containerScrollTop + scrollMargin) {
-        container.scrollTop = Math.max(0, itemOffsetTop - scrollMargin);
-      } 
-      // Check if item is below the visible area
-      else if (itemOffsetTop + itemHeight > containerScrollTop + containerVisibleHeight - scrollMargin) {
-        container.scrollTop = itemOffsetTop + itemHeight - containerVisibleHeight + scrollMargin;
-      }
+    // Get the current positions using absolute coordinates
+    const containerRect = container.getBoundingClientRect();
+    const itemRect = selectedItem.getBoundingClientRect();
+
+    const containerScrollTop = container.scrollTop;
+    const containerVisibleHeight = container.clientHeight;
+    
+    // Calculate item's position relative to the scrollable content of the container
+    const itemOffsetTop = selectedItem.offsetTop;
+    const itemHeight = selectedItem.offsetHeight;
+
+    // Desired visible portion when scrolling
+    const scrollMargin = 12; 
+
+    // Check if item is above the visible area
+    if (itemOffsetTop < containerScrollTop + scrollMargin) {
+      container.scrollTop = Math.max(0, itemOffsetTop - scrollMargin);
+    } 
+    // Check if item is below the visible area
+    else if (itemOffsetTop + itemHeight > containerScrollTop + containerVisibleHeight - scrollMargin) {
+      container.scrollTop = itemOffsetTop + itemHeight - containerVisibleHeight + scrollMargin;
+    }
     }, 10);
   }
 }

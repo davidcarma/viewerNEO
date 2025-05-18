@@ -8,6 +8,7 @@ import { initZoom } from '../features/zoom-pan/zoomHandlers.js';
 import { initPan } from '../features/zoom-pan/panHandlers.js';
 import { updateInfo } from '../ui/controls/infoPanel.js';
 import { initClipboardPaste } from '../features/clipboard/clipboardPaste.js';
+import { initImageRotation } from '../features/rotation/rotationHandlers.js';
 
 // Basic Phase-1 bootstrap
 console.log('%cViewer bootstrap (Phase 1)', 'color:#00c8ff;font-weight:bold');
@@ -43,6 +44,9 @@ function start() {
   // Phase 5: zoom + pan
   initZoom();
   initPan();
+
+  // Initialize image rotation
+  initImageRotation();
 
   // Clipboard paste
   initClipboardPaste();
