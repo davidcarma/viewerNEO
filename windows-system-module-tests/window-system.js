@@ -95,15 +95,20 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     function toggleMinimize() {
         isMinimizedState = !isMinimizedState;
         windowFrame.classList.toggle('minimized', isMinimizedState);
+        
         if (!isMinimizedState && isMaximizedState) {
-             // If unminimizing and was maximized, re-apply maximized view
-            maximizeWindow(false);
-        } else if (!isMinimizedState) {
-            // If unminimizing and not maximized, restore to original/current size
+            // If unminimizing and was maximized, re-apply maximized view
+            // For now, assume CSS handles visual state correctly with class
+            // but explicitly setting style might be needed if issues arise
+            maximizeWindow(false); // Re-apply maximized dimensions/position
+        } else if (!isMinimizedState && !isMaximizedState) {
+            // If unminimizing and not maximized, ensure restored to originalState size AND POSITION.
+            windowFrame.style.left = `${originalState.x}px`;
+            windowFrame.style.top = `${originalState.y}px`;
             windowFrame.style.width = `${originalState.width}px`;
             windowFrame.style.height = `${originalState.height}px`;
         }
-        if (isMinimizedState) bringToFront(); // Bring to front when minimizing
+        // if (isMinimizedState) bringToFront(); // Optionally bring to front when minimizing
     }
 
     titleBar.ondblclick = () => {
@@ -161,7 +166,7 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     titleBar.addEventListener('mousedown', (e) => {
         if (e.target.closest('button')) return; // Don't drag if clicking a button
         if (isMaximizedState) return; // Don't drag if maximized
-        if (isMinimizedState) return; // Don't drag if minimized and clicked title (it should unminimize)
+        // Allow dragging if minimized: REMOVED: if (isMinimizedState) return;
 
         isDragging = true;
         dragOffsetX = e.clientX - windowFrame.offsetLeft;
