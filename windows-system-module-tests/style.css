@@ -1,0 +1,54 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+    overflow: hidden; /* Prevent scrollbars from appearing due to window movement */
+}
+
+.window-frame {
+    position: absolute;
+    border: 1px solid #333;
+    background-color: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    border-radius: 5px;
+    overflow: hidden; /* Clips content to window bounds */
+    display: flex;
+    flex-direction: column;
+}
+
+.window-title-bar {
+    background-color: #0078d4;
+    color: white;
+    padding: 8px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none; /* Prevent text selection during drag */
+}
+
+.window-title {
+    margin: 0;
+    font-size: 1em;
+    font-weight: bold;
+}
+
+.window-controls button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 0 5px;
+}
+
+.window-controls button:hover {
+    background-color: rgba(255,255,255,0.2);
+}
+
+.window-content {
+    padding: 10px;
+    flex-grow: 1; /* Allows content to fill available space */
+    overflow: auto; /* Add scrollbars if content overflows */
+} 

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Window System Test</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script type="module" src="window-system.js"></script>
+    <script type="module">
+        import { createWindow } from './window-system.js';
+
+        // Example: Create a couple of windows
+        createWindow({ title: 'Window 1', content: '<p>Hello from Window 1!</p>', x: 50, y: 50, width: 300, height: 200 });
+        createWindow({ title: 'Window 2', content: '<div><button onclick="alert(\'Clicked!\')">Click Me</button></div>', x: 150, y: 150, width: 350, height: 250 });
+        createWindow({ title: 'Window 3', content: '<h5>Another one</h5><textarea>Some text here</textarea>', x: 250, y: 250, width: 200, height: 150 });
+    </script>
+</body>
+</html> 
