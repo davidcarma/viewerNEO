@@ -141,6 +141,19 @@
         document.getElementById('addSpreadsheetButton').addEventListener('click', createSpreadsheetWindow);
         createSpreadsheetWindow(); // Create one initially
 
+        // Create a window with iframe content
+        const iframePageUrl = 'iframe.html'; // Relative path to the new HTML file
+        const iframeContent = `<iframe src="${iframePageUrl}" style="width:100%; height:100%; border:none; background-color: #fff;"></iframe>`;
+
+        createWindow({
+            title: 'Iframe Window',
+            content: iframeContent,
+            x: 600,
+            y: 100,
+            width: 450,
+            height: 350
+        });
+
         const notificationArea = document.getElementById('notificationArea');
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
