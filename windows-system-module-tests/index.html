@@ -7,14 +7,157 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <script type="module" src="window-system.js"></script>
-    <script type="module">
-        import { createWindow } from './window-system.js';
+    <div class="controls-bar">
+        <button id="saveLayoutButton">Save Layout</button>
+        <button id="loadLayoutButton">Load Layout</button>
+        <button id="addSpreadsheetButton" style="margin-left: 20px;">Add Spreadsheet Window</button>
+    </div>
+    <div id="notificationArea"></div>
 
-        // Example: Create a couple of windows
-        createWindow({ title: 'Window 1', content: '<p>Hello from Window 1!</p>', x: 50, y: 50, width: 300, height: 200 });
-        createWindow({ title: 'Window 2', content: '<div><button onclick="alert(\'Clicked!\')">Click Me</button></div>', x: 150, y: 150, width: 350, height: 250 });
-        createWindow({ title: 'Window 3', content: '<h5>Another one</h5><textarea>Some text here</textarea>', x: 250, y: 250, width: 200, height: 150 });
+    <script type="module">
+        import { createWindow, getAllWindowStates, getWindows, removeAllWindows } from './window-system.js';
+
+        // Initial Windows
+        createWindow({ title: 'Window 1', content: '<p>Hello from Window 1!</p><p>You can drag, resize, minimize, maximize, and close this window.</p>', x: 50, y: 50, width: 320, height: 220 });
+        createWindow({ title: 'Window 2', content: '<div><button onclick="alert(\'Button in Window 2 Clicked!\')">Click Me</button><br><br>Some more content to make this window potentially scrollable if small.</div>', x: 150, y: 150, width: 350, height: 180 });
+        createWindow({ title: 'Window 3', content: '<h5>Rich Content</h5><textarea style="width: 95%; height: 60px;">Text area for notes...</textarea><p>Another paragraph.</p>', x: 250, y: 280, width: 280, height: 200 });
+
+        const createSpreadsheetWindow = () => {
+            const tableContent = `
+                <table class="spreadsheet-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>A101</td>
+                            <td>Widget Blue</td>
+                            <td class="number-cell">150</td>
+                            <td class="number-cell">12.50</td>
+                            <td class="number-cell">1,875.00</td>
+                        </tr>
+                        <tr>
+                            <td>B202</td>
+                            <td>Gadget Green</td>
+                            <td class="number-cell">75</td>
+                            <td class="number-cell">25.00</td>
+                            <td class="number-cell">1,875.00</td>
+                        </tr>
+                        <tr>
+                            <td>C303</td>
+                            <td>Thingamajig Red</td>
+                            <td class="number-cell">200</td>
+                            <td class="number-cell">8.75</td>
+                            <td class="number-cell">1,750.00</td>
+                        </tr>
+                        <tr>
+                            <td>D404</td>
+                            <td>Doohickey Yellow</td>
+                            <td class="number-cell">300</td>
+                            <td class="number-cell">5.25</td>
+                            <td class="number-cell">1,575.00</td>
+                        </tr>
+                         <tr>
+                            <td>E505</td>
+                            <td>Contraption Black</td>
+                            <td class="number-cell">50</td>
+                            <td class="number-cell">45.99</td>
+                            <td class="number-cell">2,299.50</td>
+                        </tr>
+                        <tr>
+                            <td>F606</td>
+                            <td>Device White</td>
+                            <td class="number-cell">120</td>
+                            <td class="number-cell">18.00</td>
+                            <td class="number-cell">2,160.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+            createWindow({ 
+                title: 'Data Sheet ' + (getWindows().filter(w => w.title.startsWith('Data Sheet')).length + 1),
+                content: tableContent, 
+                x: Math.random() * 200 + 300, 
+                y: Math.random() * 100 + 50, 
+                width: 580, 
+                height: 320 
+            });
+        };
+
+        document.getElementById('addSpreadsheetButton').addEventListener('click', createSpreadsheetWindow);
+        createSpreadsheetWindow(); // Create one initially
+
+        const notificationArea = document.getElementById('notificationArea');
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            notificationArea.appendChild(notification);
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 500);
+            }, 3000);
+        }
+
+        document.getElementById('saveLayoutButton').addEventListener('click', () => {
+            const layout = getAllWindowStates();
+            localStorage.setItem('windowLayout', JSON.stringify(layout));
+            showNotification('Layout saved!', 'success');
+        });
+
+        document.getElementById('loadLayoutButton').addEventListener('click', () => {
+            const savedLayoutJSON = localStorage.getItem('windowLayout');
+            if (!savedLayoutJSON) {
+                showNotification('No saved layout found.', 'warn');
+                return;
+            }
+            try {
+                const savedLayout = JSON.parse(savedLayoutJSON);
+                const currentWindows = getWindows(); // Get all current window instances
+
+                // Optionally, clear existing windows first if you want a full restore
+                // removeAllWindows(); 
+                // then recreate them using createWindow(savedWinState) for each savedWinState
+                // For now, we update existing if title matches, as per original request
+
+                let foundCount = 0;
+                let notFoundMessages = [];
+
+                savedLayout.forEach(savedWinState => {
+                    const targetWindow = currentWindows.find(w => w.title === savedWinState.title);
+                    if (targetWindow) {
+                        targetWindow.applyState(savedWinState);
+                        foundCount++;
+                    } else {
+                        notFoundMessages.push(savedWinState.title);
+                    }
+                });
+
+                if (foundCount > 0) {
+                     showNotification(`Loaded state for ${foundCount} window(s).`, 'success');
+                }
+                if (notFoundMessages.length > 0) {
+                    showNotification(`Could not find window(s) to load state for: ${notFoundMessages.join(', ')}.`, 'error');
+                }
+                 if (foundCount === 0 && notFoundMessages.length === 0 && savedLayout.length > 0) {
+                    showNotification('Saved layout data is present, but no matching windows found to apply state.', 'warn');
+                } else if (savedLayout.length === 0) {
+                    showNotification('Saved layout is empty.', 'info');
+                }
+
+
+            } catch (error) {
+                showNotification('Failed to load layout. Data might be corrupted.', 'error');
+                console.error("Error loading layout:", error);
+            }
+        });
+
     </script>
 </body>
 </html> 
