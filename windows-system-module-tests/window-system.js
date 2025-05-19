@@ -76,6 +76,15 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     contentArea.className = 'window-content';
     contentArea.innerHTML = content;
 
+    const iframeShield = document.createElement('div');
+    iframeShield.className = 'iframe-shield';
+    contentArea.style.position = 'relative';
+    iframeShield.style.top = '0';
+    iframeShield.style.left = '0';
+    iframeShield.style.width = '100%';
+    iframeShield.style.height = '100%';
+    contentArea.appendChild(iframeShield);
+
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'resize-handle';
 
@@ -170,13 +179,13 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     let dragOffsetX, dragOffsetY;
 
     titleBar.addEventListener('mousedown', (e) => {
-        if (e.target.closest('button')) return; // Don't drag if clicking a button
-        if (isMaximizedState) return; // Don't drag if maximized
-        // Allow dragging if minimized: REMOVED: if (isMinimizedState) return;
+        if (e.target.closest('button')) return; 
+        if (isMaximizedState) return; 
 
         isDragging = true;
         dragOffsetX = e.clientX - windowFrame.offsetLeft;
         dragOffsetY = e.clientY - windowFrame.offsetTop;
+        iframeShield.style.display = 'block'; // Show shield
         bringToFront();
         e.preventDefault();
     });
@@ -194,6 +203,7 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
         initialHeight = windowFrame.offsetHeight;
         originalState.width = initialWidth;
         originalState.height = initialHeight;
+        iframeShield.style.display = 'block'; // Show shield
         bringToFront();
         e.preventDefault();
         e.stopPropagation();
@@ -234,6 +244,9 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     });
 
     document.addEventListener('mouseup', () => {
+        if (isDragging || isResizing) {
+            iframeShield.style.display = 'none'; // Hide shield
+        }
         isDragging = false;
         isResizing = false;
     });
