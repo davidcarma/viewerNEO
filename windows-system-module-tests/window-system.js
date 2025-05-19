@@ -1,5 +1,11 @@
 let highestZIndex = 0;
 const windows = []; // Keep track of windows for z-ordering and state
+let topBarOffset = 0; // Offset for a fixed bar at the top of the page
+
+// Function to allow the main page to set the top bar offset
+export function setTopBarOffset(offset) {
+    topBarOffset = offset;
+}
 
 const closeSVG = `<svg viewBox="0 0 12 12"><path d="M2.22 2.22L9.78 9.78M9.78 2.22L2.22 9.78" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 const minimizeSVG = `<svg viewBox="0 0 12 12"><path d="M2 6L10 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
@@ -120,7 +126,7 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     };
 
     function maximizeWindow(saveCurrentState = true) {
-        if (saveCurrentState) {
+        if (saveCurrentState && !isMaximizedState) { // Only save if not already maximized
             originalState = {
                 x: windowFrame.offsetLeft,
                 y: windowFrame.offsetTop,
@@ -129,9 +135,9 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
             };
         }
         windowFrame.style.left = '0px';
-        windowFrame.style.top = '0px';
+        windowFrame.style.top = `${topBarOffset}px`; // Use the offset
         windowFrame.style.width = `${window.innerWidth}px`;
-        windowFrame.style.height = `${window.innerHeight}px`;
+        windowFrame.style.height = `${window.innerHeight - topBarOffset}px`; // Adjust height
         isMaximizedState = true;
         maximizeButton.innerHTML = restoreSVG;
         maximizeButton.title = 'Restore';
