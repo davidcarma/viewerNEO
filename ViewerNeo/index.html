@@ -102,6 +102,8 @@
         }
     </style>
     <script type="module" src="thumbnail-pane.js"></script>
+    <!-- Add the window system CSS -->
+    <link rel="stylesheet" href="../WindowsManager/style.css">
 </head>
 <body>
     <div id="top-function-bar">
@@ -306,6 +308,97 @@
                 { name: 'archive.zip', type: 'application/zip' } ]}
         ]);
 
+    </script>
+    <script type="module">
+        import { createWindow, setTopBarOffset } from '../WindowsManager/window-system.js';
+
+        // Set the top bar offset for the window manager
+        const topFunctionBar = document.getElementById('top-function-bar');
+        if (topFunctionBar) {
+            setTopBarOffset(topFunctionBar.offsetHeight);
+        }
+
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvasElement = document.getElementById('centered-canvas');
+            
+            if (canvasElement) {
+                // Get canvas dimensions and position
+                const canvasRect = canvasElement.getBoundingClientRect();
+                
+                // Create a canvasClone with the same ID and attributes
+                const canvasClone = document.createElement('canvas');
+                canvasClone.id = 'centered-canvas';
+                canvasClone.width = canvasElement.width;
+                canvasClone.height = canvasElement.height;
+                canvasClone.style.position = 'static'; // Reset the positioning within the window
+                canvasClone.style.transform = 'none'; // Remove the transform
+                canvasClone.style.border = canvasElement.style.border;
+                canvasClone.style.boxShadow = canvasElement.style.boxShadow;
+                canvasClone.style.backgroundColor = canvasElement.style.backgroundColor;
+                
+                // Create the window at the same position as the original canvas
+                createWindow({
+                    id: 'canvas-window',
+                    title: 'Canvas',
+                    content: canvasClone.outerHTML,
+                    x: canvasRect.left,
+                    y: canvasRect.top,
+                    width: canvasElement.offsetWidth + 20, // Add some padding
+                    height: canvasElement.offsetHeight + 50 // Add space for the window title bar
+                });
+                
+                // Remove the original canvas
+                canvasElement.remove();
+                
+                // Find the new canvas element in the window
+                setTimeout(() => {
+                    const newCanvas = document.getElementById('centered-canvas');
+                    const mainContent = document.getElementById('main-content');
+                    
+                    if (newCanvas) {
+                        // Make the canvas variables in the main script point to this new canvas
+                        window.canvasElement = newCanvas;
+                        window.canvasContext = newCanvas.getContext('2d');
+                        
+                        // Dispatch a custom event to notify the main script that the canvas has been replaced
+                        const event = new CustomEvent('canvas-replaced', {
+                            detail: {
+                                newCanvas: newCanvas,
+                                newContext: newCanvas.getContext('2d')
+                            }
+                        });
+                        document.dispatchEvent(event);
+                        
+                        console.log('Canvas has been moved to a window. Drawing functions can use the global canvasElement and canvasContext variables.');
+                    } else {
+                        console.error('New canvas element not found after creating window.');
+                    }
+                }, 100); // Short delay to ensure the DOM has updated
+            } else {
+                console.error('Original canvas element not found.');
+            }
+        });
+        
+        // Listen for the canvas-replaced event
+        document.addEventListener('canvas-replaced', (event) => {
+            const { newCanvas, newContext } = event.detail;
+            
+            // Update the canvas and ctx references used by the main script
+            window.canvas = newCanvas;
+            window.ctx = newContext;
+            
+            // Draw the initial message on the new canvas
+            if (newContext) {
+                newContext.clearRect(0, 0, newCanvas.width, newCanvas.height);
+                newContext.fillStyle = 'rgba(238, 238, 238, 0.7)';
+                newContext.textAlign = 'center';
+                newContext.textBaseline = 'middle';
+                const fontSize = Math.min(newCanvas.width / 20, newCanvas.height / 10, 16);
+                newContext.font = `${fontSize}px sans-serif`;
+                newContext.fillText("Select an image from the panel.", newCanvas.width / 2, newCanvas.height / 2);
+            }
+        });
     </script>
 </body>
 </html> 
