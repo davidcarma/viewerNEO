@@ -149,9 +149,9 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
                 height: windowFrame.offsetHeight,
             };
         }
-        windowFrame.style.left = '0px';
-        windowFrame.style.top = `${topBarOffset}px`; // Use the offset
-        windowFrame.style.width = `${window.innerWidth}px`;
+        windowFrame.style.left = `${leftBoundary}px`; // Use left boundary
+        windowFrame.style.top = `${topBarOffset}px`; // Use the top offset
+        windowFrame.style.width = `${window.innerWidth - leftBoundary}px`; // Adjust width
         windowFrame.style.height = `${window.innerHeight - topBarOffset}px`; // Adjust height
         isMaximizedState = true;
         maximizeButton.innerHTML = restoreSVG;
@@ -219,7 +219,8 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
         if (isDragging) {
             let newX = e.clientX - dragOffsetX;
             let newY = e.clientY - dragOffsetY;
-            newX = Math.max(0, Math.min(newX, window.innerWidth - windowFrame.offsetWidth));
+            // Use leftBoundary instead of 0 for the minimum X position
+            newX = Math.max(leftBoundary, Math.min(newX, window.innerWidth - windowFrame.offsetWidth));
             newY = Math.max(0, Math.min(newY, window.innerHeight - windowFrame.offsetHeight));
             windowFrame.style.left = `${newX}px`;
             windowFrame.style.top = `${newY}px`;

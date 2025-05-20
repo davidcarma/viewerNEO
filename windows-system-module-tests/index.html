@@ -4,7 +4,110 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Window System Test</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../WindowsManager/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #2a2a2a;
+            color: #eee;
+            overflow: hidden;
+        }
+        
+        .controls-bar {
+            background-color: #1a1a1a;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            z-index: 1000;
+            border-bottom: 1px solid #333;
+        }
+        
+        .controls-bar button {
+            background-color: #4a4a4a;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 8px 12px;
+            margin-right: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .controls-bar button:hover {
+            background-color: #5a5a5a;
+        }
+        
+        #notificationArea {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            width: 300px;
+            z-index: 10000;
+        }
+        
+        .notification {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+        
+        .notification.info {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .notification.success {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .notification.warn {
+            background-color: #FF9800;
+            color: white;
+        }
+        
+        .notification.error {
+            background-color: #F44336;
+            color: white;
+        }
+        
+        .spreadsheet-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        .spreadsheet-table th, .spreadsheet-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .spreadsheet-table th {
+            background-color: #f2f2f2;
+            color: #333;
+            position: sticky;
+            top: 0;
+        }
+        
+        .spreadsheet-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .spreadsheet-table tr:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .spreadsheet-table .number-cell {
+            text-align: right;
+        }
+    </style>
 </head>
 <body>
     <div class="controls-bar">
@@ -15,13 +118,16 @@
     <div id="notificationArea"></div>
 
     <script type="module">
-        import { createWindow, getAllWindowStates, getWindows, removeAllWindows, setTopBarOffset } from './window-system.js';
+        import { createWindow, getAllWindowStates, getWindows, removeAllWindows, setTopBarOffset, setLeftBoundary } from '../WindowsManager/window-system.js';
 
         // Set the top bar offset for the window manager
         const controlsBar = document.querySelector('.controls-bar');
         if (controlsBar) {
             setTopBarOffset(controlsBar.offsetHeight);
         }
+        
+        // Set left boundary to 0 since there's no sidebar in this test
+        setLeftBoundary(0);
 
         // Initial Windows
         createWindow({ title: 'Window 1', content: '<p>Hello from Window 1!</p><p>You can drag, resize, minimize, maximize, and close this window.</p>', x: 50, y: 50, width: 320, height: 220 });
