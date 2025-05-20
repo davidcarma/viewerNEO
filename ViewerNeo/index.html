@@ -3,24 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ViewerNeo</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="window-manager/window-system-styles.css">
+    <title>ViewerNeo Project</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #222;
+            color: #eee;
+            display: flex;
+            flex-direction: column; /* Top bar on top, content below */
+            height: 100vh;
+            overflow: hidden; /* Prevent body scrollbars */
+        }
+
+        #top-function-bar {
+            background-color: hotpink; /* DEBUG: Loud background */
+            padding: 10px;
+            border-bottom: 2px solid black; /* DEBUG: Clear border */
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0; /* Prevent shrinking */
+            z-index: 1000; /* Ensure it's on top */
+            height: 60px; /* DEBUG: Fixed height */
+            box-sizing: border-box; /* Ensure padding/border are within the height */
+        }
+
+        #top-function-bar h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        #top-function-bar #placeholder-buttons button {
+            background-color: #555;
+            color: #fff;
+            border: 1px solid #777;
+            padding: 5px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+        #top-function-bar #placeholder-buttons button:hover {
+            background-color: #777;
+        }
+
+        #content-below-topbar {
+            display: flex; /* Side-by-side for thumbnail-pane and main-content */
+            flex-grow: 1; /* Take remaining vertical space */
+            overflow: hidden; /* Prevent its own scrollbars, children will scroll */
+            background-color: lightblue; /* DEBUG: Loud background */
+        }
+
+        /* thumbnail-pane will have its own width defined by its JS (defaults to 160px when open) */
+        /* It will control its own visibility and sliding */
+
+        #main-content {
+            flex-grow: 1;
+            padding: 20px;
+            background-color: #333;
+            transition: margin-left 0.25s ease; /* Match panel animation */
+            height: 100%; /* Fill the height of #content-below-topbar */
+            box-sizing: border-box;
+            overflow-y: auto;
+            position: relative; /* For canvas positioning */
+        }
+        
+        /* Style for when the panel is active (body class set by panel's events) */
+        body.thumbnail-panel-active #main-content {
+            /* margin-left will be set by JS */
+        }
+
+        #toggle-panel-btn { /* This button is inside main-content */
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #toggle-panel-btn:hover {
+            background-color: #45a049;
+        }
+
+        #centered-canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid #00ffff; /* Neon blue */
+            box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff; /* Neon glow effect */
+            background-color: rgba(0,0,0,0.1);
+        }
+    </style>
+    <script type="module" src="thumbnail-pane.js"></script>
 </head>
 <body>
-    <div id="top-bar">
-        <!-- Buttons will be populated by JS or defined here -->
+    <div id="top-function-bar">
+        <h3>ViewerNeo</h3>
+        <div id="placeholder-buttons">
+            <button onclick="placeholderFunc1()">1</button>
+            <button onclick="placeholderFunc2()">2</button>
+            <button onclick="placeholderFunc3()">3</button>
+            <button onclick="placeholderFunc4()">4</button>
+            <button onclick="placeholderFunc5()">5</button>
+            <button onclick="placeholderFunc6()">6</button>
+            <button onclick="placeholderFunc7()">7</button>
+            <button onclick="placeholderFunc8()">8</button>
+            <button onclick="placeholderFunc9()">9</button>
+            <button onclick="placeholderFunc10()">10</button>
+        </div>
     </div>
 
-    <div id="app-container">
-        <div id="thumbnail-gallery-container">
-            <!-- Thumbnail Gallery will be loaded here -->
-        </div>
-        <div id="window-manager-container">
-            <!-- Window Manager will operate here -->
+    <div id="content-below-topbar">
+        <thumbnail-pane id="my-thumbnail-panel" opened></thumbnail-pane>
+        <div id="main-content">
+            <button id="toggle-panel-btn">Toggle Panel</button>
+            <h1>Main Content Area</h1>
+            <canvas id="centered-canvas"></canvas>
         </div>
     </div>
 
-    <script type="module" src="main.js"></script>
+    <script type="module">
+        // Define placeholder functions globally
+        for (let i = 1; i <= 10; i++) {
+            window[`placeholderFunc${i}`] = () => {
+                console.log(`Placeholder Function ${i} called`);
+                // Example: alert(`Button ${i} clicked!`);
+            };
+        }
+
+        const panel = document.getElementById('my-thumbnail-panel');
+        const mainContent = document.getElementById('main-content');
+        const toggleButton = document.getElementById('toggle-panel-btn');
+        const canvas = document.getElementById('centered-canvas');
+        let ctx = canvas.getContext('2d');
+
+        // MOCK_IMAGE_WIDTH and MOCK_IMAGE_HEIGHT are used by canvas drawing logic below
+        const MOCK_IMAGE_WIDTH = 800;
+        const MOCK_IMAGE_HEIGHT = 600;
+
+        function resizeAndPositionCanvas() {
+            if (!canvas || !mainContent) return;
+            const mainContentWidth = mainContent.clientWidth;
+            const mainContentHeight = mainContent.clientHeight;
+            const largerParentDim = Math.max(mainContentWidth, mainContentHeight);
+            const canvasSideLength = largerParentDim * 0.22;
+            canvas.style.width = canvasSideLength + 'px';
+            canvas.style.height = canvasSideLength + 'px';
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            if (ctx) {
+                clearCanvasAndDrawMessage("Canvas resized. Select an image.");
+            }
+        }
+
+        panel.addEventListener('panel-opened', () => {
+            document.body.classList.add('thumbnail-panel-active');
+            mainContent.style.marginLeft = panel.getCurrentWidth() + 'px';
+            toggleButton.textContent = 'Close Panel';
+            resizeAndPositionCanvas();
+        });
+
+        panel.addEventListener('panel-closed', () => {
+            document.body.classList.remove('thumbnail-panel-active');
+            mainContent.style.marginLeft = '0px';
+            toggleButton.textContent = 'Open Panel';
+            resizeAndPositionCanvas();
+        });
+
+        toggleButton.addEventListener('click', () => {
+            panel.togglePanel();
+        });
+
+        // Initial state sync for the button text if panel is pre-opened
+        // This relies on `panel.getCurrentWidth()` and `panel._isPanelActive` or similar internal checks
+        // which should exist in the restored thumbnail-pane.js
+        function syncPanelState() {
+            // The restored thumbnail-pane.js fires 'panel-opened' on init if `opened` attribute is present.
+            // So, the event listener above should handle the initial state.
+            // If not, we might need a slight delay or a more direct check.
+            // For now, let's assume the event fires.
+            // If the panel starts 'opened', the 'panel-opened' event will set the correct text.
+            // If it somehow doesn't fire or state is not active, set to 'Open Panel'.
+            if (document.body.classList.contains('thumbnail-panel-active')) {
+                 toggleButton.textContent = 'Close Panel';
+            } else {
+                 toggleButton.textContent = 'Open Panel';
+            }
+        }
+        
+        // Call sync after a brief delay to allow component to initialize and fire events
+        setTimeout(syncPanelState, 100);
+
+
+        // Initial canvas sizing & message
+        setTimeout(() => {
+            resizeAndPositionCanvas();
+            clearCanvasAndDrawMessage("Select an image from the panel.");
+        }, 0);
+        window.addEventListener('resize', resizeAndPositionCanvas);
+
+        function clearCanvasAndDrawMessage(message) {
+            if (!ctx || !canvas) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (message) {
+                ctx.fillStyle = 'rgba(238, 238, 238, 0.7)';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const fontSize = Math.min(canvas.width / 20, canvas.height / 10, 16);
+                ctx.font = `${fontSize}px sans-serif`;
+                ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        panel.addEventListener('thumbnail-selected', (event) => {
+            console.log('Received thumbnail-selected. Event detail:', event.detail);
+            if (!ctx || !canvas) {
+                console.error('Canvas or context not available for drawing.');
+                return;
+            }
+            let itemName, itemType;
+            if (event.detail && event.detail.file && 
+                typeof event.detail.file.name === 'string' && 
+                typeof event.detail.file.type === 'string') {
+                itemName = event.detail.file.name;
+                itemType = event.detail.file.type;
+            } else {
+                clearCanvasAndDrawMessage("Error: Incomplete item data.");
+                return;
+            }
+            clearCanvasAndDrawMessage(null);
+            if (itemType.startsWith('image/')) {
+                const fileData = event.detail.file.data;
+                if (fileData instanceof File) {
+                    const image = new Image();
+                    const imageUrl = URL.createObjectURL(fileData);
+                    image.onload = () => {
+                        const canvasWidth = canvas.width;
+                        const canvasHeight = canvas.height;
+                        const imgNaturalWidth = image.naturalWidth;
+                        const imgNaturalHeight = image.naturalHeight;
+                        const scale = Math.min(canvasWidth / imgNaturalWidth, canvasHeight / imgNaturalHeight, 1);
+                        const drawnWidth = imgNaturalWidth * scale;
+                        const drawnHeight = imgNaturalHeight * scale;
+                        const dx = (canvasWidth - drawnWidth) / 2;
+                        const dy = (canvasHeight - drawnHeight) / 2;
+                        ctx.drawImage(image, dx, dy, drawnWidth, drawnHeight);
+                        URL.revokeObjectURL(imageUrl);
+                    };
+                    image.onerror = () => {
+                        clearCanvasAndDrawMessage(`Error loading: ${itemName}`);
+                        URL.revokeObjectURL(imageUrl);
+                    };
+                    image.src = imageUrl;
+                } else { // Fallback for non-File image data
+                    const drawnWidth = MOCK_IMAGE_WIDTH * 0.2; // Example placeholder size
+                    const drawnHeight = MOCK_IMAGE_HEIGHT * 0.2;
+                    const dx = (canvas.width - drawnWidth) / 2;
+                    const dy = (canvas.height - drawnHeight) / 2;
+                    ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+                    ctx.fillRect(dx, dy, drawnWidth, drawnHeight);
+                    ctx.fillStyle = '#eee';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = `12px sans-serif`;
+                    ctx.fillText(itemName, canvas.width / 2, canvas.height / 2);
+                }
+            } else {
+                clearCanvasAndDrawMessage(`Preview not available for: ${itemName} (${itemType})`);
+            }
+        });
+
+        document.addEventListener('paste', async (event) => {
+            const items = event.clipboardData?.items;
+            if (!items) return;
+            const imageFiles = [];
+            for (const item of items) {
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) imageFiles.push(file);
+                }
+            }
+            if (imageFiles.length > 0) {
+                event.preventDefault();
+                panel.createNewBatch(imageFiles, { title: "Pasted Images" });
+            }
+        });
+
+        // Example data (can be removed if not needed for initial view)
+        panel.setData([
+            { id: 'batch1', title: 'Batch 001 - Initial Files', expanded: true, files: [
+                { name: 'image1.jpg', type: 'image/jpeg', data: 'https://via.placeholder.com/130x80.png?text=Image1.jpg' },
+                { name: 'report.pdf', type: 'application/pdf' } ]},
+            { id: 'batch2', title: 'Batch 002 - More Images', expanded: false, files: [
+                { name: 'photo_long_name.png', type: 'image/png', data: 'https://via.placeholder.com/130x80.png?text=LongName.png' },
+                { name: 'archive.zip', type: 'application/zip' } ]}
+        ]);
+
+    </script>
 </body>
 </html> 
