@@ -213,6 +213,11 @@
             document.querySelector('.thumbnail-panel-placeholder').style.width = `${panelWidth}px`;
             toggleButton.textContent = 'Close Panel';
             resizeAndPositionCanvas();
+            
+            // Update the left boundary for the window manager
+            import('../WindowsManager/window-system.js').then(module => {
+                module.setLeftBoundary(panelWidth);
+            });
         });
 
         panel.addEventListener('panel-closed', () => {
@@ -220,6 +225,11 @@
             document.querySelector('.thumbnail-panel-placeholder').style.width = '0';
             toggleButton.textContent = 'Open Panel';
             resizeAndPositionCanvas();
+            
+            // Update the left boundary for the window manager
+            import('../WindowsManager/window-system.js').then(module => {
+                module.setLeftBoundary(0);
+            });
         });
 
         toggleButton.addEventListener('click', () => {
@@ -483,12 +493,23 @@
 
     </script>
     <script type="module">
-        import { createWindow, setTopBarOffset } from '../WindowsManager/window-system.js';
+        import { createWindow, setTopBarOffset, setLeftBoundary } from '../WindowsManager/window-system.js';
 
         // Set the top bar offset for the window manager
         const topFunctionBar = document.getElementById('top-function-bar');
         if (topFunctionBar) {
             setTopBarOffset(topFunctionBar.offsetHeight);
+        }
+        
+        // Initialize left boundary to 0 or panel width depending on initial state
+        const thumbnailPanel = document.getElementById('my-thumbnail-panel');
+        if (thumbnailPanel && thumbnailPanel.hasAttribute('opened') && thumbnailPanel.getAttribute('opened') !== 'false') {
+            // Add a small delay to ensure the component has initialized
+            setTimeout(() => {
+                setLeftBoundary(thumbnailPanel.getCurrentWidth());
+            }, 100);
+        } else {
+            setLeftBoundary(0);
         }
 
         // Wait for DOM to be fully loaded

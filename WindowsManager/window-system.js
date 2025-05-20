@@ -1,10 +1,16 @@
 let highestZIndex = 0;
 const windows = []; // Keep track of windows for z-ordering and state
 let topBarOffset = 0; // Offset for a fixed bar at the top of the page
+let leftBoundary = 0; // Offset for sidebar or other left elements
 
 // Function to allow the main page to set the top bar offset
 export function setTopBarOffset(offset) {
     topBarOffset = offset;
+}
+
+// Function to set the left boundary for windows
+export function setLeftBoundary(offset) {
+    leftBoundary = offset;
 }
 
 const closeSVG = `<svg viewBox="0 0 12 12"><path d="M2.22 2.22L9.78 9.78M9.78 2.22L2.22 9.78" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;

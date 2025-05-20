@@ -1,10 +1,16 @@
 let highestZIndex = 0;
 const windows = []; // Keep track of windows for z-ordering and state
 let topBarOffset = 0; // Offset for a fixed bar at the top of the page
+let leftBoundary = 0; // Offset for sidebar or other left elements
 
 // Function to allow the main page to set the top bar offset
 export function setTopBarOffset(offset) {
     topBarOffset = offset;
+}
+
+// Function to set the left boundary for windows
+export function setLeftBoundary(offset) {
+    leftBoundary = offset;
 }
 
 const closeSVG = `<svg viewBox="0 0 12 12"><path d="M2.22 2.22L9.78 9.78M9.78 2.22L2.22 9.78" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
@@ -143,9 +149,9 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
                 height: windowFrame.offsetHeight,
             };
         }
-        windowFrame.style.left = '0px';
-        windowFrame.style.top = `${topBarOffset}px`; // Use the offset
-        windowFrame.style.width = `${window.innerWidth}px`;
+        windowFrame.style.left = `${leftBoundary}px`; // Use left boundary
+        windowFrame.style.top = `${topBarOffset}px`; // Use the top offset
+        windowFrame.style.width = `${window.innerWidth - leftBoundary}px`; // Adjust width
         windowFrame.style.height = `${window.innerHeight - topBarOffset}px`; // Adjust height
         isMaximizedState = true;
         maximizeButton.innerHTML = restoreSVG;
@@ -213,7 +219,8 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
         if (isDragging) {
             let newX = e.clientX - dragOffsetX;
             let newY = e.clientY - dragOffsetY;
-            newX = Math.max(0, Math.min(newX, window.innerWidth - windowFrame.offsetWidth));
+            // Use leftBoundary instead of 0 for the minimum X position
+            newX = Math.max(leftBoundary, Math.min(newX, window.innerWidth - windowFrame.offsetWidth));
             newY = Math.max(0, Math.min(newY, window.innerHeight - windowFrame.offsetHeight));
             windowFrame.style.left = `${newX}px`;
             windowFrame.style.top = `${newY}px`;
