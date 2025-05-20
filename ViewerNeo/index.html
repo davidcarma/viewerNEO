@@ -17,42 +17,46 @@
         }
 
         #top-function-bar {
-            background-color: hotpink; /* DEBUG: Loud background */
-            padding: 10px;
-            border-bottom: 2px solid black; /* DEBUG: Clear border */
+            background-color: #1a1a1a; /* Standard dark background */
+            padding: 10px 15px; /* Adjusted padding */
+            border-bottom: 1px solid #333; /* Subtle border */
             display: flex;
             align-items: center;
             justify-content: space-between;
-            flex-shrink: 0; /* Prevent shrinking */
-            z-index: 1000; /* Ensure it's on top */
-            height: 60px; /* DEBUG: Fixed height */
-            box-sizing: border-box; /* Ensure padding/border are within the height */
+            flex-shrink: 0; 
+            z-index: 1000; 
+            height: auto; /* Let content define height */
+            box-sizing: border-box; 
         }
 
         #top-function-bar h3 {
             margin: 0;
-            font-size: 16px;
+            font-size: 18px; /* Slightly larger title */
             font-weight: 500;
+            color: #eee; /* Light text color */
         }
 
         #top-function-bar #placeholder-buttons button {
-            background-color: #555;
-            color: #fff;
-            border: 1px solid #777;
-            padding: 5px 8px;
+            background-color: #383838; /* Darker button */
+            color: #ddd; /* Light text */
+            border: 1px solid #555; /* Subtle border */
+            padding: 6px 10px; /* Adjusted padding */
             cursor: pointer;
-            border-radius: 3px;
-            margin-left: 5px;
+            border-radius: 4px; /* Rounded corners */
+            margin-left: 8px; /* Spacing between buttons */
+            font-size: 13px;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
         }
         #top-function-bar #placeholder-buttons button:hover {
-            background-color: #777;
+            background-color: #4a4a4a; /* Lighter on hover */
+            border-color: #666;
         }
 
         #content-below-topbar {
-            display: flex; /* Side-by-side for thumbnail-pane and main-content */
-            flex-grow: 1; /* Take remaining vertical space */
-            overflow: hidden; /* Prevent its own scrollbars, children will scroll */
-            background-color: lightblue; /* DEBUG: Loud background */
+            display: flex; 
+            flex-grow: 1; 
+            overflow: hidden; 
+            /* background-color: lightblue; REMOVED DEBUG */
         }
 
         /* thumbnail-pane will have its own width defined by its JS (defaults to 160px when open) */
