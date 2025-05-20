@@ -158,6 +158,17 @@
         // MOCK_IMAGE_WIDTH and MOCK_IMAGE_HEIGHT are used by canvas drawing logic below
         const MOCK_IMAGE_WIDTH = 800;
         const MOCK_IMAGE_HEIGHT = 600;
+        
+        // Set initial margin if panel has 'opened' attribute
+        // This ensures main content slides properly on initial load
+        if (panel.hasAttribute('opened') && panel.getAttribute('opened') !== 'false') {
+            // Add a very small delay to ensure the component has initialized
+            setTimeout(() => {
+                document.body.classList.add('thumbnail-panel-active');
+                mainContent.style.marginLeft = panel.getCurrentWidth() + 'px';
+                toggleButton.textContent = 'Close Panel';
+            }, 10);
+        }
 
         function resizeAndPositionCanvas() {
             if (!canvas || !mainContent) return;
@@ -202,15 +213,26 @@
             // For now, let's assume the event fires.
             // If the panel starts 'opened', the 'panel-opened' event will set the correct text.
             // If it somehow doesn't fire or state is not active, set to 'Open Panel'.
-            if (document.body.classList.contains('thumbnail-panel-active')) {
+            if (document.body.classList.contains('thumbnail-panel-active') || 
+                (panel.hasAttribute('opened') && panel.getAttribute('opened') !== 'false')) {
+                 document.body.classList.add('thumbnail-panel-active');
                  toggleButton.textContent = 'Close Panel';
+                 // Ensure the margin is properly set
+                 if (panel.getCurrentWidth && typeof panel.getCurrentWidth === 'function') {
+                     mainContent.style.marginLeft = panel.getCurrentWidth() + 'px';
+                 }
             } else {
+                 document.body.classList.remove('thumbnail-panel-active');
                  toggleButton.textContent = 'Open Panel';
+                 mainContent.style.marginLeft = '0px';
             }
         }
         
         // Call sync after a brief delay to allow component to initialize and fire events
-        setTimeout(syncPanelState, 100);
+        setTimeout(syncPanelState, 50);
+        
+        // Add a second sync with a longer delay as a fallback
+        setTimeout(syncPanelState, 200);
 
 
         // Initial canvas sizing & message
@@ -307,14 +329,49 @@
             }
         });
 
-        // Example data (can be removed if not needed for initial view)
+        // Load images from local folder for development
+        // We will get the images from other sources later
         panel.setData([
-            { id: 'batch1', title: 'Batch 001 - Initial Files', expanded: true, files: [
-                { name: 'image1.jpg', type: 'image/jpeg', data: 'https://via.placeholder.com/130x80.png?text=Image1.jpg' },
-                { name: 'report.pdf', type: 'application/pdf' } ]},
-            { id: 'batch2', title: 'Batch 002 - More Images', expanded: false, files: [
-                { name: 'photo_long_name.png', type: 'image/png', data: 'https://via.placeholder.com/130x80.png?text=LongName.png' },
-                { name: 'archive.zip', type: 'application/zip' } ]}
+            { 
+                id: 'batch1', 
+                title: 'Batch 001 - Horizontal Machine Images', 
+                expanded: true, 
+                files: [
+                    { name: 'HM_0_584', type: 'image/png', data: './images/image_1_HM_0_584_1.png' },
+                    { name: 'HM_0_526', type: 'image/png', data: './images/image_1_HM_0_526_1.png' },
+                    { name: 'HM_0_513', type: 'image/png', data: './images/image_1_HM_0_513_1.png' },
+                    { name: 'HM_0_327', type: 'image/png', data: './images/image_1_HM_0_327_1.png' },
+                    { name: 'HM_0_211', type: 'image/png', data: './images/image_1_HM_0_211_1.png' },
+                    { name: 'HM_0_177', type: 'image/png', data: './images/image_1_HM_0_177_1.png' },
+                    { name: 'HM_0_163', type: 'image/png', data: './images/image_1_HM_0_163_1.png' },
+                ]
+            },
+            { 
+                id: 'batch2', 
+                title: 'Batch 002 - Vertical Machine Images', 
+                expanded: false, 
+                files: [
+                    { name: 'VM_0_52', type: 'image/png', data: './images/image_1_VM_0_52_1.png' },
+                    { name: 'VM_0_42', type: 'image/png', data: './images/image_1_VM_0_42_1.png' },
+                    { name: 'VM_0_70', type: 'image/png', data: './images/image_1_VM_0_70_1.png' },
+                    { name: 'VM_0_14', type: 'image/png', data: './images/image_1_VM_0_14_1.png' },
+                    { name: 'VM_0_66', type: 'image/png', data: './images/image_1_VM_0_66_1.png' },
+                    { name: 'VM_0_64', type: 'image/png', data: './images/image_1_VM_0_64_1.png' },
+                ]
+            },
+            { 
+                id: 'batch3', 
+                title: 'Batch 003 - B1 Series Images', 
+                expanded: false, 
+                files: [
+                    { name: 'B1_536', type: 'image/png', data: './images/image_1_B1_536_1.png' },
+                    { name: 'B1_542', type: 'image/png', data: './images/image_1_B1_542_1.png' },
+                    { name: 'B1_563', type: 'image/png', data: './images/image_1_B1_563_1.png' },
+                    { name: 'B1_746', type: 'image/png', data: './images/image_1_B1_746_1.png' },
+                    { name: 'B1_749', type: 'image/png', data: './images/image_1_B1_749_1.png' },
+                    { name: 'B1_830', type: 'image/png', data: './images/image_1_B1_830_1.png' },
+                ]
+            }
         ]);
 
     </script>
