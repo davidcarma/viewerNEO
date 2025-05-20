@@ -61,25 +61,45 @@
         }
 
         #content-below-topbar {
-            display: flex; 
-            flex-grow: 1; 
-            overflow: hidden; 
-            position: relative; /* Ensure proper stacking */
-            /* background-color: lightblue; REMOVED DEBUG */
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden;
+            position: relative;
         }
 
-        /* thumbnail-pane will have its own width defined by its JS (defaults to 160px when open) */
-        /* It will control its own visibility and sliding */
+        /* Create a placeholder for the thumbnail panel that takes up real space in the layout */
+        .thumbnail-panel-placeholder {
+            flex-shrink: 0;
+            width: 0; /* Start with 0 width when closed */
+            transition: width 0.25s ease;
+            overflow: visible; /* Allow the toggle handle to be visible */
+        }
 
+        /* When the panel is active, give the placeholder the correct width */
+        body.thumbnail-panel-active .thumbnail-panel-placeholder {
+            width: 160px; /* Match the panel width - this should be dynamic ideally */
+        }
+
+        /* Ensure the thumbnail-pane is positioned within this placeholder */
+        #my-thumbnail-panel {
+            position: absolute;
+            z-index: 90;
+            left: 0;
+            top: 0;
+            bottom: 0;
+        }
+
+        /* Adjust main content to use flex-grow and not need width changes */
         #main-content {
             flex-grow: 1;
             padding: 20px;
             background-color: #333;
-            transition: margin-left 0.25s ease; /* Match panel animation */
+            transition: width 0.25s ease; /* Transition width instead of margin */
             height: 100%; /* Fill the height of #content-below-topbar */
             box-sizing: border-box;
             overflow-y: auto;
             position: relative; /* For canvas positioning */
+            width: 100%; /* Start with full width */
         }
         
         /* Style for when the panel is active (body class set by panel's events) */
@@ -132,7 +152,9 @@
     </div>
 
     <div id="content-below-topbar">
-        <thumbnail-pane id="my-thumbnail-panel" opened></thumbnail-pane>
+        <div class="thumbnail-panel-placeholder">
+            <thumbnail-pane id="my-thumbnail-panel" opened></thumbnail-pane>
+        </div>
         <div id="main-content">
             <button id="toggle-panel-btn">Toggle Panel</button>
             <h1>Main Content Area</h1>
@@ -159,13 +181,13 @@
         const MOCK_IMAGE_WIDTH = 800;
         const MOCK_IMAGE_HEIGHT = 600;
         
-        // Set initial margin if panel has 'opened' attribute
-        // This ensures main content slides properly on initial load
+        // Set initial width if panel has 'opened' attribute
         if (panel.hasAttribute('opened') && panel.getAttribute('opened') !== 'false') {
             // Add a very small delay to ensure the component has initialized
             setTimeout(() => {
                 document.body.classList.add('thumbnail-panel-active');
-                mainContent.style.marginLeft = panel.getCurrentWidth() + 'px';
+                const panelWidth = panel.getCurrentWidth();
+                mainContent.style.width = `calc(100% - ${panelWidth}px)`;
                 toggleButton.textContent = 'Close Panel';
             }, 10);
         }
@@ -187,14 +209,15 @@
 
         panel.addEventListener('panel-opened', () => {
             document.body.classList.add('thumbnail-panel-active');
-            mainContent.style.marginLeft = panel.getCurrentWidth() + 'px';
+            const panelWidth = panel.getCurrentWidth();
+            document.querySelector('.thumbnail-panel-placeholder').style.width = `${panelWidth}px`;
             toggleButton.textContent = 'Close Panel';
             resizeAndPositionCanvas();
         });
 
         panel.addEventListener('panel-closed', () => {
             document.body.classList.remove('thumbnail-panel-active');
-            mainContent.style.marginLeft = '0px';
+            document.querySelector('.thumbnail-panel-placeholder').style.width = '0';
             toggleButton.textContent = 'Open Panel';
             resizeAndPositionCanvas();
         });
@@ -207,24 +230,19 @@
         // This relies on `panel.getCurrentWidth()` and `panel._isPanelActive` or similar internal checks
         // which should exist in the restored thumbnail-pane.js
         function syncPanelState() {
-            // The restored thumbnail-pane.js fires 'panel-opened' on init if `opened` attribute is present.
-            // So, the event listener above should handle the initial state.
-            // If not, we might need a slight delay or a more direct check.
-            // For now, let's assume the event fires.
-            // If the panel starts 'opened', the 'panel-opened' event will set the correct text.
-            // If it somehow doesn't fire or state is not active, set to 'Open Panel'.
             if (document.body.classList.contains('thumbnail-panel-active') || 
                 (panel.hasAttribute('opened') && panel.getAttribute('opened') !== 'false')) {
-                 document.body.classList.add('thumbnail-panel-active');
-                 toggleButton.textContent = 'Close Panel';
-                 // Ensure the margin is properly set
-                 if (panel.getCurrentWidth && typeof panel.getCurrentWidth === 'function') {
-                     mainContent.style.marginLeft = panel.getCurrentWidth() + 'px';
-                 }
+                document.body.classList.add('thumbnail-panel-active');
+                toggleButton.textContent = 'Close Panel';
+                // Ensure the width is properly set
+                if (panel.getCurrentWidth && typeof panel.getCurrentWidth === 'function') {
+                    const panelWidth = panel.getCurrentWidth();
+                    mainContent.style.width = `calc(100% - ${panelWidth}px)`;
+                }
             } else {
-                 document.body.classList.remove('thumbnail-panel-active');
-                 toggleButton.textContent = 'Open Panel';
-                 mainContent.style.marginLeft = '0px';
+                document.body.classList.remove('thumbnail-panel-active');
+                toggleButton.textContent = 'Open Panel';
+                mainContent.style.width = '100%';
             }
         }
         
