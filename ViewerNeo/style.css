@@ -1,0 +1,83 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: sans-serif;
+    overflow: hidden; /* Prevent body scrollbars */
+    background-color: #f0f0f0;
+}
+
+#top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50px; /* Adjust as needed */
+    background-color: #333;
+    color: white;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    box-sizing: border-box;
+    z-index: 1000; /* Ensure it's above other content */
+    overflow-x: auto; /* Allow horizontal scrolling for many buttons */
+}
+
+#top-bar button {
+    margin-right: 8px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: white;
+    flex-shrink: 0; /* Prevent buttons from shrinking */
+}
+
+/* Button colors - example, can be customized */
+#top-bar button:nth-child(10n+1) { background-color: #007bff; }
+#top-bar button:nth-child(10n+2) { background-color: #28a745; }
+#top-bar button:nth-child(10n+3) { background-color: #dc3545; }
+#top-bar button:nth-child(10n+4) { background-color: #ffc107; color: #333; }
+#top-bar button:nth-child(10n+5) { background-color: #17a2b8; }
+#top-bar button:nth-child(10n+6) { background-color: #6f42c1; }
+#top-bar button:nth-child(10n+7) { background-color: #fd7e14; }
+#top-bar button:nth-child(10n+8) { background-color: #20c997; }
+#top-bar button:nth-child(10n+9) { background-color: #e83e8c; }
+#top-bar button:nth-child(10n+10) { background-color: #6c757d; }
+
+#top-bar button:hover {
+    opacity: 0.8;
+}
+
+#app-container {
+    display: flex;
+    height: 100vh; /* Full viewport height */
+    padding-top: 50px; /* Same as top-bar height */
+    box-sizing: border-box;
+}
+
+#thumbnail-gallery-container {
+    width: 200px; /* Initial width, can be made adjustable */
+    height: 100%;
+    background-color: #e9ecef;
+    overflow-y: auto;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+    position: relative; /* For positioning thumbnail pane if needed */
+}
+
+#window-manager-container {
+    flex-grow: 1; /* Takes up the remaining space */
+    height: 100%;
+    background-color: #ffffff;
+    position: relative; /* Important for window manager positioning */
+    overflow: hidden; /* Window manager usually handles its own scroll/overflow */
+}
+
+/* Ensure thumbnail pane itself takes full height of its container */
+thumbnail-pane {
+    display: block; /* Or flex, depending on its internal structure */
+    width: 100%;
+    height: 100%;
+} 
