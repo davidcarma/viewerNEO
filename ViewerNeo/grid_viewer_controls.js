@@ -24,7 +24,16 @@ function hexToRGBA(hex, opacity) {
 }
 
 // Define the Grid Viewer Window creation function
-export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title = 'Grid Viewer', x = 200, y = 150, width = 700, height = 500, canvasId = `grid-canvas-${Date.now()}`, controlPanelId = `grid-controls-${Date.now()}` }) {
+export function createGridViewerWindow({ 
+    id = `grid-viewer-${Date.now()}`, 
+    title = 'Grid Viewer', 
+    x = 200, 
+    y = 150, 
+    width = 700, 
+    height = 500, 
+    canvasId = `grid-canvas-${Date.now()}`, 
+    controlPanelId = `grid-controls-${Date.now()}` 
+}) {
     const viewerId = id; 
     const gridCanvasId = `${canvasId}-grid`;
     const gridSettingsContainerId = `${controlPanelId}-grid-settings`;
@@ -33,38 +42,58 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
         <div class="grid-viewer-content">
             <div id="${canvasId}-container" class="grid-viewer-canvas-container">
                 <canvas id="${canvasId}"></canvas>
-                <canvas id="${gridCanvasId}" class="dynamic-grid-canvas" style="position: absolute; top: 0; left: 0; pointer-events: none; display: none;"></canvas>
+                <canvas id="${gridCanvasId}" class="dynamic-grid-canvas" 
+                        style="position: absolute; top: 0; left: 0; pointer-events: none; display: none;">
+                </canvas>
             </div>
             <div id="${controlPanelId}" class="grid-viewer-control-panel">
-                <button id="${viewerId}-show-grid-btn" onclick="handleShowGridToggle('${viewerId}', '${canvasId}', '${gridCanvasId}', '${gridSettingsContainerId}')">Show Grid</button>
+                <button id="${viewerId}-show-grid-btn" 
+                        onclick="handleShowGridToggle('${viewerId}', '${canvasId}', '${gridCanvasId}', '${gridSettingsContainerId}')">
+                    Show Grid
+                </button>
                 <button onclick="handleGridViewerResetView('${canvasId}')">Reset View</button>
-                <div id="${gridSettingsContainerId}" style="display: none; margin-top: 10px; border-top: 1px solid #4a4a4a; padding-top: 10px;">
-                    <p style="margin-top:0; margin-bottom: 5px; font-size: 0.9em; color: #ccc;">Grid Settings:</p>
+                <div id="${gridSettingsContainerId}" 
+                     style="display: none; margin-top: 10px; border-top: 1px solid #4a4a4a; padding-top: 10px;">
+                    <p style="margin-top:0; margin-bottom: 5px; font-size: 0.9em; color: #ccc;">
+                        Grid Settings:
+                    </p>
                     <div>
                         <label for="${viewerId}-grid-color" style="font-size:0.85em;">Color:</label>
-                        <input type="color" id="${viewerId}-grid-color" value="#FF0000" style="width: 50%; margin-bottom:5px;">
+                        <input type="color" id="${viewerId}-grid-color" value="#FF0000" 
+                               style="width: 50%; margin-bottom:5px;">
                     </div>
                     <div>
                         <label for="${viewerId}-grid-opacity" style="font-size:0.85em;">Opacity:</label>
-                        <input type="range" id="${viewerId}-grid-opacity" min="0" max="1" step="0.05" value="0.5" style="width: 100%; margin-bottom:5px;">
+                        <input type="range" id="${viewerId}-grid-opacity" min="0" max="1" step="0.05" value="0.5" 
+                               style="width: 100%; margin-bottom:5px;">
                     </div>
                     <div style="font-size:0.85em; margin-bottom: 5px;">
-                        <label for="${viewerId}-grid-major-spacing" style="display:block; margin-bottom:2px;">Major Spacing (img px):</label>
-                        <input type="number" id="${viewerId}-grid-major-spacing" value="50" step="0.1" min="0.1" style="width: 98%; margin-bottom:3px;">
+                        <label for="${viewerId}-grid-major-spacing" style="display:block; margin-bottom:2px;">
+                            Major Spacing (img px):
+                        </label>
+                        <input type="number" id="${viewerId}-grid-major-spacing" value="50" step="0.1" min="0.1" 
+                               style="width: 98%; margin-bottom:3px;">
                     </div>
                     <div style="font-size:0.85em; margin-bottom: 8px;">
-                        <input type="checkbox" id="${viewerId}-grid-show-minor" checked style="margin-right: 5px; vertical-align: middle;">
-                        <label for="${viewerId}-grid-show-minor" style="vertical-align: middle;">Show Minor Lines (1/10th)</label>
+                        <input type="checkbox" id="${viewerId}-grid-show-minor" checked 
+                               style="margin-right: 5px; vertical-align: middle;">
+                        <label for="${viewerId}-grid-show-minor" style="vertical-align: middle;">
+                            Show Minor Lines (1/10th)
+                        </label>
                     </div>
                     <div style="font-size:0.85em;">
                         <label style="display:block; margin-bottom:3px;">Mode:</label>
-                        <input type="radio" id="${viewerId}-grid-mode-synced" name="${viewerId}-grid-mode" value="synced" checked>
+                        <input type="radio" id="${viewerId}-grid-mode-synced" name="${viewerId}-grid-mode" 
+                               value="synced" checked>
                         <label for="${viewerId}-grid-mode-synced">Synced</label><br>
-                        <input type="radio" id="${viewerId}-grid-mode-fixed" name="${viewerId}-grid-mode" value="fixed">
+                        <input type="radio" id="${viewerId}-grid-mode-fixed" name="${viewerId}-grid-mode" 
+                               value="fixed">
                         <label for="${viewerId}-grid-mode-fixed">Fixed</label>
                     </div>
                 </div>
-                <button onclick="handleGridViewerButton3('${viewerId}')" style="margin-top:10px;">Action 3</button>
+                <button onclick="handleGridViewerButton3('${viewerId}')" style="margin-top:10px;">
+                    Action 3
+                </button>
                 <button onclick="handleGridViewerButton4('${viewerId}')">Action 4</button>
                 <button onclick="handleGridViewerButton5('${viewerId}')">Action 5</button>
             </div>
@@ -100,11 +129,15 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
 
         colorInput.addEventListener('input', (e) => {
             gridCanvas.gridSettings.color = e.target.value;
-            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            if (gridCanvas.isGridVisible) {
+                drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            }
         });
         opacityInput.addEventListener('input', (e) => {
             gridCanvas.gridSettings.opacity = parseFloat(e.target.value);
-            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            if (gridCanvas.isGridVisible) {
+                drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            }
         });
         majorSpacingInput.addEventListener('input', (e) => {
             let newMajorSpacing = parseFloat(e.target.value);
@@ -119,9 +152,12 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
             if (gridCanvas.gridSettings.mode === 'fixed') {
                 const image = window.currentLoadedImage;
                 if (image && image !== true && image.naturalWidth && image.naturalHeight && viewerCanvas.transformState) {
-                    const baseFitScale = Math.min(viewerCanvas.width / image.naturalWidth, viewerCanvas.height / image.naturalHeight);
+                    const baseFitScale = Math.min(
+                        viewerCanvas.width / image.naturalWidth, 
+                        viewerCanvas.height / image.naturalHeight
+                    );
                     const totalCurrentScale = baseFitScale * viewerCanvas.transformState.scale;
-                    let currentOnScreenSpacing = newMajorSpacing * totalCurrentScale; // Use the newMajorSpacing
+                    let currentOnScreenSpacing = newMajorSpacing * totalCurrentScale;
                     currentOnScreenSpacing = Math.max(currentOnScreenSpacing, 5); 
                     gridCanvas.gridSettings.fixedGridSpacing = currentOnScreenSpacing;
                 } else {
@@ -130,16 +166,22 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
                 }
             }
 
-            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            if (gridCanvas.isGridVisible) {
+                drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            }
         });
         showMinorLinesCheckbox.addEventListener('change', (e) => {
             gridCanvas.gridSettings.showMinorLines = e.target.checked;
-            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            if (gridCanvas.isGridVisible) {
+                drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            }
         });
         syncedModeRadio.addEventListener('change', (e) => {
             if (e.target.checked) {
                 gridCanvas.gridSettings.mode = 'synced';
-                if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+                if (gridCanvas.isGridVisible) {
+                    drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+                }
             }
         });
         fixedModeRadio.addEventListener('change', (e) => {
@@ -147,7 +189,10 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
                 const image = window.currentLoadedImage;
                 if (image && image !== true && image.naturalWidth && image.naturalHeight && viewerCanvas.transformState) {
                     // Calculate current on-screen spacing of synced grid to apply to fixed grid
-                    const baseFitScale = Math.min(viewerCanvas.width / image.naturalWidth, viewerCanvas.height / image.naturalHeight);
+                    const baseFitScale = Math.min(
+                        viewerCanvas.width / image.naturalWidth, 
+                        viewerCanvas.height / image.naturalHeight
+                    );
                     const totalCurrentScale = baseFitScale * viewerCanvas.transformState.scale;
                     let currentOnScreenSpacing = gridCanvas.gridSettings.syncedMajorSpacing * totalCurrentScale;
                     
@@ -161,7 +206,9 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
                 }
 
                 gridCanvas.gridSettings.mode = 'fixed';
-                if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+                if (gridCanvas.isGridVisible) {
+                    drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+                }
             }
         });
 
@@ -187,7 +234,12 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
             
             if (changed) {
                 const event = new CustomEvent('grid-canvas-resized', { 
-                    detail: { canvas: viewerCanvas, width: viewerCanvas.width, height: viewerCanvas.height, viewerId: viewerId } 
+                    detail: { 
+                        canvas: viewerCanvas, 
+                        width: viewerCanvas.width, 
+                        height: viewerCanvas.height, 
+                        viewerId: viewerId 
+                    } 
                 });
                 viewerCanvas.dispatchEvent(event); // This will trigger redrawCanvas, which in turn calls drawGrid
             }
@@ -242,8 +294,12 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
 
             if (colorInput) colorInput.value = gridCanvas.gridSettings.color;
             if (opacityInput) opacityInput.value = gridCanvas.gridSettings.opacity;
-            if (majorSpacingInputEl) majorSpacingInputEl.value = gridCanvas.gridSettings.syncedMajorSpacing.toFixed(1);
-            if (showMinorLinesCheckboxEl) showMinorLinesCheckboxEl.checked = gridCanvas.gridSettings.showMinorLines;
+            if (majorSpacingInputEl) {
+                majorSpacingInputEl.value = gridCanvas.gridSettings.syncedMajorSpacing.toFixed(1);
+            }
+            if (showMinorLinesCheckboxEl) {
+                showMinorLinesCheckboxEl.checked = gridCanvas.gridSettings.showMinorLines;
+            }
             if (syncedModeRadio) syncedModeRadio.checked = gridCanvas.gridSettings.mode === 'synced';
             if (fixedModeRadio) fixedModeRadio.checked = gridCanvas.gridSettings.mode === 'fixed';
             
@@ -253,8 +309,8 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
             settingsContainer.style.display = 'none';
             button.textContent = 'Show Grid';
             button.style.backgroundColor = ''; 
-            // When hiding, ensure the grid canvas is cleared explicitly in case redrawCanvas doesn't run immediately
-            // or if drawGrid(..., false) doesn't clear everything (it should, but belt-and-suspenders)
+            // When hiding, ensure the grid canvas is cleared explicitly if redrawCanvas doesn't run 
+            // immediately or if drawGrid(..., false) doesn't clear everything (it should, but belt-and-suspenders)
             const gridCtx = gridCanvas.getContext('2d');
             gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
         }
@@ -268,7 +324,10 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
         }
 
     } else {
-        console.error("Could not find canvas, button, or settings container for grid toggle. IDs:", viewerId, mainCanvasId, gridCanvasId, settingsContainerId);
+        console.error(
+            "Could not find canvas, button, or settings container for grid toggle. IDs:", 
+            viewerId, mainCanvasId, gridCanvasId, settingsContainerId
+        );
     }
 }
 
@@ -291,7 +350,7 @@ function drawGrid(gridCanvas, mainCanvas, image, isGridActuallyVisible) {
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
 
     // Draw ruler backgrounds if grid (any part of it) is visible
-    if (isGridActuallyVisible || gridCanvas.gridSettings.rulersAlwaysVisible) { // Assuming a future setting for rulers always visible
+    if (isGridActuallyVisible || gridCanvas.gridSettings.rulersAlwaysVisible) { 
         gridCtx.fillStyle = RULER_BG_COLOR;
         gridCtx.fillRect(0, 0, gridCanvas.width, RULER_SIZE); // Top ruler bg
         gridCtx.fillRect(0, RULER_SIZE, RULER_SIZE, gridCanvas.height - RULER_SIZE); // Left ruler bg (avoid double draw at corner)
@@ -716,7 +775,12 @@ export function redrawCanvas(canvas) {
         let gridIsVisible = false;
         if (canvas.gridCanvasElement) { 
             // Pass a flag if the grid lines/rulers themselves are visible for text drawing decision
-            drawGrid(canvas.gridCanvasElement, canvas, img, canvas.gridCanvasElement.isGridVisible);
+            drawGrid(
+                canvas.gridCanvasElement, 
+                canvas, 
+                img, 
+                canvas.gridCanvasElement.isGridVisible
+            );
             if (canvas.gridCanvasElement.isGridVisible) {
                 gridIsVisible = true;
             }
@@ -744,17 +808,29 @@ export function redrawCanvas(canvas) {
             // Zoom: Bottom-right of main canvas
             ctx.textAlign = 'right';
             ctx.textBaseline = 'bottom';
-            ctx.fillText(`Zoom: ${Math.round(userScale * 100)}%`, canvas.width - padding, canvas.height - padding);
+            ctx.fillText(
+                `Zoom: ${Math.round(userScale * 100)}%`, 
+                canvas.width - padding, 
+                canvas.height - padding
+            );
             
             let textY_main = canvas.height - padding;
             const textX_main = padding; 
             ctx.textAlign = 'left';
 
             if (canvas.mouseImagePos) {
-                ctx.fillText(`Mouse: (${canvas.mouseImagePos.x.toFixed(1)}, ${canvas.mouseImagePos.y.toFixed(1)})`, textX_main, textY_main);
+                ctx.fillText(
+                    `Mouse: (${canvas.mouseImagePos.x.toFixed(1)}, ${canvas.mouseImagePos.y.toFixed(1)})`, 
+                    textX_main, 
+                    textY_main
+                );
                 textY_main -= lineHeight;
             }
-            ctx.fillText(`Pan: (${Math.round(panX)}, ${Math.round(panY)})`, textX_main, textY_main);
+            ctx.fillText(
+                `Pan: (${Math.round(panX)}, ${Math.round(panY)})`, 
+                textX_main, 
+                textY_main
+            );
         }
         
     } catch (err) {
@@ -857,7 +933,9 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     
     // Capture mouse move for coordinate display and ruler marking
     newCanvas.addEventListener('mousemove', (e) => {
-        if (!window.currentLoadedImage || window.currentLoadedImage === true || !newCanvas.transformState) {
+        if (!window.currentLoadedImage || 
+            window.currentLoadedImage === true || 
+            !newCanvas.transformState) {
             newCanvas.mouseImagePos = null;
             newCanvas.mouseScreenPos = null;
             redrawCanvas(newCanvas); // Redraw to clear old mouse coords if any
@@ -951,7 +1029,12 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
             // If grid is visible, redraw it after pan
             if (newCanvas.gridCanvasElement && newCanvas.gridCanvasElement.isGridVisible) {
                 // console.log("Redrawing grid due to pan");
-                drawGrid(newCanvas.gridCanvasElement, newCanvas, window.currentLoadedImage, newCanvas.gridCanvasElement.isGridVisible);
+                drawGrid(
+                    newCanvas.gridCanvasElement, 
+                    newCanvas, 
+                    window.currentLoadedImage, 
+                    newCanvas.gridCanvasElement.isGridVisible
+                );
             }
         }
     });
