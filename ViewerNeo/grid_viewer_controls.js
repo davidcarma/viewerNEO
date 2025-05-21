@@ -433,7 +433,7 @@ function drawGrid(gridCanvas, mainCanvas, image) {
 }
 
 function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
-    if (!image || image.naturalWidth === 0 || image.naturalHeight === 0) return; // Rulers need image dimensions
+    if (!image || image.naturalWidth === 0 || image.naturalHeight === 0) return; 
     if (!mainCanvas.transformState) return;
 
     gridCtx.save();
@@ -515,6 +515,47 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
             }
         }
     }
+
+    // Draw mouse position markers on rulers
+    if (mainCanvas.mouseImagePos && mainCanvas.mouseScreenPos) {
+        const mouseImgX = mainCanvas.mouseImagePos.x;
+        const mouseImgY = mainCanvas.mouseImagePos.y;
+        const mouseScreenX = mainCanvas.mouseScreenPos.x;
+        const mouseScreenY = mainCanvas.mouseScreenPos.y;
+
+        // Check if mouse is within the grid area (not over rulers themselves)
+        const isMouseOverGridArea = mouseScreenX >= RULER_SIZE && mouseScreenX <= mainCanvas.width && 
+                                  mouseScreenY >= RULER_SIZE && mouseScreenY <= mainCanvas.height;
+
+        if (isMouseOverGridArea) {
+            gridCtx.fillStyle = 'rgba(255, 0, 0, 0.8)'; // Bright red for marker
+
+            // Top ruler X marker (corresponds to image X coordinate)
+            // Calculate screenX for the mouseImgX position
+            const markerScreenX = RULER_SIZE + (imageOriginX_on_mainCanvas + mouseImgX * totalCurrentScale - RULER_SIZE);
+            if (markerScreenX >= RULER_SIZE && markerScreenX <= mainCanvas.width) {
+                gridCtx.beginPath();
+                gridCtx.moveTo(markerScreenX - 3, 0);
+                gridCtx.lineTo(markerScreenX + 3, 0);
+                gridCtx.lineTo(markerScreenX, 5);
+                gridCtx.closePath();
+                gridCtx.fill();
+            }
+
+            // Left ruler Y marker (corresponds to image Y coordinate)
+            // Calculate screenY for the mouseImgY position
+            const markerScreenY = RULER_SIZE + (imageOriginY_on_mainCanvas + mouseImgY * totalCurrentScale - RULER_SIZE);
+            if (markerScreenY >= RULER_SIZE && markerScreenY <= mainCanvas.height) {
+                gridCtx.beginPath();
+                gridCtx.moveTo(0, markerScreenY - 3);
+                gridCtx.lineTo(0, markerScreenY + 3);
+                gridCtx.lineTo(5, markerScreenY);
+                gridCtx.closePath();
+                gridCtx.fill();
+            }
+        }
+    }
+
     gridCtx.restore();
 }
 
@@ -605,8 +646,8 @@ export function redrawCanvas(canvas) {
     try {
         ctx.drawImage(img, drawX, drawY, displayWidth, displayHeight);
         
-        if (canvas.gridCanvasElement) { // Check if gridCanvasElement exists
-            drawGrid(canvas.gridCanvasElement, canvas, img); // Call drawGrid, it will check visibility internally
+        if (canvas.gridCanvasElement) { 
+            drawGrid(canvas.gridCanvasElement, canvas, img); 
         }
 
         // Optional: Display zoom level (userScale) and pan coordinates
@@ -614,11 +655,21 @@ export function redrawCanvas(canvas) {
         ctx.font = '12px sans-serif';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'bottom';
-        // Display userScale as a percentage (e.g., 1.0 -> 100%, 1.5 -> 150%)
         ctx.fillText(`Zoom: ${Math.round(userScale * 100)}%`, canvas.width - 10, canvas.height - 10);
         
+        let panTextY = canvas.height - 10;
+        let panTextX = 10;
         ctx.textAlign = 'left';
-        ctx.fillText(`Pan: (${Math.round(panX)}, ${Math.round(panY)})`, 10, canvas.height - 10);
+        ctx.fillText(`Pan: (${Math.round(panX)}, ${Math.round(panY)})`, panTextX, panTextY);
+
+        // Display Mouse Position (Image Coordinates)
+        if (canvas.mouseImagePos) {
+            panTextY -= 15; // Move mouse coords text above pan text
+            ctx.fillText(`Mouse: (${canvas.mouseImagePos.x.toFixed(1)}, ${canvas.mouseImagePos.y.toFixed(1)})`, panTextX, panTextY);
+        } else {
+            // If mouseImagePos is null (e.g. mouse left canvas), make sure a placeholder isn't shown from previous frame
+            // This is mostly handled by redraw, but good to be explicit if needed for some edge cases.
+        }
         
     } catch (err) {
         console.error("Error drawing image:", err);
@@ -629,6 +680,9 @@ export function redrawCanvas(canvas) {
 export function setupCanvasImageHandling(newCanvas, newContext) {
     if (!newCanvas || !newContext) return;
     
+    newCanvas.mouseImagePos = null; // Initialize mouse position store
+    newCanvas.mouseScreenPos = null; // Initialize screen position store
+
     // Clear canvas and display initial message
     newContext.clearRect(0, 0, newCanvas.width, newCanvas.height);
     newContext.fillStyle = 'rgba(238, 238, 238, 0.7)';
@@ -710,6 +764,71 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         }
     }, { passive: false });
     
+    // Capture mouse move for coordinate display and ruler marking
+    newCanvas.addEventListener('mousemove', (e) => {
+        if (!window.currentLoadedImage || window.currentLoadedImage === true || !newCanvas.transformState) {
+            newCanvas.mouseImagePos = null;
+            newCanvas.mouseScreenPos = null;
+            redrawCanvas(newCanvas); // Redraw to clear old mouse coords if any
+            return;
+        }
+
+        const img = window.currentLoadedImage;
+        const natW = img.naturalWidth;
+        const natH = img.naturalHeight;
+        if (natW === 0 || natH === 0) {
+            newCanvas.mouseImagePos = null;
+            newCanvas.mouseScreenPos = null;
+            redrawCanvas(newCanvas);
+            return;
+        }
+
+        const rect = newCanvas.getBoundingClientRect();
+        const mouseX_on_canvas = e.clientX - rect.left;
+        const mouseY_on_canvas = e.clientY - rect.top;
+        newCanvas.mouseScreenPos = { x: mouseX_on_canvas, y: mouseY_on_canvas };
+
+        const transform = newCanvas.transformState;
+        const userScale = transform.scale;
+        const panX = transform.offsetX;
+        const panY = transform.offsetY;
+
+        const baseFitScale = Math.min(newCanvas.width / natW, newCanvas.height / natH);
+        const totalCurrentScale = baseFitScale * userScale;
+
+        if (totalCurrentScale === 0) { // Avoid division by zero
+            newCanvas.mouseImagePos = null;
+            redrawCanvas(newCanvas);
+            return;
+        }
+
+        const displayWidth = natW * totalCurrentScale;
+        const displayHeight = natH * totalCurrentScale;
+
+        // Top-left of image relative to newCanvas top-left
+        const imageOriginX_on_canvas = (newCanvas.width - displayWidth) / 2 + panX;
+        const imageOriginY_on_canvas = (newCanvas.height - displayHeight) / 2 + panY;
+
+        // Mouse position relative to the image's top-left (0,0) point
+        const mouseX_relative_to_image_origin = mouseX_on_canvas - imageOriginX_on_canvas;
+        const mouseY_relative_to_image_origin = mouseY_on_canvas - imageOriginY_on_canvas;
+
+        // Convert to image coordinates
+        const imageMouseX = mouseX_relative_to_image_origin / totalCurrentScale;
+        const imageMouseY = mouseY_relative_to_image_origin / totalCurrentScale;
+
+        newCanvas.mouseImagePos = { x: imageMouseX, y: imageMouseY };
+        
+        // Trigger redraw of canvas (which will call drawGrid, then drawRulers)
+        redrawCanvas(newCanvas);
+    });
+
+    newCanvas.addEventListener('mouseleave', (e) => {
+        newCanvas.mouseImagePos = null;
+        newCanvas.mouseScreenPos = null;
+        redrawCanvas(newCanvas); // Redraw to clear mouse coords and ruler markers
+    });
+
     // Set up mouse events for panning
     let isDragging = false;
     let lastX = 0;
