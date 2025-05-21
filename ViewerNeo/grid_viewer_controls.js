@@ -100,27 +100,27 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
 
         colorInput.addEventListener('input', (e) => {
             gridCanvas.gridSettings.color = e.target.value;
-            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
+            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
         });
         opacityInput.addEventListener('input', (e) => {
             gridCanvas.gridSettings.opacity = parseFloat(e.target.value);
-            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
+            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
         });
         majorSpacingInput.addEventListener('input', (e) => {
             let newMajorSpacing = parseFloat(e.target.value);
             if (isNaN(newMajorSpacing) || newMajorSpacing <= 0) newMajorSpacing = gridCanvas.gridSettings.syncedMajorSpacing; // revert if invalid
             gridCanvas.gridSettings.syncedMajorSpacing = newMajorSpacing;
             // No longer need to auto-adjust a separate minor spacing input
-            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
+            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
         });
         showMinorLinesCheckbox.addEventListener('change', (e) => {
             gridCanvas.gridSettings.showMinorLines = e.target.checked;
-            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
+            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
         });
         syncedModeRadio.addEventListener('change', (e) => {
             if (e.target.checked) {
                 gridCanvas.gridSettings.mode = 'synced';
-                if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
+                if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
             }
         });
         fixedModeRadio.addEventListener('change', (e) => {
@@ -142,7 +142,7 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
                 }
 
                 gridCanvas.gridSettings.mode = 'fixed';
-                if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
+                if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
             }
         });
 
@@ -229,7 +229,7 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
             if (syncedModeRadio) syncedModeRadio.checked = gridCanvas.gridSettings.mode === 'synced';
             if (fixedModeRadio) fixedModeRadio.checked = gridCanvas.gridSettings.mode === 'fixed';
             
-            drawGrid(gridCanvas, mainCanvas, window.currentLoadedImage);
+            drawGrid(gridCanvas, mainCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
         } else {
             gridCanvas.style.display = 'none';
             settingsContainer.style.display = 'none'; // Hide settings
@@ -249,8 +249,8 @@ const RULER_TEXT_COLOR = '#E0E0E0';
 const RULER_LINE_COLOR = '#AAAAAA';
 
 // Define drawGrid globally or ensure it's accessible where needed
-function drawGrid(gridCanvas, mainCanvas, image) {
-    if (!gridCanvas || !mainCanvas || !mainCanvas.transformState) { // Image can be null for fixed grid + rulers
+function drawGrid(gridCanvas, mainCanvas, image, isGridActuallyVisible) {
+    if (!gridCanvas || !mainCanvas || !mainCanvas.transformState) {
         if(gridCanvas){
             const gridCtxClear = gridCanvas.getContext('2d');
             gridCtxClear.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
@@ -262,173 +262,209 @@ function drawGrid(gridCanvas, mainCanvas, image) {
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
 
     // Draw ruler backgrounds if grid (any part of it) is visible
-    if (gridCanvas.isGridVisible || gridCanvas.gridSettings.rulersAlwaysVisible) { // Assuming a future setting for rulers always visible
+    if (isGridActuallyVisible || gridCanvas.gridSettings.rulersAlwaysVisible) { // Assuming a future setting for rulers always visible
         gridCtx.fillStyle = RULER_BG_COLOR;
         gridCtx.fillRect(0, 0, gridCanvas.width, RULER_SIZE); // Top ruler bg
         gridCtx.fillRect(0, RULER_SIZE, RULER_SIZE, gridCanvas.height - RULER_SIZE); // Left ruler bg (avoid double draw at corner)
     }
 
-    if (!gridCanvas.isGridVisible || !gridCanvas.gridSettings) {gridCtx.restore(); return; } // early exit if only rulers were to be shown and grid is off
+    if (!gridCanvas.isGridVisible || !gridCanvas.gridSettings) {
+        // If grid lines are off, but drawGrid was called, it might be for rulers if rulersAlwaysVisible=true
+        // Or, it might be that text should still be drawn if the grid WINDOW is up.
+        // For now, if grid lines are off, we don't draw text from here.
+        // Text drawing on gridCanvas will only happen if isGridActuallyVisible is true.
+    } else {
+        const settings = gridCanvas.gridSettings;
+        const transform = mainCanvas.transformState; // panX, panY are user's pan from center AFTER baseFitScale applied
+        const userScale = transform.scale; // User's zoom factor
+        const panX = transform.offsetX; 
+        const panY = transform.offsetY;
 
-    const settings = gridCanvas.gridSettings;
-    const transform = mainCanvas.transformState; // panX, panY are user's pan from center AFTER baseFitScale applied
-    const userScale = transform.scale; // User's zoom factor
-    const panX = transform.offsetX; 
-    const panY = transform.offsetY;
+        const natW = image ? image.naturalWidth : 0;
+        const natH = image ? image.naturalHeight : 0;
 
-    const natW = image ? image.naturalWidth : 0;
-    const natH = image ? image.naturalHeight : 0;
+        // Adjust available drawing area for the grid itself, accounting for rulers
+        const gridAreaWidth = gridCanvas.width - RULER_SIZE;
+        const gridAreaHeight = gridCanvas.height - RULER_SIZE;
+        const gridAreaXOffset = RULER_SIZE;
+        const gridAreaYOffset = RULER_SIZE;
 
-    // Adjust available drawing area for the grid itself, accounting for rulers
-    const gridAreaWidth = gridCanvas.width - RULER_SIZE;
-    const gridAreaHeight = gridCanvas.height - RULER_SIZE;
-    const gridAreaXOffset = RULER_SIZE;
-    const gridAreaYOffset = RULER_SIZE;
-
-    gridCtx.save(); // Save before clipping/translating for grid lines
-    
-    // Translate context for grid drawing to be inside the ruler bounds
-    gridCtx.translate(gridAreaXOffset, gridAreaYOffset);
-
-    if (settings.mode === 'synced') {
-        if (!image || natW === 0 || natH === 0) {
-             gridCtx.restore(); // Restore from translate + save
-             // Now draw rulers even if synced grid cannot be drawn
-             drawRulers(gridCtx, mainCanvas, image, settings);
-             return;
-        }
-        // Adjust mainCanvas effective width/height for baseFitScale, as grid is in smaller area
-        const effectiveMainCanvasWidthForFit = mainCanvas.width - RULER_SIZE; // This interpretation is tricky.
-        const effectiveMainCanvasHeightForFit = mainCanvas.height - RULER_SIZE;
-        // The baseFitScale should still relate to how the image fits in the *original mainCanvas viewport* not the gridArea.
-        // The panX/panY also relate to the mainCanvas viewport.
-        // So, drawX, drawY for the image are calculated based on mainCanvas.width/height.
-        // We need to ensure the grid, drawn in the translated gridArea, aligns with the image portion visible in that area.
-
-        const baseFitScale = Math.min(mainCanvas.width / natW, mainCanvas.height / natH); // Base fit for the *entire image canvas view*
-        const totalCurrentScale = baseFitScale * userScale;
+        gridCtx.save(); // Save before clipping/translating for grid lines
         
-        const displayWidth = natW * totalCurrentScale; // Full display width of image on main canvas
-        const displayHeight = natH * totalCurrentScale; // Full display height of image on main canvas
+        // Translate context for grid drawing to be inside the ruler bounds
+        gridCtx.translate(gridAreaXOffset, gridAreaYOffset);
 
-        // Top-left of image relative to mainCanvas top-left
-        const imageOriginX_on_mainCanvas = (mainCanvas.width - displayWidth) / 2 + panX;
-        const imageOriginY_on_mainCanvas = (mainCanvas.height - displayHeight) / 2 + panY;
+        if (settings.mode === 'synced') {
+            if (!image || natW === 0 || natH === 0) {
+                 gridCtx.restore(); // Restore from translate + save
+                 // Now draw rulers even if synced grid cannot be drawn
+                 drawRulers(gridCtx, mainCanvas, image, settings);
+                 return;
+            }
+            // Adjust mainCanvas effective width/height for baseFitScale, as grid is in smaller area
+            const effectiveMainCanvasWidthForFit = mainCanvas.width - RULER_SIZE; // This interpretation is tricky.
+            const effectiveMainCanvasHeightForFit = mainCanvas.height - RULER_SIZE;
+            // The baseFitScale should still relate to how the image fits in the *original mainCanvas viewport* not the gridArea.
+            // The panX/panY also relate to the mainCanvas viewport.
+            // So, drawX, drawY for the image are calculated based on mainCanvas.width/height.
+            // We need to ensure the grid, drawn in the translated gridArea, aligns with the image portion visible in that area.
 
-        // We are now in a context translated by (RULER_SIZE, RULER_SIZE).
-        // We need to draw the image features (grid lines) that would appear in this sub-rectangle.
-        // So, we effectively translate the synced grid by the negative of where the image starts relative to this sub-rectangle.
-        gridCtx.translate(imageOriginX_on_mainCanvas - RULER_SIZE, imageOriginY_on_mainCanvas - RULER_SIZE);
-        gridCtx.scale(totalCurrentScale, totalCurrentScale);
+            const baseFitScale = Math.min(mainCanvas.width / natW, mainCanvas.height / natH); // Base fit for the *entire image canvas view*
+            const totalCurrentScale = baseFitScale * userScale;
+            
+            const displayWidth = natW * totalCurrentScale; // Full display width of image on main canvas
+            const displayHeight = natH * totalCurrentScale; // Full display height of image on main canvas
 
-        gridCtx.lineWidth = 1 / totalCurrentScale; 
+            // Top-left of image relative to mainCanvas top-left
+            const imageOriginX_on_mainCanvas = (mainCanvas.width - displayWidth) / 2 + panX;
+            const imageOriginY_on_mainCanvas = (mainCanvas.height - displayHeight) / 2 + panY;
 
-        // Minor grid lines (synced)
-        if (settings.showMinorLines) {
-            const actualSyncedMinorSpacing = Math.max(0.1, settings.syncedMajorSpacing / 10.0);
-            // Check if minor lines would be too dense on screen (e.g., < 1 screen pixel apart)
-            if (actualSyncedMinorSpacing * totalCurrentScale >= 1.0) { 
-                const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
-                gridCtx.strokeStyle = minorColor;
-                for (let x = 0; x < natW; x += actualSyncedMinorSpacing) {
-                    if (x % settings.syncedMajorSpacing !== 0) {
-                        gridCtx.beginPath();
-                        gridCtx.moveTo(x, 0);
-                        gridCtx.lineTo(x, natH);
-                        gridCtx.stroke();
+            // We are now in a context translated by (RULER_SIZE, RULER_SIZE).
+            // We need to draw the image features (grid lines) that would appear in this sub-rectangle.
+            // So, we effectively translate the synced grid by the negative of where the image starts relative to this sub-rectangle.
+            gridCtx.translate(imageOriginX_on_mainCanvas - RULER_SIZE, imageOriginY_on_mainCanvas - RULER_SIZE);
+            gridCtx.scale(totalCurrentScale, totalCurrentScale);
+
+            gridCtx.lineWidth = 1 / totalCurrentScale; 
+
+            // Minor grid lines (synced)
+            if (settings.showMinorLines) {
+                const actualSyncedMinorSpacing = Math.max(0.1, settings.syncedMajorSpacing / 10.0);
+                // Check if minor lines would be too dense on screen (e.g., < 1 screen pixel apart)
+                if (actualSyncedMinorSpacing * totalCurrentScale >= 1.0) { 
+                    const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
+                    gridCtx.strokeStyle = minorColor;
+                    for (let x = 0; x < natW; x += actualSyncedMinorSpacing) {
+                        if (x % settings.syncedMajorSpacing !== 0) {
+                            gridCtx.beginPath();
+                            gridCtx.moveTo(x, 0);
+                            gridCtx.lineTo(x, natH);
+                            gridCtx.stroke();
+                        }
                     }
-                }
-                for (let y = 0; y < natH; y += actualSyncedMinorSpacing) {
-                    if (y % settings.syncedMajorSpacing !== 0) {
-                        gridCtx.beginPath();
-                        gridCtx.moveTo(0, y);
-                        gridCtx.lineTo(natW, y);
-                        gridCtx.stroke();
+                    for (let y = 0; y < natH; y += actualSyncedMinorSpacing) {
+                        if (y % settings.syncedMajorSpacing !== 0) {
+                            gridCtx.beginPath();
+                            gridCtx.moveTo(0, y);
+                            gridCtx.lineTo(natW, y);
+                            gridCtx.stroke();
+                        }
                     }
                 }
             }
-        }
 
-        // Major grid lines (synced)
-        const majorColor = hexToRGBA(settings.color, settings.opacity);
-        gridCtx.strokeStyle = majorColor;
-        for (let x = 0; x <= natW; x += settings.syncedMajorSpacing) {
-            gridCtx.beginPath();
-            gridCtx.moveTo(x, 0);
-            gridCtx.lineTo(x, natH);
-            gridCtx.stroke();
-        }
-        for (let y = 0; y <= natH; y += settings.syncedMajorSpacing) {
-            gridCtx.beginPath();
-            gridCtx.moveTo(0, y);
-            gridCtx.lineTo(natW, y);
-            gridCtx.stroke();
-        }
-    } else if (settings.mode === 'fixed') {
-        // Use fixedGridSpacing which is now set dynamically when switching to fixed mode
-        const majorFixedSpacing = settings.fixedGridSpacing;
-        if (majorFixedSpacing < 5) { // Safety check
-            gridCtx.restore(); return;
-        }
+            // Major grid lines (synced)
+            const majorColor = hexToRGBA(settings.color, settings.opacity);
+            gridCtx.strokeStyle = majorColor;
+            for (let x = 0; x <= natW; x += settings.syncedMajorSpacing) {
+                gridCtx.beginPath();
+                gridCtx.moveTo(x, 0);
+                gridCtx.lineTo(x, natH);
+                gridCtx.stroke();
+            }
+            for (let y = 0; y <= natH; y += settings.syncedMajorSpacing) {
+                gridCtx.beginPath();
+                gridCtx.moveTo(0, y);
+                gridCtx.lineTo(natW, y);
+                gridCtx.stroke();
+            }
+        } else if (settings.mode === 'fixed') {
+            // Use fixedGridSpacing which is now set dynamically when switching to fixed mode
+            const majorFixedSpacing = settings.fixedGridSpacing;
+            if (majorFixedSpacing < 5) { // Safety check
+                gridCtx.restore(); return;
+            }
 
-        gridCtx.lineWidth = 1; 
-        
-        const majorColor = hexToRGBA(settings.color, settings.opacity);
-        
-        // Minor lines for fixed mode
-        if (settings.showMinorLines) {
-            const actualFixedMinorSpacing = Math.max(0.5, majorFixedSpacing / 10.0); // Ensure minor spacing is at least 0.5 screen px
-            if (actualFixedMinorSpacing >= 2) { // Only draw if screen spacing is somewhat reasonable (at least 2px)
-                const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
-                gridCtx.strokeStyle = minorColor;
-                // Minor Horizontal Lines (Fixed)
-                for (let y = 0; y <= gridAreaHeight; y += actualFixedMinorSpacing) {
-                    if (y % majorFixedSpacing !== 0) { 
-                        const lineY = Math.floor(y) + 0.5;
-                        gridCtx.beginPath();
-                        gridCtx.moveTo(0, lineY);
-                        gridCtx.lineTo(gridAreaWidth, lineY);
-                        gridCtx.stroke();
+            gridCtx.lineWidth = 1; 
+            
+            const majorColor = hexToRGBA(settings.color, settings.opacity);
+            
+            // Minor lines for fixed mode
+            if (settings.showMinorLines) {
+                const actualFixedMinorSpacing = Math.max(0.5, majorFixedSpacing / 10.0); // Ensure minor spacing is at least 0.5 screen px
+                if (actualFixedMinorSpacing >= 2) { // Only draw if screen spacing is somewhat reasonable (at least 2px)
+                    const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
+                    gridCtx.strokeStyle = minorColor;
+                    // Minor Horizontal Lines (Fixed)
+                    for (let y = 0; y <= gridAreaHeight; y += actualFixedMinorSpacing) {
+                        if (y % majorFixedSpacing !== 0) { 
+                            const lineY = Math.floor(y) + 0.5;
+                            gridCtx.beginPath();
+                            gridCtx.moveTo(0, lineY);
+                            gridCtx.lineTo(gridAreaWidth, lineY);
+                            gridCtx.stroke();
+                        }
                     }
-                }
-                // Minor Vertical Lines (Fixed)
-                gridCtx.strokeStyle = minorColor; 
-                for (let x = 0; x <= gridAreaWidth; x += actualFixedMinorSpacing) {
-                    if (x % majorFixedSpacing !== 0) { 
-                        const lineX = Math.floor(x) + 0.5;
-                        gridCtx.beginPath();
-                        gridCtx.moveTo(lineX, 0);
-                        gridCtx.lineTo(lineX, gridAreaHeight);
-                        gridCtx.stroke();
+                    // Minor Vertical Lines (Fixed)
+                    gridCtx.strokeStyle = minorColor; 
+                    for (let x = 0; x <= gridAreaWidth; x += actualFixedMinorSpacing) {
+                        if (x % majorFixedSpacing !== 0) { 
+                            const lineX = Math.floor(x) + 0.5;
+                            gridCtx.beginPath();
+                            gridCtx.moveTo(lineX, 0);
+                            gridCtx.lineTo(lineX, gridAreaHeight);
+                            gridCtx.stroke();
+                        }
                     }
                 }
             }
-        }
 
-        // Major Horizontal Lines (Fixed)
-        gridCtx.strokeStyle = majorColor;
-        for (let y = 0; y <= gridAreaHeight; y += majorFixedSpacing) {
-            const lineY = Math.floor(y) + 0.5;
-            gridCtx.beginPath();
-            gridCtx.moveTo(0, lineY);
-            gridCtx.lineTo(gridAreaWidth, lineY);
-            gridCtx.stroke();
+            // Major Horizontal Lines (Fixed)
+            gridCtx.strokeStyle = majorColor;
+            for (let y = 0; y <= gridAreaHeight; y += majorFixedSpacing) {
+                const lineY = Math.floor(y) + 0.5;
+                gridCtx.beginPath();
+                gridCtx.moveTo(0, lineY);
+                gridCtx.lineTo(gridAreaWidth, lineY);
+                gridCtx.stroke();
+            }
+            gridCtx.strokeStyle = majorColor;
+            for (let x = 0; x <= gridAreaWidth; x += majorFixedSpacing) {
+                const lineX = Math.floor(x) + 0.5;
+                gridCtx.beginPath();
+                gridCtx.moveTo(lineX, 0);
+                gridCtx.lineTo(lineX, gridAreaHeight);
+                gridCtx.stroke();
+            }
         }
-        gridCtx.strokeStyle = majorColor;
-        for (let x = 0; x <= gridAreaWidth; x += majorFixedSpacing) {
-            const lineX = Math.floor(x) + 0.5;
-            gridCtx.beginPath();
-            gridCtx.moveTo(lineX, 0);
-            gridCtx.lineTo(lineX, gridAreaHeight);
-            gridCtx.stroke();
-        }
+        
+        gridCtx.restore(); // Restore from the grid-specific translate/scale/clip
     }
-    
-    gridCtx.restore(); // Restore from the grid-specific translate/scale/clip
 
-    // Now, draw rulers in the original gridCanvas context (0,0 top-left)
-    if (gridCanvas.isGridVisible || settings.rulersAlwaysVisible ) { // Check again (redundant if already checked but safe)
-        drawRulers(gridCtx, mainCanvas, image, settings);
+    // Rulers are drawn based on isGridActuallyVisible or rulersAlwaysVisible
+    if (isGridActuallyVisible || gridCanvas.gridSettings.rulersAlwaysVisible ) { 
+        drawRulers(gridCtx, mainCanvas, image, gridCanvas.gridSettings);
+    }
+
+    // Informational text drawn on gridCanvas ONLY if the grid/rulers are meant to be visible.
+    if (isGridActuallyVisible) {
+        gridCtx.save(); 
+        gridCtx.fillStyle = 'rgba(220, 220, 220, 0.9)'; 
+        gridCtx.font = '12px sans-serif';
+        const padding = 10;
+        const lineHeight = 15;
+        const transformState = mainCanvas.transformState; // get pan an zoom from here.
+
+        if (transformState && transformState.scale !== undefined) {
+            gridCtx.textAlign = 'right';
+            gridCtx.textBaseline = 'bottom';
+            gridCtx.fillText(`Zoom: ${Math.round(transformState.scale * 100)}%`, gridCanvas.width - padding, gridCanvas.height - padding);
+        }
+
+        let textY = gridCanvas.height - padding;
+        const textX = (RULER_SIZE + padding < gridCanvas.width - 50) ? (RULER_SIZE + padding) : padding; 
+        gridCtx.textAlign = 'left';
+        gridCtx.textBaseline = 'bottom';
+
+        if (mainCanvas.mouseImagePos) {
+            gridCtx.fillText(`Mouse: (${mainCanvas.mouseImagePos.x.toFixed(1)}, ${mainCanvas.mouseImagePos.y.toFixed(1)})`, textX, textY);
+            textY -= lineHeight;
+        }
+        
+        if (transformState && transformState.offsetX !== undefined && transformState.offsetY !== undefined) {
+            gridCtx.fillText(`Pan: (${Math.round(transformState.offsetX)}, ${Math.round(transformState.offsetY)})`, textX, textY);
+        }
+        gridCtx.restore();
     }
 }
 
@@ -646,29 +682,36 @@ export function redrawCanvas(canvas) {
     try {
         ctx.drawImage(img, drawX, drawY, displayWidth, displayHeight);
         
+        let gridIsVisible = false;
         if (canvas.gridCanvasElement) { 
-            drawGrid(canvas.gridCanvasElement, canvas, img); 
-        }
+            // Pass a flag if the grid lines/rulers themselves are visible for text drawing decision
+            drawGrid(canvas.gridCanvasElement, canvas, img, canvas.gridCanvasElement.isGridVisible);
+            if (canvas.gridCanvasElement.isGridVisible) {
+                gridIsVisible = true;
+            }
+        } 
 
-        // Optional: Display zoom level (userScale) and pan coordinates
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(`Zoom: ${Math.round(userScale * 100)}%`, canvas.width - 10, canvas.height - 10);
-        
-        let panTextY = canvas.height - 10;
-        let panTextX = 10;
-        ctx.textAlign = 'left';
-        ctx.fillText(`Pan: (${Math.round(panX)}, ${Math.round(panY)})`, panTextX, panTextY);
+        // If the grid/rulers (and their text) are NOT visible, draw text on main canvas.
+        if (!gridIsVisible) {
+            ctx.fillStyle = 'rgba(220, 220, 220, 0.9)';
+            ctx.font = '12px sans-serif';
+            const padding = 10;
+            const lineHeight = 15;
 
-        // Display Mouse Position (Image Coordinates)
-        if (canvas.mouseImagePos) {
-            panTextY -= 15; // Move mouse coords text above pan text
-            ctx.fillText(`Mouse: (${canvas.mouseImagePos.x.toFixed(1)}, ${canvas.mouseImagePos.y.toFixed(1)})`, panTextX, panTextY);
-        } else {
-            // If mouseImagePos is null (e.g. mouse left canvas), make sure a placeholder isn't shown from previous frame
-            // This is mostly handled by redraw, but good to be explicit if needed for some edge cases.
+            // Zoom: Bottom-right of main canvas
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(`Zoom: ${Math.round(userScale * 100)}%`, canvas.width - padding, canvas.height - padding);
+            
+            let textY_main = canvas.height - padding;
+            const textX_main = padding; 
+            ctx.textAlign = 'left';
+
+            if (canvas.mouseImagePos) {
+                ctx.fillText(`Mouse: (${canvas.mouseImagePos.x.toFixed(1)}, ${canvas.mouseImagePos.y.toFixed(1)})`, textX_main, textY_main);
+                textY_main -= lineHeight;
+            }
+            ctx.fillText(`Pan: (${Math.round(panX)}, ${Math.round(panY)})`, textX_main, textY_main);
         }
         
     } catch (err) {
@@ -760,7 +803,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         // If grid is visible, redraw it after zoom
         if (newCanvas.gridCanvasElement && newCanvas.gridCanvasElement.isGridVisible) {
             // console.log("Redrawing grid due to zoom");
-            drawGrid(newCanvas.gridCanvasElement, newCanvas, window.currentLoadedImage);
+            drawGrid(newCanvas.gridCanvasElement, newCanvas, window.currentLoadedImage, newCanvas.gridCanvasElement.isGridVisible);
         }
     }, { passive: false });
     
@@ -860,7 +903,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
             // If grid is visible, redraw it after pan
             if (newCanvas.gridCanvasElement && newCanvas.gridCanvasElement.isGridVisible) {
                 // console.log("Redrawing grid due to pan");
-                drawGrid(newCanvas.gridCanvasElement, newCanvas, window.currentLoadedImage);
+                drawGrid(newCanvas.gridCanvasElement, newCanvas, window.currentLoadedImage, newCanvas.gridCanvasElement.isGridVisible);
             }
         }
     });
