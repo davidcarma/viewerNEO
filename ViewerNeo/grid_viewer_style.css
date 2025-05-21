@@ -1,70 +1,66 @@
 /* Styles for the Grid Viewer Window */
 .grid-viewer-content {
     display: flex;
-    flex-direction: row; /* Arrange canvas and control panel side-by-side */
+    flex-direction: row;
     flex-grow: 1;
-    overflow: hidden; /* Prevent content from spilling during resize */
-    padding: 10px; /* Increased padding for a bit more space around content */
+    overflow: hidden;
+    padding: 10px;
     box-sizing: border-box;
-    background-color: #333; /* Match window content background from main style.css */
-    height: 100%; /* Ensure it takes full height of its container */
+    background-color: #333;
+    height: 100%;
 }
 
 .grid-viewer-canvas-container {
-    flex-grow: 1; /* Canvas container takes up available space */
+    flex-grow: 1;
     display: flex; 
     justify-content: center;
     align-items: center;
-    margin-right: 10px; /* Space between canvas and control panel */
+    margin-right: 10px;
     position: relative; 
     overflow: hidden; 
-    background-color: #2c2c2c; /* Slightly different bg for canvas area if needed */
+    background-color: #2c2c2c;
     border-radius: 4px;
-    min-width: 0; /* Prevent flex item from exceeding the container width */
-    min-height: 0; /* Prevent flex item from exceeding the container height */
+    min-width: 0;
+    min-height: 0;
 }
 
 .grid-viewer-canvas-container canvas {
     display: block; 
     max-width: 100%;
     max-height: 100%;
-    /* Original canvas styles: border: 2px solid #00ffff; box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff; */
-    border: 2px solid #00ffff; /* Neon blue border - from original #centered-canvas */
-    box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #0077ff; /* Enhanced neon glow */
+    border: 2px solid #00ffff;
+    box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #0077ff;
     border-radius: 4px; 
-    background-color: rgba(0,0,0,0.1); /* Slight dark tint from original */
-    box-sizing: border-box; /* Include borders in size calculations */
+    background-color: rgba(0,0,0,0.1);
+    box-sizing: border-box;
 }
 
 .grid-viewer-control-panel {
-    width: 150px; /* Fixed width for control panel */
+    width: 150px;
     min-width: 150px; 
     display: flex;
     flex-direction: column; 
     align-items: stretch; 
     padding: 10px;
-    /* background-color: red !important; TEMPORARY DEBUG REMOVED */
-    /* border: 2px solid yellow !important; TEMPORARY DEBUG REMOVED */
-    background-color: #2a2a2a; /* Darker, distinct panel background */
+    background-color: #2a2a2a;
     border-radius: 6px;
     box-sizing: border-box;
-    border: 1px solid #4a4a4a; /* Subtle border for the panel */
-    flex-shrink: 0; /* Prevent this panel from shrinking */
+    border: 1px solid #4a4a4a;
+    flex-shrink: 0;
 }
 
-/* Ensure buttons in the control panel don't cause unexpected expansion */
 .grid-viewer-control-panel button {
-    padding: 10px 12px; /* More padding for a better feel */
+    padding: 10px 12px;
     margin-bottom: 8px; 
-    background-color: #4f4f4f; /* Standard button color */
+    background-color: #4f4f4f;
     color: #e0e0e0;
     border: 1px solid #5f5f5f; 
     border-radius: 4px;
     cursor: pointer;
     text-align: center;
     font-size: 0.9em;
-    font-weight: 500; /* Slightly bolder text */
-    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease; /* Smooth transitions */
+    font-weight: 500;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -76,12 +72,12 @@
 
 .grid-viewer-control-panel button:hover {
     background-color: #5a5a5a;
-    border-color: #7a7a7a; /* Lighter border on hover */
-    transform: translateY(-1px); /* Subtle lift effect */
+    border-color: #7a7a7a;
+    transform: translateY(-1px);
 }
 
 .grid-viewer-control-panel button:active {
     background-color: #454545;
-    transform: translateY(0px); /* Remove lift on active */
+    transform: translateY(0px);
     transition-duration: 0.05s;
 } 
