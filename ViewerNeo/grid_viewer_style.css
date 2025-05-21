@@ -85,4 +85,16 @@
     background-color: #454545;
     transform: translateY(0px);
     transition-duration: 0.05s;
+}
+
+/* Styles for the dynamically added grid canvas */
+.dynamic-grid-canvas {
+    /* position, top, left, pointer-events, display are set inline via JS and HTML */
+    /* JS also manages width and height directly on the canvas element */
+    border: none; /* Override any default border for canvas if necessary */
+    box-shadow: none; /* Override any default box-shadow */
+    background-color: transparent; /* Ensure no background interferes */
+    z-index: 10; /* Ensure it's above the main image canvas */
+    /* max-width and max-height from the general canvas rule might interfere, 
+       but direct width/height setting in JS should override this. */
 } 

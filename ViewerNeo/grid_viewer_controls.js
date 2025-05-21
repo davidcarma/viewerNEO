@@ -7,13 +7,15 @@ import { createWindow } from '../WindowsManager/window-system.js';
 // Define the Grid Viewer Window creation function
 export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title = 'Grid Viewer', x = 200, y = 150, width = 700, height = 500, canvasId = `grid-canvas-${Date.now()}`, controlPanelId = `grid-controls-${Date.now()}` }) {
     const viewerId = id; 
+    const gridCanvasId = `${canvasId}-grid`;
     const contentHtml = `
         <div class="grid-viewer-content">
             <div id="${canvasId}-container" class="grid-viewer-canvas-container">
                 <canvas id="${canvasId}"></canvas>
+                <canvas id="${gridCanvasId}" class="dynamic-grid-canvas" style="position: absolute; top: 0; left: 0; pointer-events: none; display: none;"></canvas>
             </div>
             <div id="${controlPanelId}" class="grid-viewer-control-panel">
-                <button onclick="handleGridViewerButton1('${viewerId}')">Action 1</button>
+                <button id="${viewerId}-show-grid-btn" onclick="handleShowGridToggle('${viewerId}', '${canvasId}', '${gridCanvasId}')">Show Grid</button>
                 <button onclick="handleGridViewerResetView('${canvasId}')">Reset View</button>
                 <button onclick="handleGridViewerButton3('${viewerId}')">Action 3</button>
                 <button onclick="handleGridViewerButton4('${viewerId}')">Action 4</button>
@@ -23,27 +25,38 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
     `;
     const windowFrame = createWindow({ id, title, content: contentHtml, x, y, width, height });
     const viewerCanvas = windowFrame.querySelector(`#${canvasId}`);
+    const gridCanvas = windowFrame.querySelector(`#${gridCanvasId}`);
     const canvasContainer = windowFrame.querySelector(`#${canvasId}-container`);
-    if (viewerCanvas && canvasContainer) {
+
+    if (viewerCanvas && gridCanvas && canvasContainer) {
+        viewerCanvas.gridCanvasElement = gridCanvas; 
+        gridCanvas.isGridVisible = false; 
+
         const updateCanvasSize = () => {
             if (canvasContainer.offsetParent === null) return;
             const containerWidth = canvasContainer.clientWidth;
             const containerHeight = canvasContainer.clientHeight;
             
-            const currentWidth = viewerCanvas.width;
-            const currentHeight = viewerCanvas.height;
+            const currentMainWidth = viewerCanvas.width;
+            const currentMainHeight = viewerCanvas.height;
             
-            // Only update canvas dimensions if they've significantly changed (by more than 5px)
-            // This prevents feedback loops during subtle window resizing
-            if (Math.abs(currentWidth - containerWidth) > 5) viewerCanvas.width = containerWidth;
-            if (Math.abs(currentHeight - containerHeight) > 5) viewerCanvas.height = containerHeight;
+            let changed = false;
+            if (Math.abs(currentMainWidth - containerWidth) > 1 || viewerCanvas.width === 0) {
+                viewerCanvas.width = containerWidth;
+                gridCanvas.width = containerWidth;
+                changed = true;
+            }
+            if (Math.abs(currentMainHeight - containerHeight) > 1 || viewerCanvas.height === 0) {
+                viewerCanvas.height = containerHeight;
+                gridCanvas.height = containerHeight;
+                changed = true;
+            }
             
-            // Only dispatch resize event if dimensions actually changed
-            if (viewerCanvas.width !== currentWidth || viewerCanvas.height !== currentHeight) {
+            if (changed) {
                 const event = new CustomEvent('grid-canvas-resized', { 
                     detail: { canvas: viewerCanvas, width: viewerCanvas.width, height: viewerCanvas.height, viewerId: viewerId } 
                 });
-                viewerCanvas.dispatchEvent(event);
+                viewerCanvas.dispatchEvent(event); // This will trigger redrawCanvas, which in turn calls drawGrid
             }
         };
         // Initialize canvas size
@@ -61,8 +74,123 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
 }
 
 // Handler functions for grid viewer buttons
-function handleGridViewerButton1(viewerId) {
-    console.log(`Grid Viewer Button 1 clicked for viewer: ${viewerId}`);
+function handleGridViewerButton3(viewerId) {
+    console.log(`Grid Viewer Button 3 clicked for viewer: ${viewerId}`);
+}
+
+function handleGridViewerButton4(viewerId) {
+    console.log(`Grid Viewer Button 4 clicked for viewer: ${viewerId}`);
+}
+
+function handleGridViewerButton5(viewerId) {
+    console.log(`Grid Viewer Button 5 clicked for viewer: ${viewerId}`);
+}
+
+function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId) {
+    const mainCanvas = document.getElementById(mainCanvasId);
+    const gridCanvas = document.getElementById(gridCanvasId);
+    const button = document.getElementById(`${viewerId}-show-grid-btn`);
+
+    if (mainCanvas && gridCanvas && button) {
+        gridCanvas.isGridVisible = !gridCanvas.isGridVisible;
+        if (gridCanvas.isGridVisible) {
+            gridCanvas.style.display = 'block';
+            button.textContent = 'Hide Grid';
+            button.style.backgroundColor = '#5cb85c';
+            drawGrid(gridCanvas, mainCanvas, window.currentLoadedImage);
+        } else {
+            gridCanvas.style.display = 'none';
+            button.textContent = 'Show Grid';
+            button.style.backgroundColor = ''; 
+            const gridCtx = gridCanvas.getContext('2d');
+            gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+        }
+    } else {
+        console.error("Could not find canvas or button for grid toggle. IDs:", viewerId, mainCanvasId, gridCanvasId);
+    }
+}
+
+// Define drawGrid globally or ensure it's accessible where needed
+function drawGrid(gridCanvas, mainCanvas, image) {
+    if (!gridCanvas || !mainCanvas || !mainCanvas.transformState || !image || image === true) {
+        if(gridCanvas){
+            const gridCtxClear = gridCanvas.getContext('2d');
+            gridCtxClear.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+        }
+        return;
+    }
+
+    const gridCtx = gridCanvas.getContext('2d');
+    gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+
+    if (!gridCanvas.isGridVisible) return;
+
+    const transform = mainCanvas.transformState;
+    const userScale = transform.scale;
+    const panX = transform.offsetX;
+    const panY = transform.offsetY;
+
+    const natW = image.naturalWidth;
+    const natH = image.naturalHeight;
+
+    if (natW === 0 || natH === 0) return;
+
+    const baseFitScale = Math.min(mainCanvas.width / natW, mainCanvas.height / natH);
+    const totalCurrentScale = baseFitScale * userScale;
+    
+    const displayWidth = natW * totalCurrentScale;
+    const displayHeight = natH * totalCurrentScale;
+
+    const drawX = (mainCanvas.width - displayWidth) / 2 + panX;
+    const drawY = (mainCanvas.height - displayHeight) / 2 + panY;
+
+    gridCtx.save();
+    gridCtx.translate(drawX, drawY);
+    gridCtx.scale(totalCurrentScale, totalCurrentScale);
+
+    // Now draw grid lines based on original image pixel coordinates
+    // Grid lines every 50 original image pixels
+    const majorGridSpacing = 50; 
+    // Subdivision lines, e.g., every 10 original image pixels
+    const minorGridSpacing = 10; 
+
+    gridCtx.lineWidth = 1 / totalCurrentScale; // Aim for 1 screen pixel lines
+
+    // Minor grid lines
+    gridCtx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+    for (let x = 0; x < natW; x += minorGridSpacing) {
+        if (x % majorGridSpacing !== 0) { // Don't overdraw major lines
+            gridCtx.beginPath();
+            gridCtx.moveTo(x, 0);
+            gridCtx.lineTo(x, natH);
+            gridCtx.stroke();
+        }
+    }
+    for (let y = 0; y < natH; y += minorGridSpacing) {
+         if (y % majorGridSpacing !== 0) { // Don't overdraw major lines
+            gridCtx.beginPath();
+            gridCtx.moveTo(0, y);
+            gridCtx.lineTo(natW, y);
+            gridCtx.stroke();
+        }
+    }
+
+    // Major grid lines
+    gridCtx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+    for (let x = 0; x <= natW; x += majorGridSpacing) {
+        gridCtx.beginPath();
+        gridCtx.moveTo(x, 0);
+        gridCtx.lineTo(x, natH);
+        gridCtx.stroke();
+    }
+    for (let y = 0; y <= natH; y += majorGridSpacing) {
+        gridCtx.beginPath();
+        gridCtx.moveTo(0, y);
+        gridCtx.lineTo(natW, y);
+        gridCtx.stroke();
+    }
+    
+    gridCtx.restore();
 }
 
 function handleGridViewerResetView(canvasId) {
@@ -81,24 +209,12 @@ function handleGridViewerResetView(canvasId) {
     }
 }
 
-function handleGridViewerButton3(viewerId) {
-    console.log(`Grid Viewer Button 3 clicked for viewer: ${viewerId}`);
-}
-
-function handleGridViewerButton4(viewerId) {
-    console.log(`Grid Viewer Button 4 clicked for viewer: ${viewerId}`);
-}
-
-function handleGridViewerButton5(viewerId) {
-    console.log(`Grid Viewer Button 5 clicked for viewer: ${viewerId}`);
-}
-
 // Make functions globally accessible for onclick handlers
-window.handleGridViewerButton1 = handleGridViewerButton1;
 window.handleGridViewerResetView = handleGridViewerResetView;
 window.handleGridViewerButton3 = handleGridViewerButton3;
 window.handleGridViewerButton4 = handleGridViewerButton4;
 window.handleGridViewerButton5 = handleGridViewerButton5;
+window.handleShowGridToggle = handleShowGridToggle; 
 
 // Function to redraw the canvas with the current transform state
 export function redrawCanvas(canvas) {
@@ -164,6 +280,10 @@ export function redrawCanvas(canvas) {
     try {
         ctx.drawImage(img, drawX, drawY, displayWidth, displayHeight);
         
+        if (canvas.gridCanvasElement) { // Check if gridCanvasElement exists
+            drawGrid(canvas.gridCanvasElement, canvas, img); // Call drawGrid, it will check visibility internally
+        }
+
         // Optional: Display zoom level (userScale) and pan coordinates
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.font = '12px sans-serif';
@@ -258,6 +378,11 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         };
         
         redrawCanvas(newCanvas);
+        // If grid is visible, redraw it after zoom
+        if (newCanvas.gridCanvasElement && newCanvas.gridCanvasElement.isGridVisible) {
+            // console.log("Redrawing grid due to zoom");
+            drawGrid(newCanvas.gridCanvasElement, newCanvas, window.currentLoadedImage);
+        }
     }, { passive: false });
     
     // Set up mouse events for panning
@@ -288,6 +413,11 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
             newCanvas.transformState.offsetY += deltaY;
             
             redrawCanvas(newCanvas);
+            // If grid is visible, redraw it after pan
+            if (newCanvas.gridCanvasElement && newCanvas.gridCanvasElement.isGridVisible) {
+                // console.log("Redrawing grid due to pan");
+                drawGrid(newCanvas.gridCanvasElement, newCanvas, window.currentLoadedImage);
+            }
         }
     });
     
@@ -313,9 +443,14 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     
     // Set up event listener for canvas resizing
     newCanvas.addEventListener('grid-canvas-resized', (e) => {
+        const { canvas: resizedMainCanvas } = e.detail;
         if (window.currentLoadedImage) {
-            // Use our custom redraw function to maintain transform state during resize
-            redrawCanvas(newCanvas);
+            redrawCanvas(resizedMainCanvas); // This will redraw the main image and the grid
+        } else if (resizedMainCanvas.gridCanvasElement) {
+            // If no image, but grid canvas exists, ensure it's cleared if visible
+            const gridCanvas = resizedMainCanvas.gridCanvasElement;
+            const gridCtx = gridCanvas.getContext('2d');
+            gridCtx.clearRect(0,0, gridCanvas.width, gridCanvas.height);
         }
     });
     
