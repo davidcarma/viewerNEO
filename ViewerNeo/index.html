@@ -235,120 +235,8 @@
         // Add a second sync with a longer delay as a fallback
         setTimeout(syncPanelState, 200);
 
-        panel.addEventListener('thumbnail-selected', (event) => {
-            // Check if we have a canvas and context available
-            // If grid viewer hasn't been opened yet, show an alert and return
-            if (!window.ctx || !window.canvas) {
-                alert('Please open the Grid viewer first by clicking the "Grid viewer" button.');
-                return;
-            }
-            
-            let itemName, itemType;
-            if (event.detail && event.detail.file &&
-                typeof event.detail.file.name === 'string' &&
-                typeof event.detail.file.type === 'string') {
-                itemName = event.detail.file.name;
-                itemType = event.detail.file.type;
-            } else {
-                console.error("Error: Incomplete item data.");
-                return;
-            }
-
-            if (itemType.startsWith('image/')) {
-                const fileData = event.detail.file.data;
-                const image = new Image();
-            
-                // Common image loading function to maintain aspect ratio
-                const loadImageIntoCanvas = () => {
-                    // Store the loaded image for reuse during window resizing
-                    window.currentLoadedImage = image;
-                
-                    // Ensure we have the correct canvas reference
-                    const usableCanvas = window.canvas || canvas;
-                    const usableCtx = window.ctx || ctx;
-                
-                    if (!usableCanvas || !usableCtx) {
-                        console.error("Canvas or context not available");
-                        return;
-                    }
-                
-                    // Clear canvas before drawing
-                    usableCtx.clearRect(0, 0, usableCanvas.width, usableCanvas.height);
-                
-                    // Calculate dimensions to maintain aspect ratio
-                    const canvasWidth = usableCanvas.width;
-                    const canvasHeight = usableCanvas.height;
-                    const imgNaturalWidth = image.naturalWidth;
-                    const imgNaturalHeight = image.naturalHeight;
-                
-                    // Calculate the scale to fit the image within the canvas while preserving aspect ratio
-                    const scale = Math.min(canvasWidth / imgNaturalWidth, canvasHeight / imgNaturalHeight);
-                
-                    // Calculate the dimensions of the image after scaling
-                    const drawnWidth = imgNaturalWidth * scale;
-                    const drawnHeight = imgNaturalHeight * scale;
-                
-                    // Center the image on the canvas
-                    const dx = (canvasWidth - drawnWidth) / 2;
-                    const dy = (canvasHeight - drawnHeight) / 2;
-                
-                    // Draw the image on the canvas
-                    try {
-                        usableCtx.drawImage(image, dx, dy, drawnWidth, drawnHeight);
-                    } catch (err) {
-                        console.error("Error drawing image:", err);
-                    }
-                
-                    // Update window title to show the image name
-                    const canvasWindow = usableCanvas.closest('.window-frame');
-                    if (canvasWindow) {
-                        const titleElement = canvasWindow.querySelector('.window-title');
-                        if (titleElement) {
-                            titleElement.textContent = `Canvas - ${itemName}`;
-                        }
-                    }
-                };
-            
-                // Error handler for image loading
-                image.onerror = () => {
-                    console.error(`Error loading: ${itemName}`);
-                    // If there's an object URL, revoke it
-                    if (image.src.startsWith('blob:')) {
-                        URL.revokeObjectURL(image.src);
-                    }
-                };
-            
-                // Set up the onload handler
-                image.onload = loadImageIntoCanvas;
-            
-                // Handle different types of image data
-                if (fileData instanceof File) {
-                    // For File objects, create an object URL
-                    const imageUrl = URL.createObjectURL(fileData);
-                    image.onload = () => {
-                        loadImageIntoCanvas();
-                        URL.revokeObjectURL(imageUrl);
-                    };
-                    image.src = imageUrl;
-                } else if (typeof fileData === 'string') {
-                    // For string URLs (like our local file paths)
-                    const url = fileData + '?t=' + Date.now();
-                
-                    // Set crossOrigin to anonymous for CORS issues
-                    image.crossOrigin = "anonymous";
-                
-                    // Use a setTimeout to ensure the image loads after the canvas is set up
-                    setTimeout(() => {
-                        image.src = url;
-                    }, 50);
-                } else {
-                    // Fallback for other types of data
-                    console.error(`Cannot load image: Unsupported data format`);
-                }
-            } else {
-                console.error(`Preview not available for: ${itemName} (${itemType})`);
-            }
-        });
+        // The thumbnail-selected event will be handled by window.handleThumbnailImage
+        // which is set up in the second script module
 
         document.addEventListener('paste', async (event) => {
             const items = event.clipboardData?.items;
@@ -416,6 +304,137 @@
         import { createWindow, setTopBarOffset, setLeftBoundary } from '../WindowsManager/window-system.js';
         import { createGridViewerWindow, setupCanvasImageHandling } from './grid_viewer_controls.js';
 
+        // Define a global image handler function to be called when a thumbnail is selected
+        window.handleThumbnailImage = function(event) {
+            // Store the selected thumbnail data even if no viewer is open
+            if (event.detail && event.detail.file) {
+                window.lastSelectedThumbnail = event.detail.file;
+            }
+            
+            // Check if we have a canvas and context available
+            if (!window.ctx || !window.canvas) {
+                console.log('Thumbnail selected, but Grid viewer is not open. The image will load when viewer is opened.');
+                // Silently return without complaining to the user
+                return;
+            }
+            
+            let itemName, itemType;
+            if (event.detail && event.detail.file &&
+                typeof event.detail.file.name === 'string' &&
+                typeof event.detail.file.type === 'string') {
+                itemName = event.detail.file.name;
+                itemType = event.detail.file.type;
+            } else {
+                console.error("Error: Incomplete item data.");
+                return;
+            }
+            
+            if (itemType.startsWith('image/')) {
+                const fileData = event.detail.file.data;
+                const image = new Image();
+                
+                // Common image loading function to maintain aspect ratio
+                const loadImageIntoCanvas = () => {
+                                    // Check if we're loading the same image that's already displayed
+                // But always allow redrawing if we just reopened the window
+                if (window.currentLoadedImage === image && !window.justReopened) {
+                    console.log("Same image already loaded, no need to redraw");
+                    return;
+                }
+                
+                // Reset the reopening flag once we've processed an image load
+                window.justReopened = false;
+                    
+                    // Store the loaded image for reuse during window resizing
+                    window.currentLoadedImage = image;
+                    
+                    // Get the actual canvas and context
+                    const usableCanvas = window.canvas;
+                    const usableCtx = window.ctx;
+                    
+                    if (!usableCanvas || !usableCtx) {
+                        console.error("Canvas or context not available");
+                        return;
+                    }
+                    
+                    // Clear canvas before drawing
+                    usableCtx.clearRect(0, 0, usableCanvas.width, usableCanvas.height);
+                    
+                    // Calculate dimensions to maintain aspect ratio
+                    const canvasWidth = usableCanvas.width;
+                    const canvasHeight = usableCanvas.height;
+                    const imgNaturalWidth = image.naturalWidth;
+                    const imgNaturalHeight = image.naturalHeight;
+                    
+                    // Calculate the scale to fit the image within the canvas while preserving aspect ratio
+                    const scale = Math.min(canvasWidth / imgNaturalWidth, canvasHeight / imgNaturalHeight);
+                    
+                    // Calculate the dimensions of the image after scaling
+                    const drawnWidth = imgNaturalWidth * scale;
+                    const drawnHeight = imgNaturalHeight * scale;
+                    
+                    // Center the image on the canvas
+                    const dx = (canvasWidth - drawnWidth) / 2;
+                    const dy = (canvasHeight - drawnHeight) / 2;
+                    
+                    // Draw the image on the canvas
+                    try {
+                        usableCtx.drawImage(image, dx, dy, drawnWidth, drawnHeight);
+                    } catch (err) {
+                        console.error("Error drawing image:", err);
+                    }
+                    
+                    // Update window title to show "Grid Viewer - filename"
+                    const canvasWindow = usableCanvas.closest('.window-frame');
+                    if (canvasWindow) {
+                        const titleElement = canvasWindow.querySelector('.window-title');
+                        if (titleElement) {
+                            titleElement.textContent = `Grid Viewer - ${itemName}`;
+                        }
+                    }
+                };
+                
+                // Error handler for image loading
+                image.onerror = () => {
+                    console.error(`Error loading: ${itemName}`);
+                    // If there's an object URL, revoke it
+                    if (image.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(image.src);
+                    }
+                };
+                
+                // Set up the onload handler
+                image.onload = loadImageIntoCanvas;
+                
+                // Handle different types of image data
+                if (fileData instanceof File) {
+                    // For File objects, create an object URL
+                    const imageUrl = URL.createObjectURL(fileData);
+                    image.onload = () => {
+                        loadImageIntoCanvas();
+                        URL.revokeObjectURL(imageUrl);
+                    };
+                    image.src = imageUrl;
+                } else if (typeof fileData === 'string') {
+                    // For string URLs (like our local file paths)
+                    const url = fileData + '?t=' + Date.now();
+                    
+                    // Set crossOrigin to anonymous for CORS issues
+                    image.crossOrigin = "anonymous";
+                    
+                    // Use a setTimeout to ensure the image loads after the canvas is set up
+                    setTimeout(() => {
+                        image.src = url;
+                    }, 50);
+                } else {
+                    // Fallback for other types of data
+                    console.error(`Cannot load image: Unsupported data format`);
+                }
+            } else {
+                console.error(`Preview not available for: ${itemName} (${itemType})`);
+            }
+        };
+
         // Wait for DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', () => {
             // Set the top bar offset for the window manager
@@ -433,53 +452,492 @@
             } else {
                 setLeftBoundary(0);
             }
+
+            // Set up the panel thumbnail-selected event handler
+            const panel = document.getElementById('my-thumbnail-panel');
+            if (panel) {
+                // Set up the thumbnail-selected event listener
+                panel.addEventListener('thumbnail-selected', (event) => {
+                    // Call the global handler
+                    window.handleThumbnailImage(event);
+                    
+                    // Also track the indices for better state recovery
+                    if (event.detail && typeof event.detail.batchIndex === 'number' && typeof event.detail.fileIndex === 'number') {
+                        panel.lastSelectedBatchIndex = event.detail.batchIndex;
+                        panel.lastSelectedFileIndex = event.detail.fileIndex;
+                    }
+                });
+
+                // Add method to get selected thumbnail with fallback using the tracking properties
+                panel.getSelectedThumbnail = function() {
+                    try {
+                        // Get the selected thumbnail element
+                        const selectedEl = this.shadowRoot.querySelector('.thumbnail-item.active');
+                        if (selectedEl) {
+                            // Return the file data associated with this thumbnail
+                            const batchIndex = parseInt(selectedEl.dataset.batchIndex);
+                            const fileIndex = parseInt(selectedEl.dataset.fileIndex);
+                            
+                            // Guard against invalid indices
+                            if (isNaN(batchIndex) || isNaN(fileIndex) || 
+                                !this._batches || 
+                                !this._batches[batchIndex] || 
+                                !this._batches[batchIndex].files || 
+                                !this._batches[batchIndex].files[fileIndex]) {
+                                console.warn("Selected thumbnail indices are invalid:", batchIndex, fileIndex);
+                                return null;
+                            }
+                            
+                            return this._batches[batchIndex].files[fileIndex];
+                        }
+                        
+                        // Fallback: Use the last selected indices if available
+                        if (typeof this.lastSelectedBatchIndex === 'number' && 
+                            typeof this.lastSelectedFileIndex === 'number' &&
+                            this._batches && 
+                            this._batches[this.lastSelectedBatchIndex] && 
+                            this._batches[this.lastSelectedBatchIndex].files && 
+                            this._batches[this.lastSelectedBatchIndex].files[this.lastSelectedFileIndex]) {
+                            
+                            console.log("Using fallback selection indices:", this.lastSelectedBatchIndex, this.lastSelectedFileIndex);
+                            return this._batches[this.lastSelectedBatchIndex].files[this.lastSelectedFileIndex];
+                        }
+                    } catch (error) {
+                        console.error("Error getting selected thumbnail:", error);
+                    }
+                    return null;
+                };
+            }
         });
 
-        // Initialize the grid viewer on button click
-        document.getElementById('grid-viewer-btn').addEventListener('click', () => {
-            const mainContentElement = document.getElementById('main-content');
+        // Track if grid viewer window is currently open
+        window.isGridViewerOpen = false;
+        window.gridViewerWindowFrame = null;
         
-            if (mainContentElement) {
-                // Calculate initial window size and position based on main content area - 80% of available space
-                const availableWidth = mainContentElement.clientWidth;
-                const availableHeight = mainContentElement.clientHeight;
+        // Initialize the grid viewer on button click
+        document.getElementById('grid-viewer-btn').addEventListener('click', function(e) {
+            // Prevent default behavior in case this is preventing event bubbling
+            e.preventDefault();
+            e.stopPropagation();
             
-                const initialWidth = Math.floor(availableWidth * 0.8);
-                const initialHeight = Math.floor(availableHeight * 0.8);
+            console.log("Grid viewer button clicked");
             
-                // Center the window within the main content area
-                const initialX = mainContentElement.offsetLeft + Math.floor((availableWidth - initialWidth) / 2);
-                const initialY = mainContentElement.offsetTop + Math.floor((availableHeight - initialHeight) / 2);
-
-                const mainViewerCanvasId = 'viewer-main-canvas';
-            
-                const gridViewerWindowFrame = createGridViewerWindow({
-                    id: 'canvas-window',
-                    title: 'Canvas Viewer',
-                    x: initialX,
-                    y: initialY,
-                    width: initialWidth,
-                    height: initialHeight,
-                    canvasId: mainViewerCanvasId
-                });
+                        // Check if we actually have a window already - first do a visual check
+            const existingWindow = document.querySelector('#canvas-window');
+            if (existingWindow) {
+                console.log("Found existing window by DOM query");
+                window.gridViewerWindowFrame = existingWindow;
+                window.isGridViewerOpen = true;
                 
-                setTimeout(() => {
-                    const newCanvasInViewer = gridViewerWindowFrame.querySelector(`#${mainViewerCanvasId}`);
-                    if (newCanvasInViewer) {
-                        // Set global canvas and context references
-                        window.canvas = newCanvasInViewer;
-                        window.ctx = newCanvasInViewer.getContext('2d');
-                        
-                        const event = new CustomEvent('canvas-replaced', {
-                            detail: { newCanvas: newCanvasInViewer, newContext: newCanvasInViewer.getContext('2d') }
-                        });
-                        document.dispatchEvent(event);
-                    } else {
-                        console.error('New canvas element not found within the grid viewer window.');
+                // Find the canvas and context inside this window
+                const canvas = existingWindow.querySelector('#viewer-main-canvas');
+                if (canvas) {
+                    window.canvas = canvas;
+                    window.ctx = canvas.getContext('2d');
+                    
+                    // Check if there's an image already in the canvas by examining the canvas data
+                    const imageData = window.ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const hasPixelData = Array.from(imageData.data).some(value => value !== 0);
+                    
+                    // If we have pixel data, reconstruct the currentLoadedImage state
+                    if (hasPixelData && !window.currentLoadedImage) {
+                        console.log("Detected existing image in canvas, preserving state");
+                        window.currentLoadedImage = true; // Just use a truthy value to indicate content exists
                     }
-                }, 100);
-            } else {
-                console.error('Main content element not found.');
+                }
+            }
+            
+            // Check if grid viewer is already open
+            if (window.isGridViewerOpen && window.gridViewerWindowFrame && document.body.contains(window.gridViewerWindowFrame)) {
+                // If it's already open, just activate it and bring it to front
+                console.log("Grid viewer already open, focusing existing window");
+                
+                // Try to bring the window to front
+                try {
+                    // Try clicking the header to focus
+                    const header = window.gridViewerWindowFrame.querySelector('.window-header');
+                    if (header) {
+                        header.click();
+                        console.log("Clicked header to focus window");
+                    }
+                } catch (e) {
+                    console.error("Could not focus existing window:", e);
+                }
+                
+                // Double check our canvas and context
+                if (!window.canvas || !window.ctx) {
+                    const canvas = window.gridViewerWindowFrame.querySelector('#viewer-main-canvas');
+                    if (canvas) {
+                        window.canvas = canvas;
+                        window.ctx = canvas.getContext('2d');
+                        console.log("Restored canvas and context references");
+                    }
+                }
+                
+                // If the canvas already has content and we're not reopening after close, preserve it and return early
+                if (window.canvas && window.ctx && window.currentLoadedImage && !window.justReopened) {
+                    console.log("Preserving existing canvas content");
+                    return;
+                }
+                // Reset the reopening flag
+                window.justReopened = false;
+                
+                // Only refresh the content if there's no current image loaded
+                let hasSelectedThumbnail = false;
+                const panel = document.getElementById('my-thumbnail-panel');
+                
+                // First check if we have a thumbnail that was selected while viewer was closed
+                if (window.lastSelectedThumbnail && window.canvas && window.ctx) {
+                    console.log("Loading last selected thumbnail:", window.lastSelectedThumbnail.name);
+                    hasSelectedThumbnail = true;
+                    
+                    // Create a synthetic event that mimics the thumbnail-selected event
+                    const syntheticEvent = {
+                        detail: {
+                            file: window.lastSelectedThumbnail
+                        }
+                    };
+                    
+                    // Call the global handler function
+                    window.handleThumbnailImage(syntheticEvent);
+                    
+                    // Update window title
+                    if (window.gridViewerWindowFrame) {
+                        const titleElement = window.gridViewerWindowFrame.querySelector('.window-title');
+                        if (titleElement && window.lastSelectedThumbnail.name) {
+                            titleElement.textContent = `Grid Viewer - ${window.lastSelectedThumbnail.name}`;
+                        }
+                    }
+                    
+                    // Clear the cached thumbnail after using it
+                    window.lastSelectedThumbnail = null;
+                }
+                // Otherwise try getting the selected thumbnail from the panel
+                else if (panel && typeof panel.getSelectedThumbnail === 'function' && window.canvas && window.ctx) {
+                    const selectedThumbnail = panel.getSelectedThumbnail();
+                    console.log("Selected thumbnail check:", selectedThumbnail ? selectedThumbnail.name : "none");
+                    
+                    if (selectedThumbnail) {
+                        hasSelectedThumbnail = true;
+                        // Create a synthetic event that mimics the thumbnail-selected event
+                        const syntheticEvent = {
+                            detail: {
+                                file: selectedThumbnail
+                            }
+                        };
+                        
+                        // Call the global handler function
+                        window.handleThumbnailImage(syntheticEvent);
+                        
+                        // Update window title
+                        if (window.gridViewerWindowFrame) {
+                            const titleElement = window.gridViewerWindowFrame.querySelector('.window-title');
+                            if (titleElement && selectedThumbnail.name) {
+                                titleElement.textContent = `Grid Viewer - ${selectedThumbnail.name}`;
+                            }
+                        }
+                    }
+                } else {
+                    console.error("Could not check for selected thumbnail:",
+                        panel ? "Panel exists" : "No panel",
+                        panel && typeof panel.getSelectedThumbnail === 'function' ? "getSelectedThumbnail exists" : "No getSelectedThumbnail",
+                        window.canvas ? "Canvas exists" : "No canvas",
+                        window.ctx ? "Context exists" : "No context"
+                    );
+                }
+                
+                // If no thumbnail is selected, draw helpful text on the canvas
+                if (!hasSelectedThumbnail && window.ctx && window.canvas) {
+                    const ctx = window.ctx;
+                    const canvas = window.canvas;
+                    
+                    // Clear the canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw the helpful text
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '16px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('Please select an image from the thumbnail panel', canvas.width / 2, canvas.height / 2);
+                    
+                    // Update window title back to default
+                    if (window.gridViewerWindowFrame) {
+                        const titleElement = window.gridViewerWindowFrame.querySelector('.window-title');
+                        if (titleElement) {
+                            titleElement.textContent = 'Grid Viewer';
+                        }
+                    }
+                }
+                return;
+            }
+            
+            console.log("Creating new grid viewer window");
+            
+            try {
+                const mainContentElement = document.getElementById('main-content');
+                
+                if (mainContentElement) {
+                    // Calculate initial window size and position based on main content area - 80% of available space
+                    const availableWidth = mainContentElement.clientWidth;
+                    const availableHeight = mainContentElement.clientHeight;
+                
+                    const initialWidth = Math.floor(availableWidth * 0.8);
+                    const initialHeight = Math.floor(availableHeight * 0.8);
+                
+                    // Center the window within the main content area
+                    const initialX = mainContentElement.offsetLeft + Math.floor((availableWidth - initialWidth) / 2);
+                    const initialY = mainContentElement.offsetTop + Math.floor((availableHeight - initialHeight) / 2);
+    
+                    const mainViewerCanvasId = 'viewer-main-canvas';
+                
+                    // Check if there's a selected thumbnail to include in the title
+                    let initialTitle = 'Grid Viewer';
+                    const panel = document.getElementById('my-thumbnail-panel');
+                    let selectedThumbnail = null;
+                    
+                    // First check if we have a previously stored thumbnail
+                    if (window.lastSelectedThumbnail) {
+                        selectedThumbnail = window.lastSelectedThumbnail;
+                        console.log("Using previously stored thumbnail:", selectedThumbnail.name);
+                        initialTitle = `Grid Viewer - ${selectedThumbnail.name}`;
+                    }
+                    // Otherwise try to get the current selection from the panel
+                    else if (panel && typeof panel.getSelectedThumbnail === 'function') {
+                        try {
+                            selectedThumbnail = panel.getSelectedThumbnail();
+                            console.log("Initial selected thumbnail:", selectedThumbnail ? selectedThumbnail.name : "none");
+                            if (selectedThumbnail && selectedThumbnail.name) {
+                                initialTitle = `Grid Viewer - ${selectedThumbnail.name}`;
+                            }
+                        } catch (e) {
+                            console.error("Error getting selected thumbnail:", e);
+                        }
+                    }
+                    
+                    // Create the window with the grid viewer
+                    console.log("Creating grid viewer window:", initialTitle);
+                    
+                    const gridViewerWindowFrame = createGridViewerWindow({
+                        id: 'canvas-window',
+                        title: initialTitle,
+                        x: initialX,
+                        y: initialY,
+                        width: initialWidth,
+                        height: initialHeight,
+                        canvasId: mainViewerCanvasId
+                    });
+                    
+                    console.log("Grid viewer window created:", gridViewerWindowFrame ? "success" : "failed");
+                    
+                    // Store reference to the window and mark it as open
+                    window.gridViewerWindowFrame = gridViewerWindowFrame;
+                    window.isGridViewerOpen = true;
+                    window.justReopened = true; // Mark that we just reopened the window
+                    
+                    // Remember the selected thumbnail for loading
+                    window.initialSelectedThumbnail = selectedThumbnail;
+                
+                    // Add close listener to update the open state
+                    try {
+                        // Use a MutationObserver to detect when the window is removed from the DOM
+                        const observer = new MutationObserver(function(mutations) {
+                            for (const mutation of mutations) {
+                                if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                                    // Check if our window was removed
+                                    for (const node of mutation.removedNodes) {
+                                        if (node === gridViewerWindowFrame || 
+                                            (node.contains && node.contains(gridViewerWindowFrame))) {
+                                            console.log("Grid viewer window was closed");
+                                            window.isGridViewerOpen = false;
+                                            window.gridViewerWindowFrame = null;
+                                            window.canvas = null;
+                                            window.ctx = null;
+                                            window.currentLoadedImage = null; // Clear the current image reference
+                                            
+                                            // Store the currently selected thumbnail for reloading when viewer reopens
+                                            try {
+                                                const panel = document.getElementById('my-thumbnail-panel');
+                                                if (panel && typeof panel.getSelectedThumbnail === 'function') {
+                                                    const selectedThumbnail = panel.getSelectedThumbnail();
+                                                    if (selectedThumbnail) {
+                                                        // Create a shallow copy to avoid reference issues
+                                                        window.lastSelectedThumbnail = {...selectedThumbnail};
+                                                        console.log("Stored selected thumbnail for next open:", selectedThumbnail.name);
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                console.error("Error storing selected thumbnail:", e);
+                                            }
+                                            observer.disconnect();
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // Start observing the document body for changes
+                        observer.observe(document.body, { childList: true, subtree: true });
+                        
+                        // Also set up a direct close button listener as backup
+                        const closeButton = gridViewerWindowFrame.querySelector('.window-close');
+                        if (closeButton) {
+                            closeButton.addEventListener('click', function() {
+                                setTimeout(function() {
+                                    window.isGridViewerOpen = false;
+                                    window.gridViewerWindowFrame = null;
+                                    window.canvas = null;
+                                    window.ctx = null;
+                                    window.currentLoadedImage = null; // Clear the current image reference
+                                    
+                                    // Store the currently selected thumbnail for reloading when viewer reopens
+                                    try {
+                                        const panel = document.getElementById('my-thumbnail-panel');
+                                        if (panel && typeof panel.getSelectedThumbnail === 'function') {
+                                            const selectedThumbnail = panel.getSelectedThumbnail();
+                                            if (selectedThumbnail) {
+                                                // Create a shallow copy to avoid reference issues
+                                                window.lastSelectedThumbnail = {...selectedThumbnail};
+                                                console.log("Stored selected thumbnail for next open:", selectedThumbnail.name);
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.error("Error storing selected thumbnail:", e);
+                                    }
+                                }, 100); // Small delay to ensure window is fully removed
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Could not set up close listener:", e);
+                    }
+                    
+                    // Set a timeout to ensure the window is fully created and added to the DOM
+                    setTimeout(function() {
+                        try {
+                            console.log("Looking for canvas in grid viewer window");
+                            
+                            // Handle the case where our grid viewer window wasn't assigned properly
+                            if (!window.gridViewerWindowFrame) {
+                                const existingWindow = document.querySelector('#canvas-window');
+                                if (existingWindow) {
+                                    console.log("Found window by query selector");
+                                    window.gridViewerWindowFrame = existingWindow;
+                                    window.isGridViewerOpen = true;
+                                } else {
+                                    throw new Error("Grid viewer window not found after creation");
+                                }
+                            }
+                            
+                            // Find the canvas element in the window
+                            const newCanvasInViewer = window.gridViewerWindowFrame.querySelector(`#${mainViewerCanvasId}`);
+                            if (newCanvasInViewer) {
+                                console.log("Canvas found in viewer window");
+                                
+                                // Set global canvas and context references
+                                window.canvas = newCanvasInViewer;
+                                window.ctx = newCanvasInViewer.getContext('2d');
+                                
+                                const event = new CustomEvent('canvas-replaced', {
+                                    detail: { newCanvas: newCanvasInViewer, newContext: newCanvasInViewer.getContext('2d') }
+                                });
+                                document.dispatchEvent(event);
+                                
+                                // Load the initial selected thumbnail if we have one
+                                let hasSelectedThumbnail = false;
+                                
+                                // First check if we have a thumbnail that was selected while viewer was closed
+                                if (window.lastSelectedThumbnail) {
+                                    console.log("Loading last selected thumbnail:", window.lastSelectedThumbnail.name);
+                                    hasSelectedThumbnail = true;
+                                    
+                                    // Create a synthetic event that mimics the thumbnail-selected event
+                                    const syntheticEvent = {
+                                        detail: {
+                                            file: window.lastSelectedThumbnail
+                                        }
+                                    };
+                                    
+                                    // Call the global handler function
+                                    window.handleThumbnailImage(syntheticEvent);
+                                    
+                                    // Clear the cached thumbnail after using it
+                                    window.lastSelectedThumbnail = null;
+                                } 
+                                // Then try the cached initial thumbnail
+                                else if (window.initialSelectedThumbnail) {
+                                    console.log("Loading cached initial thumbnail:", window.initialSelectedThumbnail.name);
+                                    hasSelectedThumbnail = true;
+                                    
+                                    // Create a synthetic event that mimics the thumbnail-selected event
+                                    const syntheticEvent = {
+                                        detail: {
+                                            file: window.initialSelectedThumbnail
+                                        }
+                                    };
+                                    
+                                    // Call the global handler function
+                                    window.handleThumbnailImage(syntheticEvent);
+                                } 
+                                // If no cached thumbnail, try getting it from the panel
+                                else {
+                                    console.log("No cached thumbnail, checking panel");
+                                    const panel = document.getElementById('my-thumbnail-panel');
+                                    
+                                    if (panel && typeof panel.getSelectedThumbnail === 'function') {
+                                        try {
+                                            const selectedThumbnail = panel.getSelectedThumbnail();
+                                            console.log("Got thumbnail from panel:", selectedThumbnail ? selectedThumbnail.name : "none");
+                                            
+                                            if (selectedThumbnail) {
+                                                hasSelectedThumbnail = true;
+                                                
+                                                // Create a synthetic event
+                                                const syntheticEvent = {
+                                                    detail: {
+                                                        file: selectedThumbnail
+                                                    }
+                                                };
+                                                
+                                                // Call the global handler function
+                                                window.handleThumbnailImage(syntheticEvent);
+                                            }
+                                        } catch (e) {
+                                            console.error("Error getting selected thumbnail:", e);
+                                        }
+                                    } else {
+                                        console.log("Panel not available for thumbnail selection");
+                                    }
+                                }
+                                
+                                // If no thumbnail is selected, draw helpful text on the canvas
+                                if (!hasSelectedThumbnail && window.ctx && window.canvas) {
+                                    console.log("No thumbnail selected, showing help text");
+                                    const ctx = window.ctx;
+                                    const canvas = window.canvas;
+                                    
+                                    // Clear the canvas
+                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                    
+                                    // Draw the helpful text
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.font = '16px sans-serif';
+                                    ctx.textAlign = 'center';
+                                    ctx.textBaseline = 'middle';
+                                    ctx.fillText('Please select an image from the thumbnail panel', canvas.width / 2, canvas.height / 2);
+                                }
+                            } else {
+                                console.error('New canvas element not found within the grid viewer window.');
+                            }
+                        } catch (error) {
+                            console.error("Error setting up canvas:", error);
+                        }
+                    }, 300); // Increased timeout for more reliable initialization
+                } else {
+                    console.error("Main content element not found");
+                }
+            } catch (error) {
+                console.error("Error creating grid viewer window:", error);
             }
         });
     
