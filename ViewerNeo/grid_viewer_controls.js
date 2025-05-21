@@ -108,9 +108,28 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
         });
         majorSpacingInput.addEventListener('input', (e) => {
             let newMajorSpacing = parseFloat(e.target.value);
-            if (isNaN(newMajorSpacing) || newMajorSpacing <= 0) newMajorSpacing = gridCanvas.gridSettings.syncedMajorSpacing; // revert if invalid
+            if (isNaN(newMajorSpacing) || newMajorSpacing <= 0) {
+                // Revert to old value if input is invalid
+                e.target.value = gridCanvas.gridSettings.syncedMajorSpacing.toFixed(1);
+                return; // Exit without redrawing if invalid
+            }
             gridCanvas.gridSettings.syncedMajorSpacing = newMajorSpacing;
-            // No longer need to auto-adjust a separate minor spacing input
+            
+            // If currently in fixed mode, recalculate fixedGridSpacing based on the new syncedMajorSpacing
+            if (gridCanvas.gridSettings.mode === 'fixed') {
+                const image = window.currentLoadedImage;
+                if (image && image !== true && image.naturalWidth && image.naturalHeight && viewerCanvas.transformState) {
+                    const baseFitScale = Math.min(viewerCanvas.width / image.naturalWidth, viewerCanvas.height / image.naturalHeight);
+                    const totalCurrentScale = baseFitScale * viewerCanvas.transformState.scale;
+                    let currentOnScreenSpacing = newMajorSpacing * totalCurrentScale; // Use the newMajorSpacing
+                    currentOnScreenSpacing = Math.max(currentOnScreenSpacing, 5); 
+                    gridCanvas.gridSettings.fixedGridSpacing = currentOnScreenSpacing;
+                } else {
+                    // Fallback if image/transform info isn't available (should be rare if in fixed mode with settings enabled)
+                    gridCanvas.gridSettings.fixedGridSpacing = 50; 
+                }
+            }
+
             if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
         });
         showMinorLinesCheckbox.addEventListener('change', (e) => {
@@ -449,7 +468,9 @@ function drawGrid(gridCanvas, mainCanvas, image, isGridActuallyVisible) {
     // Informational text drawn on gridCanvas ONLY if the grid/rulers are meant to be visible.
     if (isGridActuallyVisible) {
         gridCtx.save(); 
-        gridCtx.fillStyle = 'rgba(220, 220, 220, 0.9)'; 
+        // Use the current grid color and opacity for the text
+        const settings = gridCanvas.gridSettings;
+        gridCtx.fillStyle = hexToRGBA(settings.color, Math.min(1, settings.opacity + 0.4)); // Use grid color, boost opacity for legibility
         gridCtx.font = '12px sans-serif';
         const padding = 10;
         const lineHeight = 15;
@@ -703,7 +724,19 @@ export function redrawCanvas(canvas) {
 
         // If the grid/rulers (and their text) are NOT visible, draw text on main canvas.
         if (!gridIsVisible) {
-            ctx.fillStyle = 'rgba(220, 220, 220, 0.9)';
+            // Use the default grid color (red) and a high opacity when grid is off
+            // Get default color from where gridSettings are initialized or define it here.
+            // For simplicity, let's assume the default is known or take it from a potential global default.
+            // If gridCanvasElement exists, we can peek at its default settings.
+            let textColor = 'rgba(220, 220, 220, 0.9)'; // Fallback default
+            if (canvas.gridCanvasElement && canvas.gridCanvasElement.gridSettings) {
+                 // Use the current grid color, even if grid is not visible itself, for consistency
+                textColor = hexToRGBA(canvas.gridCanvasElement.gridSettings.color, 0.9);
+            } else {
+                // If grid element/settings don't exist yet, use a hardcoded default red
+                textColor = hexToRGBA('#FF0000', 0.9);
+            }
+            ctx.fillStyle = textColor;
             ctx.font = '12px sans-serif';
             const padding = 10;
             const lineHeight = 15;
@@ -775,31 +808,25 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         const currentUserScale = newCanvas.transformState.scale;
         
         const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-        const newUserScale = Math.min(Math.max(currentUserScale * zoomFactor, 0.1), 50); // Max 1000% zoom, Min 10%
+        const newUserScale = Math.min(Math.max(currentUserScale * zoomFactor, 0.1), 50); 
 
-        // Mouse position on canvas
         const rect = newCanvas.getBoundingClientRect();
         const mcx = e.clientX - rect.left;
         const mcy = e.clientY - rect.top;
 
-        // Base scale to fit image
         const baseFitScale = Math.min(newCanvas.width / natW, newCanvas.height / natH);
 
-        // Current total scale and display dimensions
         const currentTotalScale = baseFitScale * currentUserScale;
         const currentDisplayWidth = natW * currentTotalScale;
         const currentDisplayHeight = natH * currentTotalScale;
         
-        // Current top-left of image on canvas
         const currentImgTopLeftX = (newCanvas.width - currentDisplayWidth) / 2 + currentPanX;
         const currentImgTopLeftY = (newCanvas.height - currentDisplayHeight) / 2 + currentPanY;
 
-        // New total scale and display dimensions
         const newTotalScale = baseFitScale * newUserScale;
         const newDisplayWidth = natW * newTotalScale;
         const newDisplayHeight = natH * newTotalScale;
 
-        // Calculate new pan values to keep point under mouse fixed
         const finalPanX = mcx - (newCanvas.width - newDisplayWidth) / 2 - (mcx - currentImgTopLeftX) * (newUserScale / currentUserScale);
         const finalPanY = mcy - (newCanvas.height - newDisplayHeight) / 2 - (mcy - currentImgTopLeftY) * (newUserScale / currentUserScale);
         
@@ -808,13 +835,24 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
             offsetX: finalPanX,
             offsetY: finalPanY
         };
+
+        // If in fixed grid mode, update its fixedGridSpacing based on the new zoom level
+        if (newCanvas.gridCanvasElement && 
+            newCanvas.gridCanvasElement.gridSettings && 
+            newCanvas.gridCanvasElement.gridSettings.mode === 'fixed') {
+            
+            const gridCanvas = newCanvas.gridCanvasElement;
+            // Recalculate fixedGridSpacing based on syncedMajorSpacing and the new totalCurrentScale
+            // totalCurrentScale here uses newUserScale which is now in newCanvas.transformState.scale
+            const effectiveTotalScale = baseFitScale * newCanvas.transformState.scale; 
+            let currentOnScreenSpacing = gridCanvas.gridSettings.syncedMajorSpacing * effectiveTotalScale;
+            currentOnScreenSpacing = Math.max(currentOnScreenSpacing, 5); // Ensure minimum 5px spacing
+            gridCanvas.gridSettings.fixedGridSpacing = currentOnScreenSpacing;
+        }
         
         redrawCanvas(newCanvas);
-        // If grid is visible, redraw it after zoom
-        if (newCanvas.gridCanvasElement && newCanvas.gridCanvasElement.isGridVisible) {
-            // console.log("Redrawing grid due to zoom");
-            drawGrid(newCanvas.gridCanvasElement, newCanvas, window.currentLoadedImage, newCanvas.gridCanvasElement.isGridVisible);
-        }
+        // The drawGrid call within redrawCanvas will now use the updated fixedGridSpacing if in fixed mode
+        // No need for a separate drawGrid call here for the grid canvas text part as redrawCanvas handles it.
     }, { passive: false });
     
     // Capture mouse move for coordinate display and ruler marking
