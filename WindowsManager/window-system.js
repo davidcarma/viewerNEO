@@ -234,7 +234,6 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
             let newWidth = initialWidth + deltaX;
             let newHeight = initialHeight + deltaY;
             
-            // Enforce minimum dimensions (defined in CSS or here)
             const minWidth = parseInt(getComputedStyle(windowFrame).minWidth) || 150;
             const minHeight = parseInt(getComputedStyle(windowFrame).minHeight) || 100;
 
@@ -287,9 +286,9 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
 
             // 3. Handle Maximized State
             if (s.isMaximized) {
-                if (!isMaximizedState) maximizeWindow(false); // Maximize if not already (false: use existing originalState)
+                if (!isMaximizedState) maximizeWindow(false);
             } else {
-                if (isMaximizedState) restoreWindow(); // Restore if currently maximized
+                if (isMaximizedState) restoreWindow();
             }
             
             // 4. Handle Minimized State (after potential un-maximization)
