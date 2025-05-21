@@ -48,6 +48,14 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
                         <label for="${viewerId}-grid-opacity" style="font-size:0.85em;">Opacity:</label>
                         <input type="range" id="${viewerId}-grid-opacity" min="0" max="1" step="0.05" value="0.5" style="width: 100%; margin-bottom:5px;">
                     </div>
+                    <div style="font-size:0.85em; margin-bottom: 5px;">
+                        <label for="${viewerId}-grid-major-spacing" style="display:block; margin-bottom:2px;">Major Spacing (img px):</label>
+                        <input type="number" id="${viewerId}-grid-major-spacing" value="50" step="0.1" min="0.1" style="width: 98%; margin-bottom:3px;">
+                    </div>
+                    <div style="font-size:0.85em; margin-bottom: 5px;">
+                        <label for="${viewerId}-grid-minor-spacing" style="display:block; margin-bottom:2px;">Minor Spacing (img px):</label>
+                        <input type="number" id="${viewerId}-grid-minor-spacing" value="10" step="0.1" min="0.1" style="width: 98%; margin-bottom:3px;">
+                    </div>
                     <div style="font-size:0.85em;">
                         <label style="display:block; margin-bottom:3px;">Mode:</label>
                         <input type="radio" id="${viewerId}-grid-mode-synced" name="${viewerId}-grid-mode" value="synced" checked>
@@ -76,14 +84,16 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
             color: '#FF0000',
             opacity: 0.5,
             mode: 'synced',
-            fixedGridSpacing: 50,
-            syncedMajorSpacing: 50,
-            syncedMinorSpacing: 10
+            fixedGridSpacing: 50,      // Screen pixels for fixed mode
+            syncedMajorSpacing: 50.0,  // Image pixels for synced mode
+            syncedMinorSpacing: 10.0   // Image pixels for synced mode
         };
 
         // Setup event listeners for grid settings
         const colorInput = windowFrame.querySelector(`#${viewerId}-grid-color`);
         const opacityInput = windowFrame.querySelector(`#${viewerId}-grid-opacity`);
+        const majorSpacingInput = windowFrame.querySelector(`#${viewerId}-grid-major-spacing`);
+        const minorSpacingInput = windowFrame.querySelector(`#${viewerId}-grid-minor-spacing`);
         const syncedModeRadio = windowFrame.querySelector(`#${viewerId}-grid-mode-synced`);
         const fixedModeRadio = windowFrame.querySelector(`#${viewerId}-grid-mode-fixed`);
 
@@ -93,6 +103,28 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
         });
         opacityInput.addEventListener('input', (e) => {
             gridCanvas.gridSettings.opacity = parseFloat(e.target.value);
+            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
+        });
+        majorSpacingInput.addEventListener('input', (e) => {
+            let newMajorSpacing = parseFloat(e.target.value);
+            if (isNaN(newMajorSpacing) || newMajorSpacing <= 0) newMajorSpacing = gridCanvas.gridSettings.syncedMajorSpacing; // revert if invalid
+            gridCanvas.gridSettings.syncedMajorSpacing = newMajorSpacing;
+            // If minor is greater than or equal to major, adjust minor
+            if (gridCanvas.gridSettings.syncedMinorSpacing >= newMajorSpacing) {
+                gridCanvas.gridSettings.syncedMinorSpacing = Math.max(0.1, newMajorSpacing / 5);
+                if (minorSpacingInput) minorSpacingInput.value = gridCanvas.gridSettings.syncedMinorSpacing.toFixed(1);
+            }
+            if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
+        });
+        minorSpacingInput.addEventListener('input', (e) => {
+            let newMinorSpacing = parseFloat(e.target.value);
+            if (isNaN(newMinorSpacing) || newMinorSpacing <= 0) newMinorSpacing = gridCanvas.gridSettings.syncedMinorSpacing; // revert if invalid
+            // Ensure minor spacing is not greater than major spacing
+            if (newMinorSpacing >= gridCanvas.gridSettings.syncedMajorSpacing) {
+                newMinorSpacing = Math.max(0.1, gridCanvas.gridSettings.syncedMajorSpacing / 5);
+                e.target.value = newMinorSpacing.toFixed(1); // Update input if value was capped
+            }
+            gridCanvas.gridSettings.syncedMinorSpacing = newMinorSpacing;
             if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
         });
         syncedModeRadio.addEventListener('change', (e) => {
@@ -195,11 +227,15 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
             // Ensure settings UI reflects current gridSettings
             const colorInput = document.getElementById(`${viewerId}-grid-color`);
             const opacityInput = document.getElementById(`${viewerId}-grid-opacity`);
+            const majorSpacingInputEl = document.getElementById(`${viewerId}-grid-major-spacing`);
+            const minorSpacingInputEl = document.getElementById(`${viewerId}-grid-minor-spacing`);
             const syncedModeRadio = document.getElementById(`${viewerId}-grid-mode-synced`);
             const fixedModeRadio = document.getElementById(`${viewerId}-grid-mode-fixed`);
 
             if (colorInput) colorInput.value = gridCanvas.gridSettings.color;
             if (opacityInput) opacityInput.value = gridCanvas.gridSettings.opacity;
+            if (majorSpacingInputEl) majorSpacingInputEl.value = gridCanvas.gridSettings.syncedMajorSpacing.toFixed(1);
+            if (minorSpacingInputEl) minorSpacingInputEl.value = gridCanvas.gridSettings.syncedMinorSpacing.toFixed(1);
             if (syncedModeRadio) syncedModeRadio.checked = gridCanvas.gridSettings.mode === 'synced';
             if (fixedModeRadio) fixedModeRadio.checked = gridCanvas.gridSettings.mode === 'fixed';
             
@@ -217,9 +253,14 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
     }
 }
 
+const RULER_SIZE = 25; // px for ruler thickness
+const RULER_BG_COLOR = '#444444';
+const RULER_TEXT_COLOR = '#E0E0E0';
+const RULER_LINE_COLOR = '#AAAAAA';
+
 // Define drawGrid globally or ensure it's accessible where needed
 function drawGrid(gridCanvas, mainCanvas, image) {
-    if (!gridCanvas || !mainCanvas || !mainCanvas.transformState || !image || image === true) {
+    if (!gridCanvas || !mainCanvas || !mainCanvas.transformState) { // Image can be null for fixed grid + rulers
         if(gridCanvas){
             const gridCtxClear = gridCanvas.getContext('2d');
             gridCtxClear.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
@@ -230,7 +271,14 @@ function drawGrid(gridCanvas, mainCanvas, image) {
     const gridCtx = gridCanvas.getContext('2d');
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
 
-    if (!gridCanvas.isGridVisible || !gridCanvas.gridSettings) return;
+    // Draw ruler backgrounds if grid (any part of it) is visible
+    if (gridCanvas.isGridVisible || gridCanvas.gridSettings.rulersAlwaysVisible) { // Assuming a future setting for rulers always visible
+        gridCtx.fillStyle = RULER_BG_COLOR;
+        gridCtx.fillRect(0, 0, gridCanvas.width, RULER_SIZE); // Top ruler bg
+        gridCtx.fillRect(0, RULER_SIZE, RULER_SIZE, gridCanvas.height - RULER_SIZE); // Left ruler bg (avoid double draw at corner)
+    }
+
+    if (!gridCanvas.isGridVisible || !gridCanvas.gridSettings) {gridCtx.restore(); return; } // early exit if only rulers were to be shown and grid is off
 
     const settings = gridCanvas.gridSettings;
     const transform = mainCanvas.transformState; // panX, panY are user's pan from center AFTER baseFitScale applied
@@ -238,27 +286,49 @@ function drawGrid(gridCanvas, mainCanvas, image) {
     const panX = transform.offsetX; 
     const panY = transform.offsetY;
 
-    const natW = image.naturalWidth;
-    const natH = image.naturalHeight;
+    const natW = image ? image.naturalWidth : 0;
+    const natH = image ? image.naturalHeight : 0;
 
-    if (natW === 0 || natH === 0 && settings.mode === 'synced') return; // natW/H needed for synced
+    // Adjust available drawing area for the grid itself, accounting for rulers
+    const gridAreaWidth = gridCanvas.width - RULER_SIZE;
+    const gridAreaHeight = gridCanvas.height - RULER_SIZE;
+    const gridAreaXOffset = RULER_SIZE;
+    const gridAreaYOffset = RULER_SIZE;
 
-    gridCtx.save();
+    gridCtx.save(); // Save before clipping/translating for grid lines
+    
+    // Translate context for grid drawing to be inside the ruler bounds
+    gridCtx.translate(gridAreaXOffset, gridAreaYOffset);
 
     if (settings.mode === 'synced') {
-        if (natW === 0 || natH === 0) { // Double check for synced mode specifically
-             gridCtx.restore(); return;
+        if (!image || natW === 0 || natH === 0) {
+             gridCtx.restore(); // Restore from translate + save
+             // Now draw rulers even if synced grid cannot be drawn
+             drawRulers(gridCtx, mainCanvas, image, settings);
+             return;
         }
-        const baseFitScale = Math.min(mainCanvas.width / natW, mainCanvas.height / natH);
+        // Adjust mainCanvas effective width/height for baseFitScale, as grid is in smaller area
+        const effectiveMainCanvasWidthForFit = mainCanvas.width - RULER_SIZE; // This interpretation is tricky.
+        const effectiveMainCanvasHeightForFit = mainCanvas.height - RULER_SIZE;
+        // The baseFitScale should still relate to how the image fits in the *original mainCanvas viewport* not the gridArea.
+        // The panX/panY also relate to the mainCanvas viewport.
+        // So, drawX, drawY for the image are calculated based on mainCanvas.width/height.
+        // We need to ensure the grid, drawn in the translated gridArea, aligns with the image portion visible in that area.
+
+        const baseFitScale = Math.min(mainCanvas.width / natW, mainCanvas.height / natH); // Base fit for the *entire image canvas view*
         const totalCurrentScale = baseFitScale * userScale;
         
-        const displayWidth = natW * totalCurrentScale;
-        const displayHeight = natH * totalCurrentScale;
+        const displayWidth = natW * totalCurrentScale; // Full display width of image on main canvas
+        const displayHeight = natH * totalCurrentScale; // Full display height of image on main canvas
 
-        const drawX = (mainCanvas.width - displayWidth) / 2 + panX;
-        const drawY = (mainCanvas.height - displayHeight) / 2 + panY;
+        // Top-left of image relative to mainCanvas top-left
+        const imageOriginX_on_mainCanvas = (mainCanvas.width - displayWidth) / 2 + panX;
+        const imageOriginY_on_mainCanvas = (mainCanvas.height - displayHeight) / 2 + panY;
 
-        gridCtx.translate(drawX, drawY);
+        // We are now in a context translated by (RULER_SIZE, RULER_SIZE).
+        // We need to draw the image features (grid lines) that would appear in this sub-rectangle.
+        // So, we effectively translate the synced grid by the negative of where the image starts relative to this sub-rectangle.
+        gridCtx.translate(imageOriginX_on_mainCanvas - RULER_SIZE, imageOriginY_on_mainCanvas - RULER_SIZE);
         gridCtx.scale(totalCurrentScale, totalCurrentScale);
 
         gridCtx.lineWidth = 1 / totalCurrentScale; 
@@ -299,7 +369,6 @@ function drawGrid(gridCanvas, mainCanvas, image) {
             gridCtx.stroke();
         }
     } else if (settings.mode === 'fixed') {
-        // Use fixedGridSpacing which is now set dynamically when switching to fixed mode
         const spacing = settings.fixedGridSpacing;
         if (spacing < 5) { // Safety check, though already handled in radio listener
             gridCtx.restore(); return;
@@ -313,51 +382,138 @@ function drawGrid(gridCanvas, mainCanvas, image) {
         const minorSpacing = spacing / 5; // Example: 5 minor divisions
         const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
 
-        // Minor Horizontal Lines (Fixed)
-        if (minorSpacing >= 2) { // Only draw if spacing is somewhat reasonable
+        // Horizontal lines (fixed) - draw on the translated context (gridArea)
+        if (minorSpacing >= 2) {
             gridCtx.strokeStyle = minorColor;
-            for (let y = 0; y <= gridCanvas.height; y += minorSpacing) {
-                if (y % spacing !== 0) { // Don't overdraw major lines
+            for (let y = 0; y <= gridAreaHeight; y += minorSpacing) { // Use gridAreaHeight
+                if (y % spacing !== 0) { 
                     const lineY = Math.floor(y) + 0.5;
                     gridCtx.beginPath();
-                    gridCtx.moveTo(0, lineY);
-                    gridCtx.lineTo(gridCanvas.width, lineY);
+                    gridCtx.moveTo(0, lineY); // Draw from 0 of translated context
+                    gridCtx.lineTo(gridAreaWidth, lineY); // To width of translated context
                     gridCtx.stroke();
                 }
             }
-            // Minor Vertical Lines (Fixed)
-            gridCtx.strokeStyle = minorColor; // re-set for clarity, though it should persist
-            for (let x = 0; x <= gridCanvas.width; x += minorSpacing) {
-                if (x % spacing !== 0) { // Don't overdraw major lines
+            gridCtx.strokeStyle = minorColor;
+            for (let x = 0; x <= gridAreaWidth; x += minorSpacing) { // Use gridAreaWidth
+                if (x % spacing !== 0) { 
                     const lineX = Math.floor(x) + 0.5;
                     gridCtx.beginPath();
                     gridCtx.moveTo(lineX, 0);
-                    gridCtx.lineTo(lineX, gridCanvas.height);
+                    gridCtx.lineTo(lineX, gridAreaHeight);
                     gridCtx.stroke();
                 }
             }
         }
-
-        // Major Horizontal Lines (Fixed)
         gridCtx.strokeStyle = majorColor;
-        for (let y = 0; y <= gridCanvas.height; y += spacing) {
+        for (let y = 0; y <= gridAreaHeight; y += spacing) { // Use gridAreaHeight
             const lineY = Math.floor(y) + 0.5;
             gridCtx.beginPath();
             gridCtx.moveTo(0, lineY);
-            gridCtx.lineTo(gridCanvas.width, lineY);
+            gridCtx.lineTo(gridAreaWidth, lineY);
             gridCtx.stroke();
         }
-        // Major Vertical Lines (Fixed)
-        gridCtx.strokeStyle = majorColor; // re-set for clarity
-        for (let x = 0; x <= gridCanvas.width; x += spacing) {
+        gridCtx.strokeStyle = majorColor;
+        for (let x = 0; x <= gridAreaWidth; x += spacing) { // Use gridAreaWidth
             const lineX = Math.floor(x) + 0.5;
             gridCtx.beginPath();
             gridCtx.moveTo(lineX, 0);
-            gridCtx.lineTo(lineX, gridCanvas.height);
+            gridCtx.lineTo(lineX, gridAreaHeight);
             gridCtx.stroke();
         }
     }
     
+    gridCtx.restore(); // Restore from the grid-specific translate/scale/clip
+
+    // Now, draw rulers in the original gridCanvas context (0,0 top-left)
+    if (gridCanvas.isGridVisible || settings.rulersAlwaysVisible ) { // Check again (redundant if already checked but safe)
+        drawRulers(gridCtx, mainCanvas, image, settings);
+    }
+}
+
+function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
+    if (!image || image.naturalWidth === 0 || image.naturalHeight === 0) return; // Rulers need image dimensions
+    if (!mainCanvas.transformState) return;
+
+    gridCtx.save();
+    gridCtx.font = '10px sans-serif';
+    gridCtx.fillStyle = RULER_TEXT_COLOR;
+    gridCtx.strokeStyle = RULER_LINE_COLOR;
+
+    const transform = mainCanvas.transformState;
+    const userScale = transform.scale;
+    const panX = transform.offsetX;
+    const panY = transform.offsetY;
+    const natW = image.naturalWidth;
+    const natH = image.naturalHeight;
+
+    const baseFitScale = Math.min(mainCanvas.width / natW, mainCanvas.height / natH);
+    const totalCurrentScale = baseFitScale * userScale;
+
+    const displayWidth = natW * totalCurrentScale;
+    const displayHeight = natH * totalCurrentScale;
+
+    // Top-left of image relative to mainCanvas top-left (this is where image pixel 0,0 would be drawn on mainCanvas)
+    const imageOriginX_on_mainCanvas = (mainCanvas.width - displayWidth) / 2 + panX;
+    const imageOriginY_on_mainCanvas = (mainCanvas.height - displayHeight) / 2 + panY;
+
+    // Function to determine tick spacing based on zoom
+    const getTickSpacing = (scale) => {
+        if (scale > 2) return { major: 20, minor: 5, subMinor:1 }; // Heavily zoomed in
+        if (scale > 0.8) return { major: 50, minor: 10, subMinor:5 };
+        if (scale > 0.3) return { major: 100, minor: 50, subMinor:10 };
+        if (scale > 0.1) return { major: 200, minor: 100, subMinor:50 };
+        if (scale > 0.05) return { major: 500, minor: 250, subMinor:100 };
+        return { major: 1000, minor: 500, subMinor:200 }; // Zoomed out
+    };
+
+    const ticks = getTickSpacing(totalCurrentScale);
+
+    // Top Ruler (X-axis)
+    gridCtx.textAlign = 'center';
+    gridCtx.textBaseline = 'middle';
+    for (let imgX = 0; imgX <= natW; imgX += ticks.subMinor) {
+        const screenX = RULER_SIZE + (imageOriginX_on_mainCanvas + imgX * totalCurrentScale - RULER_SIZE);
+        
+        if (screenX >= RULER_SIZE && screenX <= mainCanvas.width) {
+            let tickHeight = 0;
+            if (imgX % ticks.major === 0) tickHeight = RULER_SIZE / 2;
+            else if (imgX % ticks.minor === 0) tickHeight = RULER_SIZE / 3;
+            else tickHeight = RULER_SIZE / 5;
+
+            gridCtx.beginPath();
+            gridCtx.moveTo(screenX, RULER_SIZE - tickHeight);
+            gridCtx.lineTo(screenX, RULER_SIZE);
+            gridCtx.stroke();
+
+            if (imgX % ticks.major === 0) {
+                gridCtx.fillText(imgX.toString(), screenX, RULER_SIZE / 2.5);
+            }
+        }
+    }
+
+    // Left Ruler (Y-axis)
+    gridCtx.textAlign = 'right';
+    gridCtx.textBaseline = 'middle';
+    for (let imgY = 0; imgY <= natH; imgY += ticks.subMinor) {
+        const screenY = RULER_SIZE + (imageOriginY_on_mainCanvas + imgY * totalCurrentScale - RULER_SIZE);
+
+        if (screenY >= RULER_SIZE && screenY <= mainCanvas.height) {
+            let tickWidth = 0;
+            if (imgY % ticks.major === 0) tickWidth = RULER_SIZE / 2;
+            else if (imgY % ticks.minor === 0) tickWidth = RULER_SIZE / 3;
+            else tickWidth = RULER_SIZE / 5;
+
+            gridCtx.beginPath();
+            gridCtx.moveTo(RULER_SIZE - tickWidth, screenY);
+            gridCtx.lineTo(RULER_SIZE, screenY);
+            gridCtx.stroke();
+
+            if (imgY % ticks.major === 0) {
+                gridCtx.fillText(imgY.toString(), RULER_SIZE * 0.75 , screenY);
+            }
+        }
+    }
     gridCtx.restore();
 }
 
