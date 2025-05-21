@@ -29,10 +29,10 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            flex-shrink: 0; 
-            z-index: 1000; 
+            flex-shrink: 0;
+            z-index: 1000;
             height: auto; /* Let content define height */
-            box-sizing: border-box; 
+            box-sizing: border-box;
             position: relative; /* Ensure proper stacking context */
             margin-top: 0; /* Ensure no top margin */
         }
@@ -101,7 +101,7 @@
             position: relative; /* For canvas positioning */
             width: 100%; /* Start with full width */
         }
-        
+    
         /* Style for when the panel is active (body class set by panel's events) */
         body.thumbnail-panel-active #main-content {
             /* margin-left will be set by JS */
@@ -140,16 +140,16 @@
     <div id="top-function-bar">
         <h3>ViewerNeo</h3>
         <div id="placeholder-buttons">
-            <button onclick="placeholderFunc1()">1</button>
-            <button onclick="placeholderFunc2()">2</button>
-            <button onclick="placeholderFunc3()">3</button>
-            <button onclick="placeholderFunc4()">4</button>
-            <button onclick="placeholderFunc5()">5</button>
-            <button onclick="placeholderFunc6()">6</button>
-            <button onclick="placeholderFunc7()">7</button>
-            <button onclick="placeholderFunc8()">8</button>
-            <button onclick="placeholderFunc9()">9</button>
-            <button onclick="placeholderFunc10()">10</button>
+            <button type="button" onclick="placeholderFunc1()">1</button>
+            <button type="button" onclick="placeholderFunc2()">2</button>
+            <button type="button" onclick="placeholderFunc3()">3</button>
+            <button type="button" onclick="placeholderFunc4()">4</button>
+            <button type="button" onclick="placeholderFunc5()">5</button>
+            <button type="button" onclick="placeholderFunc6()">6</button>
+            <button type="button" onclick="placeholderFunc7()">7</button>
+            <button type="button" onclick="placeholderFunc8()">8</button>
+            <button type="button" onclick="placeholderFunc9()">9</button>
+            <button type="button" onclick="placeholderFunc10()">10</button>
         </div>
     </div>
 
@@ -158,7 +158,7 @@
             <thumbnail-pane id="my-thumbnail-panel" opened></thumbnail-pane>
         </div>
         <div id="main-content">
-            <button id="toggle-panel-btn">Toggle Panel</button>
+            <button type="button" id="toggle-panel-btn">Toggle Panel</button>
             <h1>Main Content Area</h1>
             <canvas id="centered-canvas"></canvas>
         </div>
@@ -195,7 +195,7 @@
             const panelWidth = panel.getCurrentWidth();
             document.querySelector('.thumbnail-panel-placeholder').style.width = `${panelWidth}px`;
             toggleButton.textContent = 'Close Panel';
-            
+        
             // Update the left boundary for the window manager
             import('../WindowsManager/window-system.js').then(module => {
                 module.setLeftBoundary(panelWidth);
@@ -206,7 +206,7 @@
             document.body.classList.remove('thumbnail-panel-active');
             document.querySelector('.thumbnail-panel-placeholder').style.width = '0';
             toggleButton.textContent = 'Open Panel';
-            
+        
             // Update the left boundary for the window manager
             import('../WindowsManager/window-system.js').then(module => {
                 module.setLeftBoundary(0);
@@ -219,7 +219,7 @@
 
         // Initial state sync for the button text if panel is pre-opened
         function syncPanelState() {
-            if (document.body.classList.contains('thumbnail-panel-active') || 
+            if (document.body.classList.contains('thumbnail-panel-active') ||
                 (panel.hasAttribute('opened') && panel.getAttribute('opened') !== 'false')) {
                 document.body.classList.add('thumbnail-panel-active');
                 toggleButton.textContent = 'Close Panel';
@@ -234,10 +234,10 @@
                 mainContent.style.width = '100%';
             }
         }
-        
+    
         // Call sync after a brief delay to allow component to initialize and fire events
         setTimeout(syncPanelState, 50);
-        
+    
         // Add a second sync with a longer delay as a fallback
         setTimeout(syncPanelState, 200);
 
@@ -247,8 +247,8 @@
                 return;
             }
             let itemName, itemType;
-            if (event.detail && event.detail.file && 
-                typeof event.detail.file.name === 'string' && 
+            if (event.detail && event.detail.file &&
+                typeof event.detail.file.name === 'string' &&
                 typeof event.detail.file.type === 'string') {
                 itemName = event.detail.file.name;
                 itemType = event.detail.file.type;
@@ -260,48 +260,48 @@
             if (itemType.startsWith('image/')) {
                 const fileData = event.detail.file.data;
                 const image = new Image();
-                
+            
                 // Common image loading function to maintain aspect ratio
                 const loadImageIntoCanvas = () => {
                     // Store the loaded image for reuse during window resizing
                     window.currentLoadedImage = image;
-                    
+                
                     // Ensure we have the correct canvas reference
                     const usableCanvas = window.canvas || canvas;
                     const usableCtx = window.ctx || ctx;
-                    
+                
                     if (!usableCanvas || !usableCtx) {
                         console.error("Canvas or context not available");
                         return;
                     }
-                    
+                
                     // Clear canvas before drawing
                     usableCtx.clearRect(0, 0, usableCanvas.width, usableCanvas.height);
-                    
+                
                     // Calculate dimensions to maintain aspect ratio
                     const canvasWidth = usableCanvas.width;
                     const canvasHeight = usableCanvas.height;
                     const imgNaturalWidth = image.naturalWidth;
                     const imgNaturalHeight = image.naturalHeight;
-                    
+                
                     // Calculate the scale to fit the image within the canvas while preserving aspect ratio
                     const scale = Math.min(canvasWidth / imgNaturalWidth, canvasHeight / imgNaturalHeight);
-                    
+                
                     // Calculate the dimensions of the image after scaling
                     const drawnWidth = imgNaturalWidth * scale;
                     const drawnHeight = imgNaturalHeight * scale;
-                    
+                
                     // Center the image on the canvas
                     const dx = (canvasWidth - drawnWidth) / 2;
                     const dy = (canvasHeight - drawnHeight) / 2;
-                    
+                
                     // Draw the image on the canvas
                     try {
                         usableCtx.drawImage(image, dx, dy, drawnWidth, drawnHeight);
                     } catch (err) {
                         console.error("Error drawing image:", err);
                     }
-                    
+                
                     // Update window title to show the image name
                     const canvasWindow = usableCanvas.closest('.window-frame');
                     if (canvasWindow) {
@@ -311,7 +311,7 @@
                         }
                     }
                 };
-                
+            
                 // Error handler for image loading
                 image.onerror = () => {
                     console.error(`Error loading: ${itemName}`);
@@ -320,10 +320,10 @@
                         URL.revokeObjectURL(image.src);
                     }
                 };
-                
+            
                 // Set up the onload handler
                 image.onload = loadImageIntoCanvas;
-                
+            
                 // Handle different types of image data
                 if (fileData instanceof File) {
                     // For File objects, create an object URL
@@ -336,10 +336,10 @@
                 } else if (typeof fileData === 'string') {
                     // For string URLs (like our local file paths)
                     const url = fileData + '?t=' + Date.now();
-                    
+                
                     // Set crossOrigin to anonymous for CORS issues
                     image.crossOrigin = "anonymous";
-                    
+                
                     // Use a setTimeout to ensure the image loads after the canvas is set up
                     setTimeout(() => {
                         image.src = url;
@@ -371,10 +371,10 @@
 
         // Load images from local folder for development
         panel.setData([
-            { 
-                id: 'batch1', 
-                title: 'Batch 001 - Horizontal Machine Images', 
-                expanded: true, 
+            {
+                id: 'batch1',
+                title: 'Batch 001 - Horizontal Machine Images',
+                expanded: true,
                 files: [
                     { name: 'HM_0_584', type: 'image/png', data: './images/image_1_HM_0_584_1.png' },
                     { name: 'HM_0_526', type: 'image/png', data: './images/image_1_HM_0_526_1.png' },
@@ -385,10 +385,10 @@
                     { name: 'HM_0_163', type: 'image/png', data: './images/image_1_HM_0_163_1.png' },
                 ]
             },
-            { 
-                id: 'batch2', 
-                title: 'Batch 002 - Vertical Machine Images', 
-                expanded: false, 
+            {
+                id: 'batch2',
+                title: 'Batch 002 - Vertical Machine Images',
+                expanded: false,
                 files: [
                     { name: 'VM_0_52', type: 'image/png', data: './images/image_1_VM_0_52_1.png' },
                     { name: 'VM_0_42', type: 'image/png', data: './images/image_1_VM_0_42_1.png' },
@@ -398,10 +398,10 @@
                     { name: 'VM_0_64', type: 'image/png', data: './images/image_1_VM_0_64_1.png' },
                 ]
             },
-            { 
-                id: 'batch3', 
-                title: 'Batch 003 - B1 Series Images', 
-                expanded: false, 
+            {
+                id: 'batch3',
+                title: 'Batch 003 - B1 Series Images',
+                expanded: false,
                 files: [
                     { name: 'B1_536', type: 'image/png', data: './images/image_1_B1_536_1.png' },
                     { name: 'B1_542', type: 'image/png', data: './images/image_1_B1_542_1.png' },
@@ -414,7 +414,7 @@
         ]);
 
     </script>
-    
+
     <script type="module">
         import { createWindow, setTopBarOffset, setLeftBoundary } from '../WindowsManager/window-system.js';
         import { createGridViewerWindow, setupCanvasImageHandling } from './grid_viewer_controls.js';
@@ -424,7 +424,7 @@
         if (topFunctionBar) {
             setTopBarOffset(topFunctionBar.offsetHeight);
         }
-        
+    
         // Initialize left boundary to 0 or panel width
         const thumbnailPanel = document.getElementById('my-thumbnail-panel');
         if (thumbnailPanel && thumbnailPanel.hasAttribute('opened') && thumbnailPanel.getAttribute('opened') !== 'false') {
@@ -439,21 +439,21 @@
         document.addEventListener('DOMContentLoaded', () => {
             const originalCanvasElement = document.getElementById('centered-canvas');
             const mainContentElement = document.getElementById('main-content');
-            
+        
             if (originalCanvasElement && mainContentElement) {
                 // Calculate initial window size and position based on main content area - 80% of available space
                 const availableWidth = mainContentElement.clientWidth;
                 const availableHeight = mainContentElement.clientHeight;
-                
+            
                 const initialWidth = Math.floor(availableWidth * 0.8);
                 const initialHeight = Math.floor(availableHeight * 0.8);
-                
+            
                 // Center the window within the main content area
                 const initialX = mainContentElement.offsetLeft + Math.floor((availableWidth - initialWidth) / 2);
                 const initialY = mainContentElement.offsetTop + Math.floor((availableHeight - initialHeight) / 2);
 
                 const mainViewerCanvasId = 'viewer-main-canvas';
-                
+            
                 const gridViewerWindowFrame = createGridViewerWindow({
                     id: 'canvas-window',
                     title: 'Canvas Viewer',
@@ -479,16 +479,16 @@
                 console.error('Original canvas element (#centered-canvas) not found.');
             }
         });
-        
+    
         // Listen for the canvas-replaced event
         document.addEventListener('canvas-replaced', (event) => {
             const { newCanvas, newContext } = event.detail;
             window.canvas = newCanvas;
             window.ctx = newContext;
-            
+        
             // Set up canvas handling for the new canvas
             setupCanvasImageHandling(newCanvas, newContext);
         });
     </script>
 </body>
-</html> 
+</html>
