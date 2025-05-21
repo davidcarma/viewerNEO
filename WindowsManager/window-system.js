@@ -99,6 +99,87 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     windowFrame.appendChild(resizeHandle);
     document.body.appendChild(windowFrame);
 
+    const windowInstance = {
+        id,
+        title,
+        frame: windowFrame,
+        getState: () => {
+            if (isMaximizedState) {
+                return { id, title, x: originalState.x, y: originalState.y, width: originalState.width, height: originalState.height, zIndex: parseInt(windowFrame.style.zIndex), isMinimized: isMinimizedState, isMaximized: true, originalState };
+            } else {
+                return { id, title, x: windowFrame.offsetLeft, y: windowFrame.offsetTop, width: windowFrame.offsetWidth, height: windowFrame.offsetHeight, zIndex: parseInt(windowFrame.style.zIndex), isMinimized: isMinimizedState, isMaximized: false, originalState };
+            }
+        },
+        applyState: (s) => {
+            // s: { id, title, x, y, width, height, zIndex, isMinimized, isMaximized, originalState? }
+
+            // Update title if necessary (though usually set on creation)
+            titleText.textContent = s.title || title;
+
+            // 1. Set internal "originalState" (the state to restore to from maximized)
+            // If the saved state has its own originalState, use that, otherwise use the current x,y,w,h for originalState.
+            if (s.originalState) {
+                originalState = { ...s.originalState };
+            } else {
+                // Fallback for older save formats or if originalState is not explicitly saved for the restored state
+                originalState = { x: s.x, y: s.y, width: s.width, height: s.height };
+            }
+
+            // 2. Apply the direct state (current position and size)
+            windowFrame.style.left = `${s.x}px`;
+            windowFrame.style.top = `${s.y}px`;
+            windowFrame.style.width = `${s.width}px`;
+            windowFrame.style.height = `${s.height}px`;
+            windowFrame.classList.remove('minimized'); // Start from a clean slate
+
+            // 3. Handle Maximized State
+            // Important to set isMaximizedState *before* calling maximizeWindow/restoreWindow
+            // as they might use this internal variable.
+            isMaximizedState = s.isMaximized;
+            if (s.isMaximized) {
+                maximizeWindow(false); // false: don't re-save current state as originalState
+            } else {
+                // If not maximized, ensure we are in a restored state. 
+                // This also updates the maximize button icon/title.
+                // This also means that if it *was* maximized, it will be restored to originalState.
+                // If it wasn't maximized, it effectively reapplies its current state from s.
+                restoreWindow(); 
+                // After restore, explicitly apply s.x, s.y etc. because restoreWindow() uses originalState
+                // which might not be what s wants if s.isMaximized was false but s.x,y,w,h are specific.
+                windowFrame.style.left = `${s.x}px`;
+                windowFrame.style.top = `${s.y}px`;
+                windowFrame.style.width = `${s.width}px`;
+                windowFrame.style.height = `${s.height}px`;
+            }
+            // Update button after potential maximize/restore which changes it
+            maximizeButton.innerHTML = isMaximizedState ? restoreSVG : maximizeSVG;
+            maximizeButton.title = isMaximizedState ? 'Restore' : 'Maximize';
+            
+            // 4. Handle Minimized State (after potential un-maximization)
+            // Set isMinimizedState *before* toggling class or calling toggleMinimize
+            isMinimizedState = s.isMinimized; 
+            windowFrame.classList.toggle('minimized', isMinimizedState);
+            
+            // If unminimized AND not maximized, ensure dimensions are explicitly from s (or originalState if consistent)
+            // This step ensures that if a window is loaded as !minimized and !maximized, its explicit dimensions are respected.
+            if (!isMinimizedState && !isMaximizedState) {
+                 windowFrame.style.left = `${s.x}px`;
+                 windowFrame.style.top = `${s.y}px`;
+                 windowFrame.style.width = `${s.width}px`;
+                 windowFrame.style.height = `${s.height}px`;
+            }
+
+            // 5. Set zIndex
+            windowFrame.style.zIndex = s.zIndex;
+            if (s.zIndex > highestZIndex) {
+                highestZIndex = s.zIndex; // Keep global highestZIndex updated
+            }
+            bringToFront(); // Ensure it's on top according to its zIndex logic
+        }
+    };
+
+    windows.push(windowInstance);
+
     const bringToFront = () => {
         windowFrame.style.zIndex = ++highestZIndex;
     };
@@ -219,9 +300,10 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
         if (isDragging) {
             let newX = e.clientX - dragOffsetX;
             let newY = e.clientY - dragOffsetY;
-            // Use leftBoundary instead of 0 for the minimum X position
+            // Use leftBoundary for the minimum X position
             newX = Math.max(leftBoundary, Math.min(newX, window.innerWidth - windowFrame.offsetWidth));
-            newY = Math.max(0, Math.min(newY, window.innerHeight - windowFrame.offsetHeight));
+            // Use topBarOffset for the minimum Y position
+            newY = Math.max(topBarOffset, Math.min(newY, window.innerHeight - windowFrame.offsetHeight));
             windowFrame.style.left = `${newX}px`;
             windowFrame.style.top = `${newY}px`;
             if (!isMaximizedState) {
@@ -250,69 +332,118 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     });
 
     document.addEventListener('mouseup', () => {
-        if (isDragging || isResizing) {
-            iframeShield.style.display = 'none'; // Hide shield
-        }
         isDragging = false;
         isResizing = false;
+        iframeShield.style.display = 'none'; // Hide shield
     });
 
-    const windowInstance = {
-        id,
-        title,
-        frame: windowFrame,
-        getState: () => {
-            if (isMaximizedState) {
-                return { id, title, x: originalState.x, y: originalState.y, width: originalState.width, height: originalState.height, zIndex: parseInt(windowFrame.style.zIndex), isMinimized: isMinimizedState, isMaximized: true };
-            } else {
-                return { id, title, x: windowFrame.offsetLeft, y: windowFrame.offsetTop, width: windowFrame.offsetWidth, height: windowFrame.offsetHeight, zIndex: parseInt(windowFrame.style.zIndex), isMinimized: isMinimizedState, isMaximized: false };
-            }
-        },
-        applyState: (s) => {
-            // s: { x, y, width, height, zIndex, isMinimized, isMaximized }
-
-            // 1. Set "original" (restored) state from saved state
-            originalState.x = s.x;
-            originalState.y = s.y;
-            originalState.width = s.width;
-            originalState.height = s.height;
-
-            // 2. Apply restored dimensions and remove transient classes
-            windowFrame.style.left = `${originalState.x}px`;
-            windowFrame.style.top = `${originalState.y}px`;
-            windowFrame.style.width = `${originalState.width}px`;
-            windowFrame.style.height = `${originalState.height}px`;
-            windowFrame.classList.remove('minimized'); // Start from a clean slate before applying new states
-
-            // 3. Handle Maximized State
-            if (s.isMaximized) {
-                if (!isMaximizedState) maximizeWindow(false);
-            } else {
-                if (isMaximizedState) restoreWindow();
-            }
-            
-            // 4. Handle Minimized State (after potential un-maximization)
-            isMinimizedState = s.isMinimized; // Directly set the state variable
-            windowFrame.classList.toggle('minimized', s.isMinimized); // Apply class based on this new state
-            
-            // If unminimized and NOT maximized, ensure dimensions are from originalState
-            // This might be redundant if step 2 and restoreWindow() cover it, but good for clarity.
-            if (!s.isMinimized && !s.isMaximized) {
-                 windowFrame.style.width = `${originalState.width}px`;
-                 windowFrame.style.height = `${originalState.height}px`;
-            }
-
-            // 5. Set zIndex
-            windowFrame.style.zIndex = s.zIndex;
-            if (s.zIndex > highestZIndex) {
-                highestZIndex = s.zIndex; // Keep global highestZIndex updated
-            }
-        }
-    };
-
-    windows.push(windowInstance);
+    // Return the window frame so it can be manipulated if needed
     return windowFrame;
 }
+
+export function getWindowById(id) {
+    const windowInstance = windows.find(w => w.id === id);
+    return windowInstance ? windowInstance.frame : null;
+}
+
+export function getWindowState(id) {
+    const windowInstance = windows.find(w => w.id === id);
+    return windowInstance ? windowInstance.getState() : null;
+}
+
+// Function to adjust windows to fit the viewport
+export function adjustWindowsToViewport() {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    windows.forEach(winInstance => {
+        const windowFrame = winInstance.frame;
+        // Get the current state, including originalState which might be needed by adjust logic
+        const windowState = winInstance.getState(); 
+
+        if (windowState.isMinimized) {
+            return; // Don't adjust minimized windows
+        }
+
+        if (windowState.isMaximized) {
+            // Re-maximize if the window was maximized
+            windowFrame.style.left = `${leftBoundary}px`;
+            windowFrame.style.top = `${topBarOffset}px`;
+            windowFrame.style.width = `${viewportWidth - leftBoundary}px`;
+            windowFrame.style.height = `${viewportHeight - topBarOffset}px`;
+        } else {
+            // Adjust non-maximized windows
+            let currentX = windowFrame.offsetLeft;
+            let currentY = windowFrame.offsetTop;
+            let currentWidth = windowFrame.offsetWidth;
+            let currentHeight = windowFrame.offsetHeight;
+
+            const minWidth = parseInt(getComputedStyle(windowFrame).minWidth) || 150;
+            const minHeight = parseInt(getComputedStyle(windowFrame).minHeight) || 100;
+
+            // Adjust X position and width
+            if (currentX < leftBoundary) {
+                currentX = leftBoundary;
+            }
+            if (currentX + currentWidth > viewportWidth) {
+                currentWidth = viewportWidth - currentX;
+            }
+            // Ensure minWidth is respected, adjust X again if needed
+            if (currentWidth < minWidth) {
+                currentWidth = minWidth;
+                if (currentX + currentWidth > viewportWidth) { // If making it minWidth pushes it out
+                    currentX = Math.max(leftBoundary, viewportWidth - minWidth);
+                }
+            }
+             // Ensure window is not pushed beyond leftBoundary by minWidth adjustment
+            if (currentX < leftBoundary) currentX = leftBoundary;
+             // Final check if it still overflows after x adjustment
+            if (currentX + currentWidth > viewportWidth) {
+                currentWidth = viewportWidth - currentX;
+            }
+
+
+            // Adjust Y position and height
+            if (currentY < topBarOffset) {
+                currentY = topBarOffset;
+            }
+            if (currentY + currentHeight > viewportHeight) {
+                currentHeight = viewportHeight - currentY;
+            }
+            // Ensure minHeight is respected, adjust Y again if needed
+            if (currentHeight < minHeight) {
+                currentHeight = minHeight;
+                if (currentY + currentHeight > viewportHeight) { // If making it minHeight pushes it out
+                    currentY = Math.max(topBarOffset, viewportHeight - minHeight);
+                }
+            }
+            // Ensure window is not pushed beyond topBarOffset by minHeight adjustment
+            if (currentY < topBarOffset) currentY = topBarOffset;
+            // Final check if it still overflows after y adjustment
+            if (currentY + currentHeight > viewportHeight) {
+                currentHeight = viewportHeight - currentY;
+            }
+
+            // Apply calculated values
+            windowFrame.style.left = `${currentX}px`;
+            windowFrame.style.top = `${currentY}px`;
+            windowFrame.style.width = `${Math.max(minWidth, currentWidth)}px`; // Ensure minWidth
+            windowFrame.style.height = `${Math.max(minHeight, currentHeight)}px`; // Ensure minHeight
+
+            // Update originalState so that restore operations use the new, viewport-adjusted state
+            // This is crucial for when a user resizes the viewport, then maximizes, then restores.
+            // We want it to restore to the state that fits the current viewport.
+            const internalOriginalState = windowState.originalState; // Access the originalState from the closure
+            internalOriginalState.x = currentX;
+            internalOriginalState.y = currentY;
+            internalOriginalState.width = Math.max(minWidth, currentWidth);
+            internalOriginalState.height = Math.max(minHeight, currentHeight);
+        }
+    });
+}
+
+// Listen for viewport resize
+window.addEventListener('resize', adjustWindowsToViewport);
 
 // Function to get all window instances
 export function getWindows() {
