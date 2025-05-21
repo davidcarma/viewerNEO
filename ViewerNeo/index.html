@@ -135,7 +135,7 @@
     <div id="top-function-bar">
         <h3>ViewerNeo</h3>
         <div id="placeholder-buttons">
-            <button type="button" onclick="placeholderFunc1()">1</button>
+            <button type="button" id="grid-viewer-btn">Grid viewer</button>
             <button type="button" onclick="placeholderFunc2()">2</button>
             <button type="button" onclick="placeholderFunc3()">3</button>
             <button type="button" onclick="placeholderFunc4()">4</button>
@@ -155,13 +155,13 @@
         <div id="main-content">
             <button type="button" id="toggle-panel-btn">Toggle Panel</button>
             <h1>Main Content Area</h1>
-            <canvas id="centered-canvas"></canvas>
+            <!-- Canvas will be created by the Grid viewer button -->
         </div>
     </div>
 
     <script type="module">
         // Define placeholder functions globally
-        for (let i = 1; i <= 10; i++) {
+        for (let i = 2; i <= 10; i++) {
             window[`placeholderFunc${i}`] = () => {
                 console.log(`Placeholder Function ${i} called`);
                 // Example: alert(`Button ${i} clicked!`);
@@ -171,8 +171,7 @@
         const panel = document.getElementById('my-thumbnail-panel');
         const mainContent = document.getElementById('main-content');
         const toggleButton = document.getElementById('toggle-panel-btn');
-        const canvas = document.getElementById('centered-canvas');
-        let ctx = canvas.getContext('2d');
+        // Canvas and context will be set when grid viewer is created
 
         // Set initial width if panel has 'opened' attribute
         if (panel.hasAttribute('opened') && panel.getAttribute('opened') !== 'false') {
@@ -237,10 +236,13 @@
         setTimeout(syncPanelState, 200);
 
         panel.addEventListener('thumbnail-selected', (event) => {
-            if (!ctx || !canvas) {
-                console.error('Canvas or context not available for drawing.');
+            // Check if we have a canvas and context available
+            // If grid viewer hasn't been opened yet, show an alert and return
+            if (!window.ctx || !window.canvas) {
+                alert('Please open the Grid viewer first by clicking the "Grid viewer" button.');
                 return;
             }
+            
             let itemName, itemType;
             if (event.detail && event.detail.file &&
                 typeof event.detail.file.name === 'string' &&
@@ -414,28 +416,30 @@
         import { createWindow, setTopBarOffset, setLeftBoundary } from '../WindowsManager/window-system.js';
         import { createGridViewerWindow, setupCanvasImageHandling } from './grid_viewer_controls.js';
 
-        // Set the top bar offset for the window manager
-        const topFunctionBar = document.getElementById('top-function-bar');
-        if (topFunctionBar) {
-            setTopBarOffset(topFunctionBar.offsetHeight);
-        }
-    
-        // Initialize left boundary to 0 or panel width
-        const thumbnailPanel = document.getElementById('my-thumbnail-panel');
-        if (thumbnailPanel && thumbnailPanel.hasAttribute('opened') && thumbnailPanel.getAttribute('opened') !== 'false') {
-            setTimeout(() => {
-                setLeftBoundary(thumbnailPanel.getCurrentWidth());
-            }, 100);
-        } else {
-            setLeftBoundary(0);
-        }
-
         // Wait for DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', () => {
-            const originalCanvasElement = document.getElementById('centered-canvas');
+            // Set the top bar offset for the window manager
+            const topFunctionBar = document.getElementById('top-function-bar');
+            if (topFunctionBar) {
+                setTopBarOffset(topFunctionBar.offsetHeight);
+            }
+        
+            // Initialize left boundary to 0 or panel width
+            const thumbnailPanel = document.getElementById('my-thumbnail-panel');
+            if (thumbnailPanel && thumbnailPanel.hasAttribute('opened') && thumbnailPanel.getAttribute('opened') !== 'false') {
+                setTimeout(() => {
+                    setLeftBoundary(thumbnailPanel.getCurrentWidth());
+                }, 100);
+            } else {
+                setLeftBoundary(0);
+            }
+        });
+
+        // Initialize the grid viewer on button click
+        document.getElementById('grid-viewer-btn').addEventListener('click', () => {
             const mainContentElement = document.getElementById('main-content');
         
-            if (originalCanvasElement && mainContentElement) {
+            if (mainContentElement) {
                 // Calculate initial window size and position based on main content area - 80% of available space
                 const availableWidth = mainContentElement.clientWidth;
                 const availableHeight = mainContentElement.clientHeight;
@@ -458,10 +462,14 @@
                     height: initialHeight,
                     canvasId: mainViewerCanvasId
                 });
-                originalCanvasElement.remove();
+                
                 setTimeout(() => {
                     const newCanvasInViewer = gridViewerWindowFrame.querySelector(`#${mainViewerCanvasId}`);
                     if (newCanvasInViewer) {
+                        // Set global canvas and context references
+                        window.canvas = newCanvasInViewer;
+                        window.ctx = newCanvasInViewer.getContext('2d');
+                        
                         const event = new CustomEvent('canvas-replaced', {
                             detail: { newCanvas: newCanvasInViewer, newContext: newCanvasInViewer.getContext('2d') }
                         });
@@ -471,7 +479,7 @@
                     }
                 }, 100);
             } else {
-                console.error('Original canvas element (#centered-canvas) not found.');
+                console.error('Main content element not found.');
             }
         });
     
