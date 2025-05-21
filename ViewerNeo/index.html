@@ -190,27 +190,11 @@
             }, 10);
         }
 
-        function resizeAndPositionCanvas() {
-            if (!canvas || !mainContent) return;
-            const mainContentWidth = mainContent.clientWidth;
-            const mainContentHeight = mainContent.clientHeight;
-            const largerParentDim = Math.max(mainContentWidth, mainContentHeight);
-            const canvasSideLength = largerParentDim * 0.22;
-            canvas.style.width = canvasSideLength + 'px';
-            canvas.style.height = canvasSideLength + 'px';
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            if (ctx) {
-                clearCanvasAndDrawMessage("Canvas resized. Select an image.");
-            }
-        }
-
         panel.addEventListener('panel-opened', () => {
             document.body.classList.add('thumbnail-panel-active');
             const panelWidth = panel.getCurrentWidth();
             document.querySelector('.thumbnail-panel-placeholder').style.width = `${panelWidth}px`;
             toggleButton.textContent = 'Close Panel';
-            resizeAndPositionCanvas();
             
             // Update the left boundary for the window manager
             import('../WindowsManager/window-system.js').then(module => {
@@ -222,7 +206,6 @@
             document.body.classList.remove('thumbnail-panel-active');
             document.querySelector('.thumbnail-panel-placeholder').style.width = '0';
             toggleButton.textContent = 'Open Panel';
-            resizeAndPositionCanvas();
             
             // Update the left boundary for the window manager
             import('../WindowsManager/window-system.js').then(module => {
@@ -235,8 +218,6 @@
         });
 
         // Initial state sync for the button text if panel is pre-opened
-        // This relies on `panel.getCurrentWidth()` and `panel._isPanelActive` or similar internal checks
-        // which should exist in the restored thumbnail-pane.js
         function syncPanelState() {
             if (document.body.classList.contains('thumbnail-panel-active') || 
                 (panel.hasAttribute('opened') && panel.getAttribute('opened') !== 'false')) {
@@ -260,29 +241,7 @@
         // Add a second sync with a longer delay as a fallback
         setTimeout(syncPanelState, 200);
 
-
-        // Initial canvas sizing & message
-        setTimeout(() => {
-            resizeAndPositionCanvas();
-            clearCanvasAndDrawMessage("Select an image from the panel.");
-        }, 0);
-        window.addEventListener('resize', resizeAndPositionCanvas);
-
-        function clearCanvasAndDrawMessage(message) {
-            if (!ctx || !canvas) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (message) {
-                ctx.fillStyle = 'rgba(238, 238, 238, 0.7)';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const fontSize = Math.min(canvas.width / 20, canvas.height / 10, 16);
-                ctx.font = `${fontSize}px sans-serif`;
-                ctx.fillText(message, canvas.width / 2, canvas.height / 2);
-            }
-        }
-
         panel.addEventListener('thumbnail-selected', (event) => {
-            console.log('Received thumbnail-selected. Event detail:', event.detail);
             if (!ctx || !canvas) {
                 console.error('Canvas or context not available for drawing.');
                 return;
@@ -294,18 +253,16 @@
                 itemName = event.detail.file.name;
                 itemType = event.detail.file.type;
             } else {
-                clearCanvasAndDrawMessage("Error: Incomplete item data.");
+                console.error("Error: Incomplete item data.");
                 return;
             }
-            clearCanvasAndDrawMessage(null);
+
             if (itemType.startsWith('image/')) {
                 const fileData = event.detail.file.data;
                 const image = new Image();
                 
                 // Common image loading function to maintain aspect ratio
                 const loadImageIntoCanvas = () => {
-                    console.log("loadImageIntoCanvas called for: ", itemName);
-                    
                     // Store the loaded image for reuse during window resizing
                     window.currentLoadedImage = image;
                     
@@ -314,34 +271,8 @@
                     const usableCtx = window.ctx || ctx;
                     
                     if (!usableCanvas || !usableCtx) {
-                        console.error("Canvas or context not available:", usableCanvas, usableCtx);
+                        console.error("Canvas or context not available");
                         return;
-                    }
-                    
-                    console.log("Canvas dimensions before:", usableCanvas.width, usableCanvas.height);
-                    
-                    // Ensure the canvas is properly sized
-                    if (usableCanvas.width <= 0 || usableCanvas.height <= 0) {
-                        console.log("Canvas has invalid dimensions, attempting to resize");
-                        
-                        // Try to get the window container dimensions
-                        const canvasWindow = usableCanvas.closest('.window-frame');
-                        if (canvasWindow) {
-                            const contentArea = canvasWindow.querySelector('.window-content');
-                            if (contentArea) {
-                                console.log("Content area dimensions:", contentArea.clientWidth, contentArea.clientHeight);
-                                
-                                // Set canvas style dimensions
-                                usableCanvas.style.width = `${contentArea.clientWidth - 20}px`;
-                                usableCanvas.style.height = `${contentArea.clientHeight - 20}px`;
-                                
-                                // Set canvas drawing dimensions
-                                usableCanvas.width = usableCanvas.offsetWidth || contentArea.clientWidth - 20;
-                                usableCanvas.height = usableCanvas.offsetHeight || contentArea.clientHeight - 20;
-                                
-                                console.log("Canvas resized to:", usableCanvas.width, usableCanvas.height);
-                            }
-                        }
                     }
                     
                     // Clear canvas before drawing
@@ -352,8 +283,6 @@
                     const canvasHeight = usableCanvas.height;
                     const imgNaturalWidth = image.naturalWidth;
                     const imgNaturalHeight = image.naturalHeight;
-                    
-                    console.log("Drawing image:", imgNaturalWidth, imgNaturalHeight, "to canvas:", canvasWidth, canvasHeight);
                     
                     // Calculate the scale to fit the image within the canvas while preserving aspect ratio
                     const scale = Math.min(canvasWidth / imgNaturalWidth, canvasHeight / imgNaturalHeight);
@@ -369,7 +298,6 @@
                     // Draw the image on the canvas
                     try {
                         usableCtx.drawImage(image, dx, dy, drawnWidth, drawnHeight);
-                        console.log("Image drawn successfully");
                     } catch (err) {
                         console.error("Error drawing image:", err);
                     }
@@ -386,7 +314,7 @@
                 
                 // Error handler for image loading
                 image.onerror = () => {
-                    clearCanvasAndDrawMessage(`Error loading: ${itemName}`);
+                    console.error(`Error loading: ${itemName}`);
                     // If there's an object URL, revoke it
                     if (image.src.startsWith('blob:')) {
                         URL.revokeObjectURL(image.src);
@@ -407,9 +335,6 @@
                     image.src = imageUrl;
                 } else if (typeof fileData === 'string') {
                     // For string URLs (like our local file paths)
-                    console.log("Loading image from string URL:", fileData);
-                    
-                    // Debug: Add a timestamp to prevent caching
                     const url = fileData + '?t=' + Date.now();
                     
                     // Set crossOrigin to anonymous for CORS issues
@@ -421,10 +346,10 @@
                     }, 50);
                 } else {
                     // Fallback for other types of data
-                    clearCanvasAndDrawMessage(`Cannot load image: Unsupported data format`);
+                    console.error(`Cannot load image: Unsupported data format`);
                 }
             } else {
-                clearCanvasAndDrawMessage(`Preview not available for: ${itemName} (${itemType})`);
+                console.error(`Preview not available for: ${itemName} (${itemType})`);
             }
         });
 
@@ -445,7 +370,6 @@
         });
 
         // Load images from local folder for development
-        // We will get the images from other sources later
         panel.setData([
             { 
                 id: 'batch1', 
@@ -527,13 +451,6 @@
                 // Center the window within the main content area
                 const initialX = mainContentElement.offsetLeft + Math.floor((availableWidth - initialWidth) / 2);
                 const initialY = mainContentElement.offsetTop + Math.floor((availableHeight - initialHeight) / 2);
-                
-                // For debugging - will appear in console to check sizes
-                console.log('Creating Grid Viewer window:',
-                    '\nMain content dimensions:', availableWidth, availableHeight,
-                    '\nWindow dimensions:', initialWidth, initialHeight,
-                    '\nWindow position:', initialX, initialY
-                );
 
                 const mainViewerCanvasId = 'viewer-main-canvas';
                 
@@ -554,7 +471,6 @@
                             detail: { newCanvas: newCanvasInViewer, newContext: newCanvasInViewer.getContext('2d') }
                         });
                         document.dispatchEvent(event);
-                        console.log('Canvas has been moved to a grid viewer window. Drawing functions should use the new canvas via event.');
                     } else {
                         console.error('New canvas element not found within the grid viewer window.');
                     }
