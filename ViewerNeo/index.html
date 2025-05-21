@@ -179,80 +179,6 @@
         const canvas = document.getElementById('centered-canvas');
         let ctx = canvas.getContext('2d');
 
-        // MOCK_IMAGE_WIDTH and MOCK_IMAGE_HEIGHT are used by canvas drawing logic below
-        const MOCK_IMAGE_WIDTH = 800;
-        const MOCK_IMAGE_HEIGHT = 600;
-        
-        // Import for generic window creation
-        import { createWindow, setTopBarOffset, setLeftBoundary } from '../WindowsManager/window-system.js';
-
-        // Function to create a Grid Viewer Window
-        function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title = 'Grid Viewer', x = 200, y = 150, width = 700, height = 500, canvasId = `grid-canvas-${Date.now()}`, controlPanelId = `grid-controls-${Date.now()}` }) {
-            const viewerId = id; // For button handlers
-
-            const contentHtml = `
-                <div class="grid-viewer-content">
-                    <div id="${canvasId}-container" class="grid-viewer-canvas-container">
-                        <canvas id="${canvasId}"></canvas>
-                    </div>
-                    <div id="${controlPanelId}" class="grid-viewer-control-panel">
-                        <button onclick="handleGridViewerButton1('${viewerId}')">Action 1</button>
-                        <button onclick="handleGridViewerButton2('${viewerId}')">Action 2</button>
-                        <button onclick="handleGridViewerButton3('${viewerId}')">Action 3</button>
-                        <button onclick="handleGridViewerButton4('${viewerId}')">Action 4</button>
-                        <button onclick="handleGridViewerButton5('${viewerId}')">Action 5</button>
-                    </div>
-                </div>
-            `;
-
-            const windowFrame = createWindow({
-                id,
-                title,
-                content: contentHtml,
-                x,
-                y,
-                width,
-                height
-            });
-
-            const viewerCanvas = windowFrame.querySelector(`#${canvasId}`);
-            const canvasContainer = windowFrame.querySelector(`#${canvasId}-container`);
-
-            if (viewerCanvas && canvasContainer) {
-                const updateCanvasSize = () => {
-                    if (canvasContainer.offsetParent === null) return;
-                    const containerWidth = canvasContainer.clientWidth;
-                    const containerHeight = canvasContainer.clientHeight;
-                    if (viewerCanvas.width !== containerWidth) {
-                        viewerCanvas.width = containerWidth;
-                    }
-                    if (viewerCanvas.height !== containerHeight) {
-                        viewerCanvas.height = containerHeight;
-                    }
-                    const event = new CustomEvent('grid-canvas-resized', { 
-                        detail: { canvas: viewerCanvas, width: viewerCanvas.width, height: viewerCanvas.height, viewerId: viewerId } 
-                    });
-                    viewerCanvas.dispatchEvent(event);
-                };
-                setTimeout(updateCanvasSize, 0); 
-                const resizeObserver = new ResizeObserver(entries => {
-                    for (let entry of entries) {
-                        if (entry.target === windowFrame) {
-                            updateCanvasSize();
-                        }
-                    }
-                });
-                resizeObserver.observe(windowFrame);
-                windowFrame.gridViewerResizeObserver = resizeObserver; 
-            }
-            return windowFrame;
-        }
-
-        // Example of creating a grid viewer window (you can call this based on some UI event)
-        // setTimeout(() => {
-        //     createGridViewerWindow({title: "My Grid Viewer 1"});
-        // }, 2000);
-
         // Set initial width if panel has 'opened' attribute
         if (panel.hasAttribute('opened') && panel.getAttribute('opened') !== 'false') {
             // Add a very small delay to ensure the component has initialized
@@ -564,29 +490,27 @@
         ]);
 
     </script>
+    
     <script type="module">
-        // This is the second script module block
-
         import { createWindow, setTopBarOffset, setLeftBoundary } from '../WindowsManager/window-system.js';
 
-        // Set the top bar offset for the window manager (this was correctly here before)
+        // Set the top bar offset for the window manager
         const topFunctionBar = document.getElementById('top-function-bar');
         if (topFunctionBar) {
             setTopBarOffset(topFunctionBar.offsetHeight);
         }
         
-        const thumbnailPanelForBoundary = document.getElementById('my-thumbnail-panel');
-        if (thumbnailPanelForBoundary && thumbnailPanelForBoundary.hasAttribute('opened') && thumbnailPanelForBoundary.getAttribute('opened') !== 'false') {
+        // Initialize left boundary to 0 or panel width
+        const thumbnailPanel = document.getElementById('my-thumbnail-panel');
+        if (thumbnailPanel && thumbnailPanel.hasAttribute('opened') && thumbnailPanel.getAttribute('opened') !== 'false') {
             setTimeout(() => {
-                if (typeof thumbnailPanelForBoundary.getCurrentWidth === 'function') {
-                    setLeftBoundary(thumbnailPanelForBoundary.getCurrentWidth());
-                }
+                setLeftBoundary(thumbnailPanel.getCurrentWidth());
             }, 100);
         } else {
             setLeftBoundary(0);
         }
 
-        // Define createGridViewerWindow HERE, in the same module as its usage
+        // Define the Grid Viewer Window creation function
         function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title = 'Grid Viewer', x = 200, y = 150, width = 700, height = 500, canvasId = `grid-canvas-${Date.now()}`, controlPanelId = `grid-controls-${Date.now()}` }) {
             const viewerId = id; 
             const contentHtml = `
@@ -611,19 +535,34 @@
                     if (canvasContainer.offsetParent === null) return;
                     const containerWidth = canvasContainer.clientWidth;
                     const containerHeight = canvasContainer.clientHeight;
-                    if (viewerCanvas.width !== containerWidth) viewerCanvas.width = containerWidth;
-                    if (viewerCanvas.height !== containerHeight) viewerCanvas.height = containerHeight;
-                    const event = new CustomEvent('grid-canvas-resized', { detail: { canvas: viewerCanvas, width: viewerCanvas.width, height: viewerCanvas.height, viewerId: viewerId } });
-                    viewerCanvas.dispatchEvent(event);
+                    
+                    // Store current dimensions for comparison
+                    const currentWidth = viewerCanvas.width;
+                    const currentHeight = viewerCanvas.height;
+                    
+                    // Only update canvas dimensions if they've significantly changed (by more than 5px)
+                    // This prevents feedback loops during subtle window resizing
+                    if (Math.abs(currentWidth - containerWidth) > 5) viewerCanvas.width = containerWidth;
+                    if (Math.abs(currentHeight - containerHeight) > 5) viewerCanvas.height = containerHeight;
+                    
+                    // Only dispatch resize event if dimensions actually changed
+                    if (viewerCanvas.width !== currentWidth || viewerCanvas.height !== currentHeight) {
+                        const event = new CustomEvent('grid-canvas-resized', { 
+                            detail: { canvas: viewerCanvas, width: viewerCanvas.width, height: viewerCanvas.height, viewerId: viewerId } 
+                        });
+                        viewerCanvas.dispatchEvent(event);
+                    }
                 };
+                // Initialize canvas size
                 setTimeout(updateCanvasSize, 0);
+                // Set up resize observation
                 const resizeObserver = new ResizeObserver(entries => {
                     for (let entry of entries) {
                         if (entry.target === windowFrame) updateCanvasSize();
                     }
                 });
                 resizeObserver.observe(windowFrame);
-                windowFrame.gridViewerResizeObserver = resizeObserver;
+                windowFrame.gridViewerResizeObserver = resizeObserver; 
             }
             return windowFrame;
         }
@@ -631,16 +570,36 @@
         // Wait for DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', () => {
             const originalCanvasElement = document.getElementById('centered-canvas');
-            if (originalCanvasElement) {
-                const canvasRect = originalCanvasElement.getBoundingClientRect();
+            const mainContentElement = document.getElementById('main-content'); // Get main content area
+            
+            if (originalCanvasElement && mainContentElement) {
+                // Calculate initial window size and position based on main content area - 80% of available space
+                const availableWidth = mainContentElement.clientWidth;
+                const availableHeight = mainContentElement.clientHeight;
+                
+                const initialWidth = Math.floor(availableWidth * 0.8);  // 80% of width
+                const initialHeight = Math.floor(availableHeight * 0.8); // 80% of height
+                
+                // Center the window within the main content area
+                const initialX = mainContentElement.offsetLeft + Math.floor((availableWidth - initialWidth) / 2);
+                const initialY = mainContentElement.offsetTop + Math.floor((availableHeight - initialHeight) / 2);
+                
+                // For debugging - will appear in console to check sizes
+                console.log('Creating Grid Viewer window:',
+                    '\nMain content dimensions:', availableWidth, availableHeight,
+                    '\nWindow dimensions:', initialWidth, initialHeight,
+                    '\nWindow position:', initialX, initialY
+                );
+
                 const mainViewerCanvasId = 'viewer-main-canvas';
+                
                 const gridViewerWindowFrame = createGridViewerWindow({
                     id: 'canvas-window',
-                    title: 'Canvas',
-                    x: canvasRect.left,
-                    y: canvasRect.top,
-                    width: originalCanvasElement.offsetWidth + 20 + 120, 
-                    height: originalCanvasElement.offsetHeight + 50,
+                    title: 'Canvas Viewer', // Consistent title
+                    x: initialX,
+                    y: initialY,
+                    width: initialWidth,
+                    height: initialHeight,
                     canvasId: mainViewerCanvasId
                 });
                 originalCanvasElement.remove();
@@ -696,27 +655,8 @@
             
             const canvasWindowFrame = newCanvas.closest('.window-frame#canvas-window');
             if (canvasWindowFrame) {
-                const redrawObserver = new ResizeObserver(entries => {
-                    if (window.currentLoadedImage) {
-                        const img = window.currentLoadedImage;
-                        const ctxToUse = newContext;
-                        if (!newCanvas || newCanvas.width === 0 || newCanvas.height === 0) return;
-                        ctxToUse.clearRect(0, 0, newCanvas.width, newCanvas.height);
-                        const canvasWidth = newCanvas.width;
-                        const canvasHeight = newCanvas.height;
-                        const imgWidth = img.naturalWidth;
-                        const imgHeight = img.naturalHeight;
-                        if (imgWidth === 0 || imgHeight === 0) return;
-                        const scale = Math.min(canvasWidth / imgWidth, canvasHeight / imgHeight);
-                        const drawnWidth = imgWidth * scale;
-                        const drawnHeight = imgHeight * scale;
-                        const dx = (canvasWidth - drawnWidth) / 2;
-                        const dy = (canvasHeight - drawnHeight) / 2;
-                        ctxToUse.drawImage(img, dx, dy, drawnWidth, drawnHeight);
-                    }
-                });
-                redrawObserver.observe(canvasWindowFrame);
-
+                // The grid-canvas-resized event is already triggered by the ResizeObserver 
+                // in createGridViewerWindow function, so we only need this listener
                 newCanvas.addEventListener('grid-canvas-resized', (e) => {
                     if (window.currentLoadedImage) {
                         const img = window.currentLoadedImage;

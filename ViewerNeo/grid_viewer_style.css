@@ -7,6 +7,7 @@
     padding: 10px; /* Increased padding for a bit more space around content */
     box-sizing: border-box;
     background-color: #333; /* Match window content background from main style.css */
+    height: 100%; /* Ensure it takes full height of its container */
 }
 
 .grid-viewer-canvas-container {
@@ -19,6 +20,8 @@
     overflow: hidden; 
     background-color: #2c2c2c; /* Slightly different bg for canvas area if needed */
     border-radius: 4px;
+    min-width: 0; /* Prevent flex item from exceeding the container width */
+    min-height: 0; /* Prevent flex item from exceeding the container height */
 }
 
 .grid-viewer-canvas-container canvas {
@@ -30,10 +33,11 @@
     box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #0077ff; /* Enhanced neon glow */
     border-radius: 4px; 
     background-color: rgba(0,0,0,0.1); /* Slight dark tint from original */
+    box-sizing: border-box; /* Include borders in size calculations */
 }
 
 .grid-viewer-control-panel {
-    width: 150px; /* Slightly wider for more comfortable button text */
+    width: 150px; /* Fixed width for control panel */
     min-width: 150px; 
     display: flex;
     flex-direction: column; 
@@ -45,11 +49,13 @@
     border-radius: 6px;
     box-sizing: border-box;
     border: 1px solid #4a4a4a; /* Subtle border for the panel */
+    flex-shrink: 0; /* Prevent this panel from shrinking */
 }
 
+/* Ensure buttons in the control panel don't cause unexpected expansion */
 .grid-viewer-control-panel button {
     padding: 10px 12px; /* More padding for a better feel */
-    margin-bottom: 10px; 
+    margin-bottom: 8px; 
     background-color: #4f4f4f; /* Standard button color */
     color: #e0e0e0;
     border: 1px solid #5f5f5f; 
@@ -59,6 +65,9 @@
     font-size: 0.9em;
     font-weight: 500; /* Slightly bolder text */
     transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease; /* Smooth transitions */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .grid-viewer-control-panel button:last-child {
