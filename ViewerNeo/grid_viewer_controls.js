@@ -162,15 +162,6 @@ export function redrawCanvas(canvas) {
     
     // Draw the image with the current transform
     try {
-        console.log("DRAW DEBUG (New Offset Definition) ===========================");
-        console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
-        console.log(`Transform state: userScale=${userScale.toFixed(2)}, pan=(${panX.toFixed(1)}, ${panY.toFixed(1)})`);
-        console.log(`Image natural size: ${natW}x${natH}`);
-        console.log(`Base fit scale: ${baseFitScale.toFixed(3)}`);
-        console.log(`Total current scale: ${totalCurrentScale.toFixed(3)}`);
-        console.log(`Display size: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}`);
-        console.log(`Drawing image at (${drawX.toFixed(1)}, ${drawY.toFixed(1)})`);
-        
         ctx.drawImage(img, drawX, drawY, displayWidth, displayHeight);
         
         // Optional: Display zoom level (userScale) and pan coordinates
@@ -260,14 +251,6 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         const finalPanX = mcx - (newCanvas.width - newDisplayWidth) / 2 - (mcx - currentImgTopLeftX) * (newUserScale / currentUserScale);
         const finalPanY = mcy - (newCanvas.height - newDisplayHeight) / 2 - (mcy - currentImgTopLeftY) * (newUserScale / currentUserScale);
         
-        console.log("ZOOM DEBUG (New Offset Definition) ===========================");
-        console.log(`Canvas: ${newCanvas.width}x${newCanvas.height}, Mouse: (${mcx.toFixed(1)},${mcy.toFixed(1)})`);
-        console.log(`User Scale: ${currentUserScale.toFixed(2)} -> ${newUserScale.toFixed(2)}`);
-        console.log(`Pan: (${currentPanX.toFixed(1)},${currentPanY.toFixed(1)}) -> (${finalPanX.toFixed(1)},${finalPanY.toFixed(1)})`);
-        console.log(`Current TL: (${currentImgTopLeftX.toFixed(1)}, ${currentImgTopLeftY.toFixed(1)})`);
-        console.log(`(mcx - currentImgTopLeftX): ${(mcx - currentImgTopLeftX).toFixed(1)}`);
-        console.log(`Scale Ratio (newUserScale / currentUserScale): ${(newUserScale / currentUserScale).toFixed(3)}`);
-        
         newCanvas.transformState = {
             scale: newUserScale,
             offsetX: finalPanX,
@@ -294,41 +277,16 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     window.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         
-        // Calculate the distance moved
         const deltaX = e.clientX - lastX;
         const deltaY = e.clientY - lastY;
         
-        console.log("DRAG DEBUG ===========================");
-        console.log(`Mouse from (${lastX}, ${lastY}) to (${e.clientX}, ${e.clientY})`);
-        console.log(`Delta: (${deltaX}, ${deltaY})`);
-        
-        // Update the last position
         lastX = e.clientX;
         lastY = e.clientY;
         
-        // Update the transform state with the new offset
         if (newCanvas.transformState) {
-            const oldOffsetX = newCanvas.transformState.offsetX;
-            const oldOffsetY = newCanvas.transformState.offsetY;
-            
-            // Add deltas directly - this works for both positive and negative movements
             newCanvas.transformState.offsetX += deltaX;
             newCanvas.transformState.offsetY += deltaY;
             
-            console.log(`Offset updated from (${oldOffsetX}, ${oldOffsetY}) to (${newCanvas.transformState.offsetX}, ${newCanvas.transformState.offsetY})`);
-            console.log(`Current scale: ${newCanvas.transformState.scale}`);
-            
-            if (window.currentLoadedImage && window.currentLoadedImage !== true) {
-                const img = window.currentLoadedImage;
-                const baseScale = Math.min(newCanvas.width / img.naturalWidth, newCanvas.height / img.naturalHeight);
-                const imageX = (newCanvas.width - img.naturalWidth * baseScale * newCanvas.transformState.scale) / 2 + newCanvas.transformState.offsetX;
-                const imageY = (newCanvas.height - img.naturalHeight * baseScale * newCanvas.transformState.scale) / 2 + newCanvas.transformState.offsetY;
-                console.log(`Base scale: ${baseScale}, Image position: (${imageX}, ${imageY})`);
-            }
-            
-            console.log("END DRAG DEBUG ===========================");
-            
-            // Redraw the canvas with the updated state
             redrawCanvas(newCanvas);
         }
     });
