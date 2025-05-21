@@ -52,9 +52,9 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
                         <label for="${viewerId}-grid-major-spacing" style="display:block; margin-bottom:2px;">Major Spacing (img px):</label>
                         <input type="number" id="${viewerId}-grid-major-spacing" value="50" step="0.1" min="0.1" style="width: 98%; margin-bottom:3px;">
                     </div>
-                    <div style="font-size:0.85em; margin-bottom: 5px;">
-                        <label for="${viewerId}-grid-minor-spacing" style="display:block; margin-bottom:2px;">Minor Spacing (img px):</label>
-                        <input type="number" id="${viewerId}-grid-minor-spacing" value="10" step="0.1" min="0.1" style="width: 98%; margin-bottom:3px;">
+                    <div style="font-size:0.85em; margin-bottom: 8px;">
+                        <input type="checkbox" id="${viewerId}-grid-show-minor" checked style="margin-right: 5px; vertical-align: middle;">
+                        <label for="${viewerId}-grid-show-minor" style="vertical-align: middle;">Show Minor Lines (1/10th)</label>
                     </div>
                     <div style="font-size:0.85em;">
                         <label style="display:block; margin-bottom:3px;">Mode:</label>
@@ -86,14 +86,15 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
             mode: 'synced',
             fixedGridSpacing: 50,      // Screen pixels for fixed mode
             syncedMajorSpacing: 50.0,  // Image pixels for synced mode
-            syncedMinorSpacing: 10.0   // Image pixels for synced mode
+            showMinorLines: true,       // New setting for toggling minor lines
+            rulersAlwaysVisible: false // Future setting placeholder (not yet used for logic)
         };
 
         // Setup event listeners for grid settings
         const colorInput = windowFrame.querySelector(`#${viewerId}-grid-color`);
         const opacityInput = windowFrame.querySelector(`#${viewerId}-grid-opacity`);
         const majorSpacingInput = windowFrame.querySelector(`#${viewerId}-grid-major-spacing`);
-        const minorSpacingInput = windowFrame.querySelector(`#${viewerId}-grid-minor-spacing`);
+        const showMinorLinesCheckbox = windowFrame.querySelector(`#${viewerId}-grid-show-minor`);
         const syncedModeRadio = windowFrame.querySelector(`#${viewerId}-grid-mode-synced`);
         const fixedModeRadio = windowFrame.querySelector(`#${viewerId}-grid-mode-fixed`);
 
@@ -109,22 +110,11 @@ export function createGridViewerWindow({ id = `grid-viewer-${Date.now()}`, title
             let newMajorSpacing = parseFloat(e.target.value);
             if (isNaN(newMajorSpacing) || newMajorSpacing <= 0) newMajorSpacing = gridCanvas.gridSettings.syncedMajorSpacing; // revert if invalid
             gridCanvas.gridSettings.syncedMajorSpacing = newMajorSpacing;
-            // If minor is greater than or equal to major, adjust minor
-            if (gridCanvas.gridSettings.syncedMinorSpacing >= newMajorSpacing) {
-                gridCanvas.gridSettings.syncedMinorSpacing = Math.max(0.1, newMajorSpacing / 5);
-                if (minorSpacingInput) minorSpacingInput.value = gridCanvas.gridSettings.syncedMinorSpacing.toFixed(1);
-            }
+            // No longer need to auto-adjust a separate minor spacing input
             if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
         });
-        minorSpacingInput.addEventListener('input', (e) => {
-            let newMinorSpacing = parseFloat(e.target.value);
-            if (isNaN(newMinorSpacing) || newMinorSpacing <= 0) newMinorSpacing = gridCanvas.gridSettings.syncedMinorSpacing; // revert if invalid
-            // Ensure minor spacing is not greater than major spacing
-            if (newMinorSpacing >= gridCanvas.gridSettings.syncedMajorSpacing) {
-                newMinorSpacing = Math.max(0.1, gridCanvas.gridSettings.syncedMajorSpacing / 5);
-                e.target.value = newMinorSpacing.toFixed(1); // Update input if value was capped
-            }
-            gridCanvas.gridSettings.syncedMinorSpacing = newMinorSpacing;
+        showMinorLinesCheckbox.addEventListener('change', (e) => {
+            gridCanvas.gridSettings.showMinorLines = e.target.checked;
             if (gridCanvas.isGridVisible) drawGrid(gridCanvas, viewerCanvas, window.currentLoadedImage);
         });
         syncedModeRadio.addEventListener('change', (e) => {
@@ -228,14 +218,14 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
             const colorInput = document.getElementById(`${viewerId}-grid-color`);
             const opacityInput = document.getElementById(`${viewerId}-grid-opacity`);
             const majorSpacingInputEl = document.getElementById(`${viewerId}-grid-major-spacing`);
-            const minorSpacingInputEl = document.getElementById(`${viewerId}-grid-minor-spacing`);
+            const showMinorLinesCheckboxEl = document.getElementById(`${viewerId}-grid-show-minor`);
             const syncedModeRadio = document.getElementById(`${viewerId}-grid-mode-synced`);
             const fixedModeRadio = document.getElementById(`${viewerId}-grid-mode-fixed`);
 
             if (colorInput) colorInput.value = gridCanvas.gridSettings.color;
             if (opacityInput) opacityInput.value = gridCanvas.gridSettings.opacity;
             if (majorSpacingInputEl) majorSpacingInputEl.value = gridCanvas.gridSettings.syncedMajorSpacing.toFixed(1);
-            if (minorSpacingInputEl) minorSpacingInputEl.value = gridCanvas.gridSettings.syncedMinorSpacing.toFixed(1);
+            if (showMinorLinesCheckboxEl) showMinorLinesCheckboxEl.checked = gridCanvas.gridSettings.showMinorLines;
             if (syncedModeRadio) syncedModeRadio.checked = gridCanvas.gridSettings.mode === 'synced';
             if (fixedModeRadio) fixedModeRadio.checked = gridCanvas.gridSettings.mode === 'fixed';
             
@@ -334,22 +324,28 @@ function drawGrid(gridCanvas, mainCanvas, image) {
         gridCtx.lineWidth = 1 / totalCurrentScale; 
 
         // Minor grid lines (synced)
-        const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
-        gridCtx.strokeStyle = minorColor;
-        for (let x = 0; x < natW; x += settings.syncedMinorSpacing) {
-            if (x % settings.syncedMajorSpacing !== 0) {
-                gridCtx.beginPath();
-                gridCtx.moveTo(x, 0);
-                gridCtx.lineTo(x, natH);
-                gridCtx.stroke();
-            }
-        }
-        for (let y = 0; y < natH; y += settings.syncedMinorSpacing) {
-            if (y % settings.syncedMajorSpacing !== 0) {
-                gridCtx.beginPath();
-                gridCtx.moveTo(0, y);
-                gridCtx.lineTo(natW, y);
-                gridCtx.stroke();
+        if (settings.showMinorLines) {
+            const actualSyncedMinorSpacing = Math.max(0.1, settings.syncedMajorSpacing / 10.0);
+            // Check if minor lines would be too dense on screen (e.g., < 1 screen pixel apart)
+            if (actualSyncedMinorSpacing * totalCurrentScale >= 1.0) { 
+                const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
+                gridCtx.strokeStyle = minorColor;
+                for (let x = 0; x < natW; x += actualSyncedMinorSpacing) {
+                    if (x % settings.syncedMajorSpacing !== 0) {
+                        gridCtx.beginPath();
+                        gridCtx.moveTo(x, 0);
+                        gridCtx.lineTo(x, natH);
+                        gridCtx.stroke();
+                    }
+                }
+                for (let y = 0; y < natH; y += actualSyncedMinorSpacing) {
+                    if (y % settings.syncedMajorSpacing !== 0) {
+                        gridCtx.beginPath();
+                        gridCtx.moveTo(0, y);
+                        gridCtx.lineTo(natW, y);
+                        gridCtx.stroke();
+                    }
+                }
             }
         }
 
@@ -369,44 +365,49 @@ function drawGrid(gridCanvas, mainCanvas, image) {
             gridCtx.stroke();
         }
     } else if (settings.mode === 'fixed') {
-        const spacing = settings.fixedGridSpacing;
-        if (spacing < 5) { // Safety check, though already handled in radio listener
+        // Use fixedGridSpacing which is now set dynamically when switching to fixed mode
+        const majorFixedSpacing = settings.fixedGridSpacing;
+        if (majorFixedSpacing < 5) { // Safety check
             gridCtx.restore(); return;
         }
 
-        gridCtx.lineWidth = 1; // Keep fixed mode lines at 1 screen pixel for now
+        gridCtx.lineWidth = 1; 
         
         const majorColor = hexToRGBA(settings.color, settings.opacity);
-        // For minor lines in fixed mode, let's use a fraction of the major spacing
-        // And a reduced opacity, similar to synced mode.
-        const minorSpacing = spacing / 5; // Example: 5 minor divisions
-        const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
-
-        // Horizontal lines (fixed) - draw on the translated context (gridArea)
-        if (minorSpacing >= 2) {
-            gridCtx.strokeStyle = minorColor;
-            for (let y = 0; y <= gridAreaHeight; y += minorSpacing) { // Use gridAreaHeight
-                if (y % spacing !== 0) { 
-                    const lineY = Math.floor(y) + 0.5;
-                    gridCtx.beginPath();
-                    gridCtx.moveTo(0, lineY); // Draw from 0 of translated context
-                    gridCtx.lineTo(gridAreaWidth, lineY); // To width of translated context
-                    gridCtx.stroke();
+        
+        // Minor lines for fixed mode
+        if (settings.showMinorLines) {
+            const actualFixedMinorSpacing = Math.max(0.5, majorFixedSpacing / 10.0); // Ensure minor spacing is at least 0.5 screen px
+            if (actualFixedMinorSpacing >= 2) { // Only draw if screen spacing is somewhat reasonable (at least 2px)
+                const minorColor = hexToRGBA(settings.color, settings.opacity * 0.4);
+                gridCtx.strokeStyle = minorColor;
+                // Minor Horizontal Lines (Fixed)
+                for (let y = 0; y <= gridAreaHeight; y += actualFixedMinorSpacing) {
+                    if (y % majorFixedSpacing !== 0) { 
+                        const lineY = Math.floor(y) + 0.5;
+                        gridCtx.beginPath();
+                        gridCtx.moveTo(0, lineY);
+                        gridCtx.lineTo(gridAreaWidth, lineY);
+                        gridCtx.stroke();
+                    }
                 }
-            }
-            gridCtx.strokeStyle = minorColor;
-            for (let x = 0; x <= gridAreaWidth; x += minorSpacing) { // Use gridAreaWidth
-                if (x % spacing !== 0) { 
-                    const lineX = Math.floor(x) + 0.5;
-                    gridCtx.beginPath();
-                    gridCtx.moveTo(lineX, 0);
-                    gridCtx.lineTo(lineX, gridAreaHeight);
-                    gridCtx.stroke();
+                // Minor Vertical Lines (Fixed)
+                gridCtx.strokeStyle = minorColor; 
+                for (let x = 0; x <= gridAreaWidth; x += actualFixedMinorSpacing) {
+                    if (x % majorFixedSpacing !== 0) { 
+                        const lineX = Math.floor(x) + 0.5;
+                        gridCtx.beginPath();
+                        gridCtx.moveTo(lineX, 0);
+                        gridCtx.lineTo(lineX, gridAreaHeight);
+                        gridCtx.stroke();
+                    }
                 }
             }
         }
+
+        // Major Horizontal Lines (Fixed)
         gridCtx.strokeStyle = majorColor;
-        for (let y = 0; y <= gridAreaHeight; y += spacing) { // Use gridAreaHeight
+        for (let y = 0; y <= gridAreaHeight; y += majorFixedSpacing) {
             const lineY = Math.floor(y) + 0.5;
             gridCtx.beginPath();
             gridCtx.moveTo(0, lineY);
@@ -414,7 +415,7 @@ function drawGrid(gridCanvas, mainCanvas, image) {
             gridCtx.stroke();
         }
         gridCtx.strokeStyle = majorColor;
-        for (let x = 0; x <= gridAreaWidth; x += spacing) { // Use gridAreaWidth
+        for (let x = 0; x <= gridAreaWidth; x += majorFixedSpacing) {
             const lineX = Math.floor(x) + 0.5;
             gridCtx.beginPath();
             gridCtx.moveTo(lineX, 0);
