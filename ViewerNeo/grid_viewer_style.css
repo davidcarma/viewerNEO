@@ -33,6 +33,11 @@
     border-radius: 4px; 
     background-color: rgba(0,0,0,0.1);
     box-sizing: border-box;
+    cursor: grab; /* Show grab cursor to indicate the canvas can be panned */
+}
+
+.grid-viewer-canvas-container canvas:active {
+    cursor: grabbing; /* Change cursor when actively panning */
 }
 
 .grid-viewer-control-panel {

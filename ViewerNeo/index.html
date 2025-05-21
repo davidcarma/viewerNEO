@@ -335,15 +335,15 @@
                 
                 // Common image loading function to maintain aspect ratio
                 const loadImageIntoCanvas = () => {
-                                    // Check if we're loading the same image that's already displayed
-                // But always allow redrawing if we just reopened the window
-                if (window.currentLoadedImage === image && !window.justReopened) {
-                    console.log("Same image already loaded, no need to redraw");
-                    return;
-                }
-                
-                // Reset the reopening flag once we've processed an image load
-                window.justReopened = false;
+                    // Check if we're loading the same image that's already displayed
+                    // But always allow redrawing if we just reopened the window
+                    if (window.currentLoadedImage === image && !window.justReopened) {
+                        console.log("Same image already loaded, no need to redraw");
+                        return;
+                    }
+                    
+                    // Reset the reopening flag once we've processed an image load
+                    window.justReopened = false;
                     
                     // Store the loaded image for reuse during window resizing
                     window.currentLoadedImage = image;
@@ -357,6 +357,22 @@
                         return;
                     }
                     
+                    // Reset transformation state when loading a new image (different from the current one)
+                    if (window.currentLoadedImage !== image || !usableCanvas.transformState) {
+                        usableCanvas.transformState = {
+                            scale: 1,
+                            offsetX: 0,
+                            offsetY: 0
+                        };
+                    }
+                    
+                    // Use the redrawCanvas function from grid_viewer_controls.js if it exists
+                    if (typeof window.redrawCanvas === 'function') {
+                        window.redrawCanvas(usableCanvas);
+                        return;
+                    }
+                    
+                    // Fallback to direct drawing if redrawCanvas isn't available
                     // Clear canvas before drawing
                     usableCtx.clearRect(0, 0, usableCanvas.width, usableCanvas.height);
                     
