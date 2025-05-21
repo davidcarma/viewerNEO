@@ -264,7 +264,6 @@ body {
     display: flex;
     flex-direction: column-reverse; /* New notifications appear on top */
     align-items: flex-end;
-    pointer-events: none; /* Make the container non-interactive */
 }
 
 .notification {
@@ -277,7 +276,6 @@ body {
     opacity: 1;
     transition: opacity 0.5s ease-out;
     border-left: 5px solid #0078d4; /* Default type: info */
-    pointer-events: auto; /* Make individual notifications interactive */
 }
 
 .notification.success {
