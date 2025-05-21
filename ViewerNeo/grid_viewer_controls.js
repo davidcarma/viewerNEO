@@ -210,11 +210,10 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
         gridCanvas.isGridVisible = !gridCanvas.isGridVisible;
         if (gridCanvas.isGridVisible) {
             gridCanvas.style.display = 'block';
-            settingsContainer.style.display = 'block'; // Show settings
+            settingsContainer.style.display = 'block';
             button.textContent = 'Hide Grid';
             button.style.backgroundColor = '#5cb85c';
 
-            // Ensure settings UI reflects current gridSettings
             const colorInput = document.getElementById(`${viewerId}-grid-color`);
             const opacityInput = document.getElementById(`${viewerId}-grid-opacity`);
             const majorSpacingInputEl = document.getElementById(`${viewerId}-grid-major-spacing`);
@@ -229,15 +228,26 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
             if (syncedModeRadio) syncedModeRadio.checked = gridCanvas.gridSettings.mode === 'synced';
             if (fixedModeRadio) fixedModeRadio.checked = gridCanvas.gridSettings.mode === 'fixed';
             
-            drawGrid(gridCanvas, mainCanvas, window.currentLoadedImage, gridCanvas.isGridVisible);
+            // No direct drawGrid call here; redrawCanvas will handle it.
         } else {
             gridCanvas.style.display = 'none';
-            settingsContainer.style.display = 'none'; // Hide settings
+            settingsContainer.style.display = 'none';
             button.textContent = 'Show Grid';
             button.style.backgroundColor = ''; 
+            // When hiding, ensure the grid canvas is cleared explicitly in case redrawCanvas doesn't run immediately
+            // or if drawGrid(..., false) doesn't clear everything (it should, but belt-and-suspenders)
             const gridCtx = gridCanvas.getContext('2d');
             gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
         }
+
+        // Crucially, trigger a redraw of the main canvas.
+        // This will clear the main canvas, redraw the image, and then call drawGrid with the new state.
+        // drawGrid will then draw grid/rulers/text on gridCanvas if isGridVisible is true.
+        // The text logic in redrawCanvas will then correctly decide whether to draw on mainCanvas.
+        if (window.currentLoadedImage) { // Only redraw if there's an image
+             redrawCanvas(mainCanvas);
+        }
+
     } else {
         console.error("Could not find canvas, button, or settings container for grid toggle. IDs:", viewerId, mainCanvasId, gridCanvasId, settingsContainerId);
     }
