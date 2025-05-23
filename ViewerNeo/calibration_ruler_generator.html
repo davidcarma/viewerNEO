@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calibration Ruler Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 2px solid #333;
+            margin: 20px 0;
+            max-width: 100%;
+            height: auto;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .info {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .preview {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calibration Ruler Generator</h1>
+        
+        <div class="info">
+            <h3>Calibration Image Specifications:</h3>
+            <ul>
+                <li><strong>Size:</strong> 1024 × 1024 pixels</li>
+                <li><strong>5px intervals:</strong> Thin gray grid lines</li>
+                <li><strong>10px intervals:</strong> Medium blue grid lines</li>
+                <li><strong>50px intervals:</strong> Thick red lines with major labels</li>
+                <li><strong>Test points:</strong> Specific pixel coordinates marked with crosshairs</li>
+                <li><strong>Background:</strong> White with corner coordinates and center marker</li>
+            </ul>
+        </div>
+
+        <button onclick="generateRuler()">Generate Calibration Ruler</button>
+        <button onclick="downloadImage()" id="downloadBtn" style="display:none;">Download Ruler Image</button>
+        
+        <div class="preview">
+            <canvas id="rulerCanvas" width="1024" height="1024"></canvas>
+        </div>
+    </div>
+
+    <script>
+        function generateRuler() {
+            const canvas = document.getElementById('rulerCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            console.log('Generating calibration ruler...');
+            
+            // Ensure crisp rendering - disable anti-aliasing
+            ctx.imageSmoothingEnabled = false;
+            ctx.webkitImageSmoothingEnabled = false;
+            ctx.mozImageSmoothingEnabled = false;
+            ctx.msImageSmoothingEnabled = false;
+            
+            // Clear canvas with white background
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, 1024, 1024);
+            
+            // Draw 5px interval grid (thin gray lines) - SHARP
+            ctx.strokeStyle = '#E0E0E0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            // Vertical lines every 5px
+            for (let x = 0; x <= 1024; x += 5) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, 1024);
+            }
+            
+            // Horizontal lines every 5px
+            for (let y = 0; y <= 1024; y += 5) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(1024, y);
+            }
+            ctx.stroke();
+            
+            // Draw 10px interval grid (medium blue lines) - SHARP
+            ctx.strokeStyle = '#4A90E2';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            // Vertical lines every 10px
+            for (let x = 0; x <= 1024; x += 10) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, 1024);
+            }
+            
+            // Horizontal lines every 10px
+            for (let y = 0; y <= 1024; y += 10) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(1024, y);
+            }
+            ctx.stroke();
+            
+            // Draw 50px interval grid (thick red lines) - SHARP
+            ctx.strokeStyle = '#E74C3C';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            // Vertical lines every 50px
+            for (let x = 0; x <= 1024; x += 50) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, 1024);
+            }
+            
+            // Horizontal lines every 50px
+            for (let y = 0; y <= 1024; y += 50) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(1024, y);
+            }
+            ctx.stroke();
+            
+            // Add major labels at 50px intervals
+            ctx.fillStyle = '#2C3E50';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            
+            // Top edge labels (X coordinates)
+            for (let x = 0; x <= 1024; x += 50) {
+                if (x > 0) {
+                    ctx.fillText(x.toString(), x + 2, 2);
+                }
+            }
+            
+            // Left edge labels (Y coordinates)
+            for (let y = 0; y <= 1024; y += 50) {
+                if (y > 0) {
+                    ctx.fillText(y.toString(), 2, y + 2);
+                }
+            }
+            
+            // Add minor labels at 10px intervals (but only every other one to avoid clutter)
+            ctx.font = '8px monospace';
+            ctx.fillStyle = '#666666';
+            
+            // X-axis minor labels
+            for (let x = 10; x <= 1024; x += 20) {
+                if (x % 50 !== 0) { // Skip major label positions
+                    ctx.fillText(x.toString(), x + 1, 12);
+                }
+            }
+            
+            // Y-axis minor labels
+            for (let y = 10; y <= 1024; y += 20) {
+                if (y % 50 !== 0) { // Skip major label positions
+                    ctx.fillText(y.toString(), 12, y + 3);
+                }
+            }
+            
+            // Add corner markers and coordinates
+            ctx.fillStyle = '#E74C3C';
+            ctx.font = 'bold 12px monospace';
+            
+            // Top-left corner
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText('(0,0)', 15, 15);
+            
+            // Top-right corner
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'top';
+            ctx.fillText('(1024,0)', 1024 - 15, 15);
+            
+            // Bottom-left corner
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('(0,1024)', 15, 1024 - 15);
+            
+            // Bottom-right corner
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('(1024,1024)', 1024 - 15, 1024 - 15);
+            
+            // Add center marker
+            ctx.fillStyle = '#9B59B6';
+            ctx.font = 'bold 14px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('CENTER (512,512)', 512, 512);
+            
+            // Draw center crosshair - SHARP
+            ctx.strokeStyle = '#9B59B6';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(497, 512);
+            ctx.lineTo(527, 512);
+            ctx.moveTo(512, 497);
+            ctx.lineTo(512, 527);
+            ctx.stroke();
+            
+            // Add title
+            ctx.fillStyle = '#2C3E50';
+            ctx.font = 'bold 16px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText('CALIBRATION RULER - 1024×1024 PIXELS', 512, 30);
+            
+            // Add scale information
+            ctx.font = '12px monospace';
+            ctx.fillText('Red lines: 50px intervals | Blue lines: 10px intervals | Gray lines: 5px intervals', 512, 50);
+            
+            // Add pixel accuracy markers at specific test points - SHARP
+            ctx.fillStyle = '#FF6B6B';
+            ctx.font = 'bold 8px monospace';
+            
+            // Mark some specific pixel coordinates for precise testing
+            const testPoints = [
+                {x: 100, y: 100}, {x: 200, y: 200}, {x: 300, y: 300},
+                {x: 500, y: 100}, {x: 700, y: 200}, {x: 900, y: 300},
+                {x: 100, y: 500}, {x: 200, y: 700}, {x: 300, y: 900}
+            ];
+            
+            testPoints.forEach(point => {
+                // Draw small crosshairs at test points - SHARP
+                ctx.strokeStyle = '#FF6B6B';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(point.x - 3, point.y);
+                ctx.lineTo(point.x + 3, point.y);
+                ctx.moveTo(point.x, point.y - 3);
+                ctx.lineTo(point.x, point.y + 3);
+                ctx.stroke();
+                
+                // Label the exact coordinates
+                ctx.fillText(`(${point.x},${point.y})`, point.x + 5, point.y - 5);
+            });
+            
+            // Show download button
+            document.getElementById('downloadBtn').style.display = 'inline-block';
+            
+            console.log('Calibration ruler generated successfully!');
+        }
+        
+        function downloadImage() {
+            const canvas = document.getElementById('rulerCanvas');
+            const link = document.createElement('a');
+            link.download = 'calibration_ruler_1024x1024.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Generate ruler on page load
+        window.addEventListener('load', generateRuler);
+    </script>
+</body>
+</html> 

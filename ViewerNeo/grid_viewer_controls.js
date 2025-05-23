@@ -632,8 +632,13 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
 
     // Function to determine tick spacing based on zoom
     const getTickSpacing = (scale) => {
-        if (scale > 2) return { major: 20, minor: 5, subMinor: 1 }; // Heavily zoomed in
-        if (scale > 0.8) return { major: 50, minor: 10, subMinor: 5 };
+        // High zoom levels - very granular measurements
+        if (scale > 50) return { major: 5, minor: 1, subMinor: 0.5 }; // Extreme zoom
+        if (scale > 20) return { major: 10, minor: 5, subMinor: 1 }; // Very high zoom
+        if (scale > 10) return { major: 10, minor: 5, subMinor: 2 }; // High zoom
+        if (scale > 5) return { major: 20, minor: 10, subMinor: 2 }; // Medium-high zoom
+        if (scale > 2) return { major: 20, minor: 10, subMinor: 2 }; // Medium zoom
+        if (scale > 0.8) return { major: 50, minor: 20, subMinor: 5 };
         if (scale > 0.3) return { major: 100, minor: 50, subMinor: 10 };
         if (scale > 0.1) return { major: 200, minor: 100, subMinor: 50 };
         if (scale > 0.05) return { major: 500, minor: 250, subMinor: 100 };
@@ -651,17 +656,34 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
         
         if (screenX >= RULER_SIZE && screenX <= mainCanvas.width) {
             let tickHeight = 0;
-            if (imgX % ticks.major === 0) tickHeight = RULER_SIZE / 2;
-            else if (imgX % ticks.minor === 0) tickHeight = RULER_SIZE / 3;
-            else tickHeight = RULER_SIZE / 5;
+            let showLabel = false;
+            
+            if (imgX % ticks.major === 0) {
+                tickHeight = RULER_SIZE / 2;
+                showLabel = true;
+            } else if (imgX % ticks.minor === 0) {
+                tickHeight = RULER_SIZE / 3;
+                // Show minor labels only at very high zoom levels
+                showLabel = totalCurrentScale > 15;
+            } else {
+                tickHeight = RULER_SIZE / 5;
+            }
 
             gridCtx.beginPath();
             gridCtx.moveTo(screenX, RULER_SIZE - tickHeight);
             gridCtx.lineTo(screenX, RULER_SIZE);
             gridCtx.stroke();
 
-            if (imgX % ticks.major === 0) {
-                gridCtx.fillText(imgX.toString(), screenX, RULER_SIZE / 2.5);
+            if (showLabel) {
+                // Format numbers appropriately for zoom level
+                let labelText;
+                if (totalCurrentScale > 30 && imgX !== Math.floor(imgX)) {
+                    // Show decimal places only at extreme zoom
+                    labelText = imgX.toFixed(1);
+                } else {
+                    labelText = imgX.toString();
+                }
+                gridCtx.fillText(labelText, screenX, RULER_SIZE / 2.5);
             }
         }
     }
@@ -675,17 +697,34 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
 
         if (screenY >= RULER_SIZE && screenY <= mainCanvas.height) {
             let tickWidth = 0;
-            if (imgY % ticks.major === 0) tickWidth = RULER_SIZE / 2;
-            else if (imgY % ticks.minor === 0) tickWidth = RULER_SIZE / 3;
-            else tickWidth = RULER_SIZE / 5;
+            let showLabel = false;
+            
+            if (imgY % ticks.major === 0) {
+                tickWidth = RULER_SIZE / 2;
+                showLabel = true;
+            } else if (imgY % ticks.minor === 0) {
+                tickWidth = RULER_SIZE / 3;
+                // Show minor labels only at very high zoom levels
+                showLabel = totalCurrentScale > 15;
+            } else {
+                tickWidth = RULER_SIZE / 5;
+            }
 
             gridCtx.beginPath();
             gridCtx.moveTo(RULER_SIZE - tickWidth, screenY);
             gridCtx.lineTo(RULER_SIZE, screenY);
             gridCtx.stroke();
 
-            if (imgY % ticks.major === 0) {
-                gridCtx.fillText(imgY.toString(), RULER_SIZE * 0.75 , screenY);
+            if (showLabel) {
+                // Format numbers appropriately for zoom level
+                let labelText;
+                if (totalCurrentScale > 30 && imgY !== Math.floor(imgY)) {
+                    // Show decimal places only at extreme zoom
+                    labelText = imgY.toFixed(1);
+                } else {
+                    labelText = imgY.toString();
+                }
+                gridCtx.fillText(labelText, RULER_SIZE * 0.75, screenY);
             }
         }
     }
