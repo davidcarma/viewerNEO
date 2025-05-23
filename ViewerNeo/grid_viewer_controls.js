@@ -906,7 +906,11 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     const fontSize = Math.min(newCanvas.width / 20, newCanvas.height / 10, 16);
     newContext.font = `${fontSize}px sans-serif`;
     if (newCanvas.width > 0 && newCanvas.height > 0) {
-        newContext.fillText("Select an image from the panel.", newCanvas.width / 2, newCanvas.height / 2);
+        newContext.fillText(
+            "Select an image from the panel.", 
+            newCanvas.width / 2, 
+            newCanvas.height / 2
+        );
     }
     
     // Initialize transformation state for the canvas
@@ -915,6 +919,9 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         offsetX: 0,
         offsetY: 0
     };
+    
+    // Set default cursor to grab (indicates draggable)
+    newCanvas.style.cursor = 'grab';
     
     // Set up mouse wheel event for zooming with simpler, more accurate tracking
     newCanvas.addEventListener('wheel', (e) => {
@@ -937,7 +944,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         const currentUserScale = newCanvas.transformState.scale;
         
         const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-        const newUserScale = Math.min(Math.max(currentUserScale * zoomFactor, 0.1), 50); 
+        const newUserScale = Math.min(Math.max(currentUserScale * zoomFactor, 0.1), 100); 
 
         const rect = newCanvas.getBoundingClientRect();
         const mcx = e.clientX - rect.left;
@@ -988,6 +995,11 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     
     // Capture mouse move for coordinate display and ruler marking
     newCanvas.addEventListener('mousemove', (e) => {
+        // Ensure cursor is set to grab when hovering (if not currently dragging)
+        if (!isDragging) {
+            newCanvas.style.cursor = 'grab';
+        }
+        
         if (!window.currentLoadedImage || 
             window.currentLoadedImage === true || 
             !newCanvas.transformState) {
@@ -1050,6 +1062,8 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     newCanvas.addEventListener('mouseleave', (e) => {
         newCanvas.mouseImagePos = null;
         newCanvas.mouseScreenPos = null;
+        // Reset cursor when leaving canvas
+        newCanvas.style.cursor = 'default';
         redrawCanvas(newCanvas); // Redraw to clear mouse coords and ruler markers
     });
 
@@ -1097,7 +1111,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     window.addEventListener('mouseup', () => {
         if (isDragging) {
             isDragging = false;
-            newCanvas.style.cursor = '';
+            newCanvas.style.cursor = 'grab'; // Return to grab cursor after dragging
         }
     });
     
