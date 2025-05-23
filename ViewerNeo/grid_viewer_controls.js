@@ -346,7 +346,7 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
     }
 }
 
-const RULER_SIZE = 25; // px for ruler thickness
+const RULER_SIZE = 40; // px for ruler thickness - increased to accommodate 4-digit numbers
 const RULER_BG_COLOR = '#444444';
 const RULER_TEXT_COLOR = '#E0E0E0';
 const RULER_LINE_COLOR = '#AAAAAA';
@@ -724,7 +724,8 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
                 } else {
                     labelText = imgY.toString();
                 }
-                gridCtx.fillText(labelText, RULER_SIZE * 0.75, screenY);
+                // Label the exact coordinates
+                gridCtx.fillText(labelText, RULER_SIZE * 0.85, screenY);
             }
         }
     }
@@ -751,9 +752,9 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
                                 (imageOriginX_on_mainCanvas + mouseImgX * totalCurrentScale - RULER_SIZE);
             if (markerScreenX >= RULER_SIZE && markerScreenX <= mainCanvas.width) {
                 gridCtx.beginPath();
-                gridCtx.moveTo(markerScreenX - 3, 0);
-                gridCtx.lineTo(markerScreenX + 3, 0);
-                gridCtx.lineTo(markerScreenX, 5);
+                gridCtx.moveTo(markerScreenX - 4, 0);
+                gridCtx.lineTo(markerScreenX + 4, 0);
+                gridCtx.lineTo(markerScreenX, 8);
                 gridCtx.closePath();
                 gridCtx.fill();
             }
@@ -764,9 +765,9 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
                                 (imageOriginY_on_mainCanvas + mouseImgY * totalCurrentScale - RULER_SIZE);
             if (markerScreenY >= RULER_SIZE && markerScreenY <= mainCanvas.height) {
                 gridCtx.beginPath();
-                gridCtx.moveTo(0, markerScreenY - 3);
-                gridCtx.lineTo(0, markerScreenY + 3);
-                gridCtx.lineTo(5, markerScreenY);
+                gridCtx.moveTo(0, markerScreenY - 4);
+                gridCtx.lineTo(0, markerScreenY + 4);
+                gridCtx.lineTo(8, markerScreenY);
                 gridCtx.closePath();
                 gridCtx.fill();
             }
