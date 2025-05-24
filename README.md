@@ -33,6 +33,11 @@ ViewerNeo is a web-based application designed for viewing and interacting with i
     *   **Drag & Drop:** Drop individual image files or entire directories (auto-filters for image files).
     *   **Traditional File Input:** Standard file selection dialog.
 
+*   **Smart File Organization:**
+    *   **Natural Sorting:** Files are automatically sorted using intelligent numerical ordering (image1.jpg, image2.jpg, image10.jpg instead of image1.jpg, image10.jpg, image2.jpg).
+    *   **Batch Grouping:** Images automatically organized into named batches with expand/collapse functionality.
+    *   **Auto-filtering:** Only image files are processed when dropping directories.
+
 *   **Supported Image Formats:** All browser-supported formats (PNG, JPEG, GIF, WebP, SVG, BMP).
 
 ### Window Management & UI
@@ -85,9 +90,13 @@ ViewerNeo is a web-based application designed for viewing and interacting with i
 
 ### File Management
 *   **Drag Files:** Drag image files directly onto the interface
-*   **Drag Directories:** Drop entire folders (automatically filters for images)
+*   **Drag Directories:** Drop entire folders (automatically filters for images with natural sorting)
 *   **Paste Images:** Ctrl+V to paste from clipboard
 *   **Batch Organization:** Images automatically grouped into named batches
+*   **Natural Sorting:** Filenames with numbers are sorted intelligently:
+    *   `image1.jpg, image2.jpg, image10.jpg, image11.jpg` ✓ 
+    *   Instead of: `image1.jpg, image10.jpg, image11.jpg, image2.jpg` ✗
+    *   Works with various patterns: `page_01.jpg`, `scan001.jpg`, `document1_part10.jpg`
 
 ## Running the Project
 

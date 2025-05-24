@@ -741,7 +741,42 @@ class ThumbnailPane extends HTMLElement {
     _addFilesAsNewBatch(files, batchTitle, expanded = true) {
         const newBatchId = `batch_${Date.now()}`;
         
-        const fileEntries = files.map(file => ({
+        // Debug: Show original file order
+        console.log('Original file order:', files.map(f => f.name));
+        
+        // Sort files using natural sort order for filenames with numbers
+        const sortedFiles = [...files].sort((a, b) => {
+            // Extract filename without extension for better matching
+            const nameA = a.name.split('.')[0];
+            const nameB = b.name.split('.')[0];
+            
+            // Check if both filenames follow a pattern like "page_X" where X is a number
+            const patternRegex = /^(.*?)(\d+)(.*)$/;
+            const matchA = nameA.match(patternRegex);
+            const matchB = nameB.match(patternRegex);
+            
+            // If both filenames contain numbers, perform numerical sort
+            if (matchA && matchB && matchA[1] === matchB[1]) {
+                // Same prefix, compare numbers
+                const numA = parseInt(matchA[2], 10);
+                const numB = parseInt(matchB[2], 10);
+                
+                if (numA !== numB) {
+                    return numA - numB; // Sort by the numeric part
+                }
+                
+                // If numbers are the same, sort by the suffix
+                return matchA[3].localeCompare(matchB[3]);
+            }
+            
+            // Fall back to standard string comparison
+            return nameA.localeCompare(nameB);
+        });
+        
+        // Debug: Show sorted file order
+        console.log('Sorted file order:', sortedFiles.map(f => f.name));
+        
+        const fileEntries = sortedFiles.map(file => ({
             name: file.name,
             type: file.type,
             data: file, // Store the actual File object here
