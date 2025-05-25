@@ -122,6 +122,7 @@
         }
     </style>
     <script type="module" src="../ThumbnailGallery/thumbnail-pane.js"></script>
+    <script src="../lib/tiff.js"></script>
     <link rel="stylesheet" href="../WindowsManager/style.css">
     <link rel="stylesheet" href="grid_viewer_style.css">
     <script type="module" src="grid_viewer_controls.js"></script>
@@ -240,7 +241,7 @@
             <div class="drop-overlay-content">
                 <div class="drop-icon">📁</div>
                 <div class="drop-text">Drop images or folders here</div>
-                <div class="drop-subtext">Supports: JPG, PNG, GIF, BMP, WebP, SVG</div>
+                <div class="drop-subtext">Supports: JPG, PNG, GIF, BMP, WebP, SVG, JP2, TIFF</div>
             </div>
         `;
         dropOverlay.style.cssText = `
@@ -292,10 +293,10 @@
         function isImageFile(file) {
             const imageTypes = [
                 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 
-                'image/bmp', 'image/webp', 'image/svg+xml'
+                'image/bmp', 'image/webp', 'image/svg+xml', 'image/jp2', 'image/tiff'
             ];
             return imageTypes.includes(file.type) || 
-                   /\.(jpe?g|png|gif|bmp|webp|svg)$/i.test(file.name);
+                   /\.(jpe?g|png|gif|bmp|webp|svg|jp2|tiff?)$/i.test(file.name);
         }
 
         // Helper function to process dropped items (files and directories)
@@ -633,19 +634,103 @@
                 return;
             }
             
-            if (itemType.startsWith('image/')) {
+            if (itemType.startsWith('image/') || itemName.toLowerCase().endsWith('.jp2') || itemName.toLowerCase().endsWith('.tif') || itemName.toLowerCase().endsWith('.tiff')) {
                 const fileData = event.detail.file.data;
                 const image = new Image();
                 
+                const usableCanvas = window.canvas;
+                const usableCtx = window.ctx;
+
+                // Check for TIFF files FIRST, before general image/ check
+                if ((itemName.toLowerCase().endsWith('.tif') || itemName.toLowerCase().endsWith('.tiff')) && typeof UTIF !== 'undefined') {
+                    if (!(fileData instanceof File)) {
+                        console.error('TIFF loading requires a File object.');
+                        displayLoadError(usableCtx, usableCanvas, itemName, 'Invalid file data for TIFF.');
+                        updateWindowTitle(usableCanvas, itemName, ' (File Error)');
+                        return;
+                    }
+                    displayLoadingMessage(usableCtx, usableCanvas, `Loading ${itemName} (TIFF)...`);
+                    window.currentLoadedImage = null; // Clear any previous image
+
+                    fileData.arrayBuffer().then(buffer => {
+                        try {
+                            const ifds = UTIF.decode(buffer);
+                            if (!ifds || ifds.length === 0) throw new Error('No TIFF pages found');
+                            
+                            const page = ifds[0]; // Use first page
+                            UTIF.decodeImage(buffer, page, ifds);
+                            
+                            if (!page.data) throw new Error('Failed to decode TIFF image data');
+
+                            // Create canvas from decoded TIFF data
+                            const tiffCanvas = document.createElement('canvas');
+                            tiffCanvas.width = page.width;
+                            tiffCanvas.height = page.height;
+                            const tiffCtx = tiffCanvas.getContext('2d');
+                            
+                            // Convert TIFF data to ImageData
+                            const rgba = UTIF.toRGBA8(page);
+                            const imageData = new ImageData(new Uint8ClampedArray(rgba), page.width, page.height);
+                            tiffCtx.putImageData(imageData, 0, 0);
+
+                            if (usableCtx && usableCanvas) {
+                                usableCtx.clearRect(0, 0, usableCanvas.width, usableCanvas.height);
+                                // Draw the TIFF canvas onto the main canvas, fitting it
+                                const scale = Math.min(usableCanvas.width / tiffCanvas.width, usableCanvas.height / tiffCanvas.height);
+                                const drawnWidth = tiffCanvas.width * scale;
+                                const drawnHeight = tiffCanvas.height * scale;
+                                const dx = (usableCanvas.width - drawnWidth) / 2;
+                                const dy = (usableCanvas.height - drawnHeight) / 2;
+                                usableCtx.drawImage(tiffCanvas, dx, dy, drawnWidth, drawnHeight);
+                                
+                                // Store the TIFF canvas as the current loaded image for redrawCanvas function
+                                window.currentLoadedImage = tiffCanvas;
+                                usableCanvas.transformState = { scale: 1, offsetX: 0, offsetY: 0 }; // Reset transform state
+                                
+                                // Call redrawCanvas if available to handle zoom/pan properly
+                                if (typeof window.redrawCanvas === 'function') {
+                                    window.redrawCanvas(usableCanvas, tiffCanvas); // Pass tiffCanvas as the image source
+                                }
+                            }
+                            updateWindowTitle(usableCanvas, itemName);
+                        } catch (error) {
+                            console.error(`Error loading TIFF: ${itemName}`, error);
+                            displayLoadError(usableCtx, usableCanvas, itemName, 'Error decoding TIFF.');
+                            updateWindowTitle(usableCanvas, itemName, ' (Decode Error)');
+                        }
+                    }).catch(error => {
+                        console.error(`Error reading TIFF file buffer: ${itemName}`, error);
+                        displayLoadError(usableCtx, usableCanvas, itemName, 'Error reading TIFF file.');
+                        updateWindowTitle(usableCanvas, itemName, ' (File Read Error)');
+                    });
+                    return; // TIFF processing handled
+                } else if (itemName.toLowerCase().endsWith('.jp2') && !isSafari()) {
+                    console.warn("Attempting to load JP2 on non-Safari browser. Preview likely to fail.");
+                    if (usableCtx && usableCanvas) {
+                        usableCtx.clearRect(0, 0, usableCanvas.width, usableCanvas.height);
+                        usableCtx.fillStyle = 'rgba(238, 238, 238, 0.7)';
+                        usableCtx.textAlign = 'center';
+                        usableCtx.textBaseline = 'middle';
+                        const fontSize = Math.min(usableCanvas.width / 20, usableCanvas.height / 10, 16);
+                        usableCtx.font = `${fontSize}px sans-serif`;
+                        const message = `Preview for ${itemName} (JP2) may not be supported in this browser.`;
+                        const lines = fitTextToLines(message, usableCtx, usableCanvas.width - 40);                        
+                        lines.forEach((line, index) => {
+                             usableCtx.fillText(line, usableCanvas.width / 2, usableCanvas.height / 2 - (lines.length-1)*fontSize/2 + index * fontSize);
+                        });
+                        window.currentLoadedImage = null;
+                    }
+                    updateWindowTitle(usableCanvas, itemName, ' (Unsupported Preview)');
+                    return;
+                }
+
+                // Standard image loading path (PNG, JPG, WebP, GIF, and Safari-decoded JP2)
                 const loadImageIntoCanvas = () => {
                     if (window.currentLoadedImage === image && !window.justReopened) {
                         return;
                     }
                     window.justReopened = false;
                     window.currentLoadedImage = image;
-                    
-                    const usableCanvas = window.canvas;
-                    const usableCtx = window.ctx;
                     
                     if (!usableCanvas || !usableCtx) {
                         console.error("Canvas or context not available");
@@ -691,6 +776,8 @@
                     if (image.src.startsWith('blob:')) {
                         URL.revokeObjectURL(image.src);
                     }
+                    displayLoadError(usableCtx, usableCanvas, itemName, 'File might be corrupted or an unsupported format.');
+                    updateWindowTitle(usableCanvas, itemName, ' (Load Error)');
                 };
                 
                 image.onload = loadImageIntoCanvas;
@@ -1036,6 +1123,75 @@
             window.ctx = newContext;
             setupCanvasImageHandling(newCanvas, newContext);
         });
+
+        // Helper function to check if the browser is Safari
+        function isSafari() {
+            return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        }
+
+        // Helper function to fit text into multiple lines
+        function fitTextToLines(text, ctx, maxWidth) {
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                const width = ctx.measureText(currentLine + " " + word).width;
+                if (width < maxWidth) {
+                    currentLine += " " + word;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        // Helper function to update window title
+        function updateWindowTitle(canvasInstance, imageName, status = '') {
+            const canvasWindow = canvasInstance ? canvasInstance.closest('.window-frame') : null;
+            if (canvasWindow) {
+                const titleElement = canvasWindow.querySelector('.window-title');
+                if (titleElement) {
+                    titleElement.textContent = `Grid Viewer - ${imageName}${status}`;
+                }
+            }
+        }
+
+        // Helper function to display a loading message on canvas
+        function displayLoadingMessage(ctx, canvas, message) {
+            if (ctx && canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(238, 238, 238, 0.7)';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const fontSize = Math.min(canvas.width / 20, canvas.height / 10, 16);
+                ctx.font = `${fontSize}px sans-serif`;
+                const lines = fitTextToLines(message, ctx, canvas.width - 40);
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, canvas.width / 2, canvas.height / 2 - (lines.length - 1) * fontSize / 2 + index * fontSize);
+                });
+            }
+        }
+        
+        // Helper function to display an error message on canvas
+        function displayLoadError(ctx, canvas, imageName, specificError) {
+            if (ctx && canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(238, 238, 238, 0.7)'; // Light text on dark background
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const fontSize = Math.min(canvas.width / 20, canvas.height / 10, 16);
+                ctx.font = `${fontSize}px sans-serif`;
+                const message = `Error loading: ${imageName}. ${specificError}`;
+                const lines = fitTextToLines(message, ctx, canvas.width - 40);
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, canvas.width / 2, canvas.height / 2 - (lines.length - 1) * fontSize / 2 + index * fontSize);
+                });
+            }
+            window.currentLoadedImage = null;
+        }
     </script>
 </body>
 </html>

@@ -384,8 +384,9 @@ function drawGrid(gridCanvas, mainCanvas, image, isGridActuallyVisible) {
         const panX = transform.offsetX; 
         const panY = transform.offsetY;
 
-        const natW = image ? image.naturalWidth : 0;
-        const natH = image ? image.naturalHeight : 0;
+        // Handle both Image objects (naturalWidth/naturalHeight) and Canvas objects (width/height)
+        const natW = image ? image.naturalWidth || image.width || 0 : 0;
+        const natH = image ? image.naturalHeight || image.height || 0 : 0;
 
         // Adjust available drawing area for the grid itself, accounting for rulers
         const gridAreaWidth = gridCanvas.width - RULER_SIZE;
@@ -604,7 +605,13 @@ function drawGrid(gridCanvas, mainCanvas, image, isGridActuallyVisible) {
 }
 
 function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
-    if (!image || image.naturalWidth === 0 || image.naturalHeight === 0) return; 
+    if (!image) return;
+    
+    // Handle both Image objects (naturalWidth/naturalHeight) and Canvas objects (width/height)
+    const natW = image.naturalWidth || image.width || 0;
+    const natH = image.naturalHeight || image.height || 0;
+    
+    if (natW === 0 || natH === 0) return; 
     if (!mainCanvas.transformState) return;
 
     gridCtx.save();
@@ -616,8 +623,6 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
     const userScale = transform.scale;
     const panX = transform.offsetX;
     const panY = transform.offsetY;
-    const natW = image.naturalWidth;
-    const natH = image.naturalHeight;
 
     const baseFitScale = Math.min(mainCanvas.width / natW, mainCanvas.height / natH);
     const totalCurrentScale = baseFitScale * userScale;
@@ -839,8 +844,9 @@ export function redrawCanvas(canvas) {
     const panX = canvas.transformState.offsetX;
     const panY = canvas.transformState.offsetY;
     
-    const natW = img.naturalWidth;
-    const natH = img.naturalHeight;
+    // Handle both Image objects (naturalWidth/naturalHeight) and Canvas objects (width/height)
+    const natW = img.naturalWidth || img.width || 0;
+    const natH = img.naturalHeight || img.height || 0;
     
     if (natW === 0 || natH === 0) return;
     
@@ -970,8 +976,8 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         if (!window.currentLoadedImage || window.currentLoadedImage === true) return;
         
         const img = window.currentLoadedImage;
-        const natW = img.naturalWidth;
-        const natH = img.naturalHeight;
+        const natW = img.naturalWidth || img.width || 0;
+        const natH = img.naturalHeight || img.height || 0;
 
         if (natW === 0 || natH === 0) return;
         
@@ -1050,8 +1056,8 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         }
 
         const img = window.currentLoadedImage;
-        const natW = img.naturalWidth;
-        const natH = img.naturalHeight;
+        const natW = img.naturalWidth || img.width || 0;
+        const natH = img.naturalHeight || img.height || 0;
         if (natW === 0 || natH === 0) {
             newCanvas.mouseImagePos = null;
             newCanvas.mouseScreenPos = null;

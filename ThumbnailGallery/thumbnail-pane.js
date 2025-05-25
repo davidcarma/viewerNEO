@@ -584,7 +584,7 @@ class ThumbnailPane extends HTMLElement {
         imgEl.loading = 'lazy';
         
         // Check if file.data is a File object for Object URL creation
-        if (file.data instanceof File && file.data.type.startsWith('image/') && !/\.tiff?$/.test(file.name.toLowerCase())) {
+        if (file.data instanceof File && file.data.type.startsWith('image/') && !/\.(tiff?|jp2)$/i.test(file.name.toLowerCase())) {
             const objectUrl = URL.createObjectURL(file.data);
             imgEl.src = objectUrl;
             item.dataset.objectUrl = objectUrl; // Store for revocation
@@ -593,11 +593,15 @@ class ThumbnailPane extends HTMLElement {
             imgEl.src = file.data;
             item.dataset.objectUrl = file.data; // Assume we should track it if provided this way
             this._objectUrls.add(file.data);
-        } else if (file.type.startsWith('image/') && !/\.tiff?$/.test(file.name.toLowerCase())) {
+        } else if (file.type.startsWith('image/') && !/\.(tiff?|jp2)$/i.test(file.name.toLowerCase())) {
             // Original placeholder for image types if no File object
             imgEl.src = file.data || `https://via.placeholder.com/130x80.png?text=${encodeURIComponent(file.name)}`; 
+        } else if (/\.(tiff?)$/i.test(file.name.toLowerCase()) && typeof UTIF !== 'undefined') {
+            // Handle TIFF files using UTIF for thumbnail
+            imgEl.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxRDIwMjIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2FlYWVhZSIgZm9udC1zaXplPSIxMnB4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+TG9hZGluZyBUUEZGIHByZXZpZXcuLi48L3RleHQ+PC9zdmc+'; // Placeholder while loading
+            this._generateTiffThumbnail(file.data, imgEl);
         } else {
-            // SVG placeholder for non-images or TIFFs
+            // SVG placeholder for non-images or other unhandled types (like JP2)
             imgEl.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxMTExMTEiLz48cGF0aCBkPSJNMzUgMjVINjVDNjguMyAyNSA3MSAyNy43IDcxIDMxVjY5QzcxIDcyLjMgNjguMyA3NSA2NSA3NUgzNUMzMS43IDc1IDI5IDcyLjMgMjkgNjlWMzFDMjkgMjcuNyAzMS43IDI1IDM1IDI1WiIgc3Ryb2tlPSIjNTU1IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI1IiBmaWxsPSIjNTU1Ii8+PHBhdGggZD0iTTMwIDYwTDQwIDUwTDUwIDYwTDYwIDUwTDcwIDYwVjcwSDMwVjYwWiIgZmlsbD0iIzU1NSIvPjwvc3ZnPg==';
         }
         item.appendChild(imgEl);
@@ -642,6 +646,70 @@ class ThumbnailPane extends HTMLElement {
             }
         }
         this.dispatchEvent(new CustomEvent('batch-toggled', { detail: { batchIndex, expanded: this._batches[batchIndex].expanded } }));
+    }
+
+    async _generateTiffThumbnail(fileData, imgEl) {
+        if (!(fileData instanceof File)) {
+            console.error('TIFF thumbnail generation requires a File object.');
+            imgEl.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxRDIwMjIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2FlYWVhZSIgZm9udC1zaXplPSIxMnB4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+RWFpbGVkOiBUUEZGIHByZXZpZXcuLi48L3RleHQ+PC9zdmc+';
+            return;
+        }
+        try {
+            const buffer = await fileData.arrayBuffer();
+            const ifds = UTIF.decode(buffer);
+            if (!ifds || ifds.length === 0) throw new Error('No TIFF pages found');
+            
+            const page = ifds[0]; // Use first page
+            UTIF.decodeImage(buffer, page, ifds);
+            
+            if (!page.data) throw new Error('Failed to decode TIFF image data');
+
+            // Create canvas from decoded TIFF data
+            const canvas = document.createElement('canvas');
+            canvas.width = page.width;
+            canvas.height = page.height;
+            const ctx = canvas.getContext('2d');
+            
+            // Convert TIFF data to ImageData
+            const rgba = UTIF.toRGBA8(page);
+            const imageData = new ImageData(new Uint8ClampedArray(rgba), page.width, page.height);
+            ctx.putImageData(imageData, 0, 0);
+
+            // Resize to thumbnail dimensions (e.g., 130x80)
+            const thumbCanvas = document.createElement('canvas');
+            const thumbCtx = thumbCanvas.getContext('2d');
+            const targetWidth = 130;
+            const targetHeight = 80;
+            thumbCanvas.width = targetWidth;
+            thumbCanvas.height = targetHeight;
+
+            // Calculate aspect ratios
+            const sourceWidth = canvas.width;
+            const sourceHeight = canvas.height;
+            const sourceRatio = sourceWidth / sourceHeight;
+            const targetRatio = targetWidth / targetHeight;
+            let drawWidth, drawHeight, drawX, drawY;
+
+            if (sourceRatio > targetRatio) { // Source is wider than target
+                drawHeight = targetHeight;
+                drawWidth = drawHeight * sourceRatio;
+                drawX = (targetWidth - drawWidth) / 2;
+                drawY = 0;
+            } else { // Source is taller or same aspect ratio
+                drawWidth = targetWidth;
+                drawHeight = drawWidth / sourceRatio;
+                drawX = 0;
+                drawY = (targetHeight - drawHeight) / 2;
+            }
+
+            thumbCtx.drawImage(canvas, drawX, drawY, drawWidth, drawHeight);
+            imgEl.src = thumbCanvas.toDataURL();
+
+        } catch (error) {
+            console.error('Error generating TIFF thumbnail:', error);
+            // Fallback to a generic error SVG or the existing SVG placeholder
+            imgEl.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxRDIwMjIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2FlYWVhZSIgZm9udC1zaXplPSIxMnB4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+RWFpbGVkOiBUUEZGIHByZXZpZXcuLi48L3RleHQ+PC9zdmc+';
+        }
     }
 
     _handleSelectImage(batchIndex, fileIndex) {
