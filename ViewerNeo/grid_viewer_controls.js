@@ -144,7 +144,7 @@ export function createGridViewerWindow({
                 <button onclick="handleGridViewerButton7('${viewerId}')">Action 7</button>
                 <button onclick="handleGridViewerButton8('${viewerId}')">Action 8</button>
                 <button onclick="handleGridViewerButton9('${viewerId}')">Action 9</button>
-                <button onclick="handleGridViewerButton10('${viewerId}')">Action 10</button>
+                <button onclick="handleGridViewerButton10('${viewerId}')" style="background-color: #ff8c00; color: white;">Save to Batch</button>
             </div>
         </div>
     `;
@@ -333,7 +333,8 @@ function handleGridViewerButton3(viewerId) {
         return;
     }
 
-    const sourceImage = window.currentLoadedImage;
+    // Always use the original image as source, not any processed version
+    let sourceImage = window.originalLoadedImage || window.currentLoadedImage;
     if (!sourceImage || sourceImage === true) {
         alert("Please load an image first.");
         return;
@@ -441,7 +442,139 @@ function handleGridViewerButton9(viewerId) {
 }
 
 function handleGridViewerButton10(viewerId) {
-    console.log(`Grid Viewer Button 10 clicked for viewer: ${viewerId}`);
+    console.log(`Grid Viewer Button 10 (Save to Batch) clicked for viewer: ${viewerId}`);
+    
+    const mainCanvas = window.canvas;
+    const currentImage = window.currentLoadedImage;
+    
+    if (!mainCanvas || !currentImage || currentImage === true) {
+        alert("No processed image to save. Please load and process an image first.");
+        return;
+    }
+    
+    try {
+        // Get the thumbnail panel to access batch data
+        const panel = document.getElementById('my-thumbnail-panel');
+        if (!panel || typeof panel.getSelectedThumbnail !== 'function') {
+            alert("Cannot access thumbnail panel to determine source batch.");
+            return;
+        }
+        
+        // Get the currently selected thumbnail to determine which batch it came from
+        const selectedThumbnail = panel.getSelectedThumbnail();
+        if (!selectedThumbnail) {
+            alert("No source image selected. Please select an image from the thumbnail panel first.");
+            return;
+        }
+        
+        // Convert the current processed image to a blob
+        let sourceCanvas;
+        if (currentImage instanceof HTMLCanvasElement) {
+            sourceCanvas = currentImage;
+        } else if (currentImage instanceof HTMLImageElement) {
+            // If it's still an Image element, draw it to a temporary canvas first
+            sourceCanvas = document.createElement('canvas');
+            sourceCanvas.width = currentImage.naturalWidth || currentImage.width;
+            sourceCanvas.height = currentImage.naturalHeight || currentImage.height;
+            const tempCtx = sourceCanvas.getContext('2d');
+            tempCtx.drawImage(currentImage, 0, 0);
+        } else {
+            alert("Unsupported image format for saving.");
+            return;
+        }
+        
+        // Convert canvas to blob
+        sourceCanvas.toBlob((blob) => {
+            if (!blob) {
+                alert("Failed to create image data for saving.");
+                return;
+            }
+            
+            // Create a new file object from the blob
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const originalName = selectedThumbnail.name || 'image';
+            const baseName = originalName.replace(/\.[^/.]+$/, ''); // Remove extension
+            const newFileName = `${baseName}_processed_${timestamp}.png`;
+            
+            const processedFile = new File([blob], newFileName, { type: 'image/png' });
+            
+            // Add the processed image to the same batch as the original
+            if (panel.addImageToBatch) {
+                // Find which batch the selected thumbnail belongs to
+                const batches = panel._batches || [];
+                let targetBatchIndex = -1;
+                
+                for (let i = 0; i < batches.length; i++) {
+                    const batch = batches[i];
+                    if (batch.files && batch.files.some(file => 
+                        file.name === selectedThumbnail.name && 
+                        file.data === selectedThumbnail.data
+                    )) {
+                        targetBatchIndex = i;
+                        break;
+                    }
+                }
+                
+                if (targetBatchIndex >= 0) {
+                    // Add to the found batch
+                    panel.addImageToBatch(targetBatchIndex, processedFile);
+                    console.log(`Saved processed image "${newFileName}" to batch ${targetBatchIndex}`);
+                    
+                    // Show success message
+                    const successMessage = document.createElement('div');
+                    successMessage.textContent = `✓ Saved "${newFileName}" to batch`;
+                    successMessage.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #ff8c00;
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        z-index: 10001;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        animation: slideIn 0.3s ease-out;
+                    `;
+                    
+                    const successStyle = document.createElement('style');
+                    successStyle.textContent = `
+                        @keyframes slideIn {
+                            from { transform: translateX(100%); opacity: 0; }
+                            to { transform: translateX(0); opacity: 1; }
+                        }
+                    `;
+                    document.head.appendChild(successStyle);
+                    document.body.appendChild(successMessage);
+                    
+                    setTimeout(() => {
+                        if (document.body.contains(successMessage)) {
+                            document.body.removeChild(successMessage);
+                            document.head.removeChild(successStyle);
+                        }
+                    }, 3000);
+                } else {
+                    // Fallback: create a new batch for processed images
+                    panel.createNewBatch([processedFile], { 
+                        title: `Processed Images - ${new Date().toLocaleDateString()}` 
+                    });
+                    console.log(`Created new batch for processed image "${newFileName}"`);
+                    alert(`Saved "${newFileName}" to a new "Processed Images" batch.`);
+                }
+            } else {
+                // Fallback if addImageToBatch method doesn't exist
+                console.warn("addImageToBatch method not available, trying createNewBatch");
+                panel.createNewBatch([processedFile], { 
+                    title: `Processed Images - ${new Date().toLocaleDateString()}` 
+                });
+                alert(`Saved "${newFileName}" to a new "Processed Images" batch.`);
+            }
+            
+        }, 'image/png', 0.95); // High quality PNG
+        
+    } catch (error) {
+        console.error("Error saving image to batch:", error);
+        alert("Failed to save image to batch: " + error.message);
+    }
 }
 
 function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsContainerId) {
@@ -950,8 +1083,27 @@ function handleGridViewerResetView(canvasId) {
             offsetY: 0
         };
         
-        // Redraw the canvas with the reset state
-        console.log("Resetting view via button click");
+        // Reload the original image from the thumbnail panel
+        const panel = document.getElementById('my-thumbnail-panel');
+        if (panel && typeof panel.getSelectedThumbnail === 'function') {
+            const selectedThumbnail = panel.getSelectedThumbnail();
+            if (selectedThumbnail) {
+                console.log("Resetting view and reloading original image:", selectedThumbnail.name);
+                
+                // Clear current processed image and reload original
+                window.currentLoadedImage = null;
+                window.originalLoadedImage = null;
+                
+                // Trigger the thumbnail selection event to reload the original image
+                const syntheticEvent = { detail: { file: selectedThumbnail } };
+                window.handleThumbnailImage(syntheticEvent);
+                
+                return; // handleThumbnailImage will call redrawCanvas
+            }
+        }
+        
+        // Fallback: just reset view if no thumbnail is selected
+        console.log("Resetting view only (no original image to reload)");
         redrawCanvas(canvas);
     }
 }

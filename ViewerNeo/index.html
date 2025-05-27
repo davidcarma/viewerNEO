@@ -687,6 +687,7 @@
                                 
                                 // Store the TIFF canvas as the current loaded image for redrawCanvas function
                                 window.currentLoadedImage = tiffCanvas;
+                                window.originalLoadedImage = tiffCanvas; // Store original for processing operations
                                 usableCanvas.transformState = { scale: 1, offsetX: 0, offsetY: 0 }; // Reset transform state
                                 
                                 // Call redrawCanvas if available to handle zoom/pan properly
@@ -733,6 +734,7 @@
                     }
                     window.justReopened = false;
                     window.currentLoadedImage = image;
+                    window.originalLoadedImage = image; // Store original for processing operations
                     
                     if (!usableCanvas || !usableCtx) {
                         console.error("Canvas or context not available");
@@ -1003,6 +1005,7 @@
                                             window.canvas = null;
                                             window.ctx = null;
                                             window.currentLoadedImage = null;
+                                            window.originalLoadedImage = null;
                                             try {
                                                 const panel = document.getElementById('my-thumbnail-panel');
                                                 if (panel && typeof panel.getSelectedThumbnail === 'function') {
@@ -1030,6 +1033,7 @@
                                     window.canvas = null;
                                     window.ctx = null;
                                     window.currentLoadedImage = null;
+                                    window.originalLoadedImage = null;
                                     try {
                                         const panel = document.getElementById('my-thumbnail-panel');
                                         if (panel && typeof panel.getSelectedThumbnail === 'function') {
