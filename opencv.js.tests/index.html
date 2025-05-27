@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>OpenCV.js</title>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+<style type="text/css">
+	/* Start by setting display:none to make this hidden.
+   Then we position it in relation to the viewport window
+   with position:fixed. Width, height, top and left speak
+   for themselves. Background we set to 80% white with
+   our animation centered, and no-repeating */
+.modal {
+    display:    none;
+    position:   fixed;
+    z-index:    1000;
+    top:        0;
+    left:       0;
+    height:     100%;
+    width:      100%;
+    background: rgba( 255, 255, 255, .8 ) 
+                url('http://i.stack.imgur.com/FhHRx.gif') 
+                50% 50% 
+                no-repeat;
+}
+
+/* When the body has the loading class, we turn
+   the scrollbar off with overflow:hidden */
+body.loading {
+    overflow: hidden;   
+}
+
+/* Anytime the body has the loading class, our
+   modal element will be visible */
+body.loading .modal {
+    display: block;
+}
+</style>
+</head>
+<body>
+<div class="container">
+	<div class="jumbotron">
+    	<h1>OpenCV - Circle Detection</h1> 
+    	<p>This website uses OpenCVJS to detect circles in any uploaded image.</p> 
+  	</div>
+	<div class="row">
+  		<div class="col-sm">
+  			<div class="card">
+			  	<div class="card-header">
+			    Original Image
+			  	</div>
+			  	<div class="card-block text-center">
+			    	<img id="imageOriginal" alt="Upload" class="card-img-top"/>
+			  	</div>
+			  	<div class="card-footer text-muted">
+			    	<input type="file" id="imageInput" name="file" />
+			  	</div>
+			</div>
+  		</div>
+  		<div class="col-sm">
+  			<div class="card">
+			  	<div class="card-header">
+			    Modified Image
+			  	</div>
+			  	<div class="card-block">
+			    	<canvas id="imageCanvas"></canvas>
+			  	</div>
+			  	<ul class="list-group list-group-flush">
+			    <li class="list-group-item">
+			    	<button type="button" id="circlesButton" class="btn btn-primary" disabled>Circle Detection (Loading OpenCV...)</button>
+			    </li>
+				</ul>
+				<div class="card-footer">
+			    	<a href="#" id="button" class="card-link">Download Image</a>
+				</div>
+			</div>
+  		</div>
+  	</div>
+</div>
+<div class="modal"></div>
+<script type="text/javascript">
+document.body.classList.add("loading");
+
+// OpenCV state management
+window.cvReady = false;
+window.cv = undefined;
+
+let imgElement = document.getElementById('imageOriginal');
+let inputElement = document.getElementById('imageInput');
+let circlesButton = document.getElementById('circlesButton');
+
+inputElement.addEventListener('change', (e) => {
+  imgElement.src = URL.createObjectURL(e.target.files[0]);
+}, false);
+
+let mat;
+
+// Handle image loading - only process if OpenCV is ready
+imgElement.onload = function() {
+    if (!window.cvReady) {
+        console.log('Image loaded but OpenCV not ready yet');
+        return;
+    }
+    let cv = window.cv;
+    mat = cv.imread(imgElement);
+    cv.imshow('imageCanvas', mat);
+};
+
+// Circle detection function
+function runCircleDetection() {
+    if (!window.cvReady) {
+        alert('OpenCV.js is still loading, please wait...');
+        return;
+    }
+    
+    let cv = window.cv;
+    circlesButton.disabled = true;
+
+    let mat = cv.imread('imageCanvas');
+    let dst = mat.clone();
+    let circles = new cv.Mat();
+    cv.cvtColor(mat, mat, cv.COLOR_RGBA2GRAY, 0);
+    // You can try more different parameters
+    cv.HoughCircles(mat, circles, cv.HOUGH_GRADIENT,
+                1, 45, 75, 40, 0, 0);
+    // draw circles
+    for (let i = 0; i < circles.cols; ++i) {
+        let x = circles.data32F[i * 3];
+        let y = circles.data32F[i * 3 + 1];
+        let radius = circles.data32F[i * 3 + 2];
+        let center = new cv.Point(x, y);
+        cv.circle(dst, center, radius, [0, 0, 0, 255], 3);
+    }
+    
+    cv.imshow('imageCanvas', dst);
+    mat.delete();
+    dst.delete();
+    circles.delete();
+
+    circlesButton.disabled = false;
+}
+
+// Attach click handler
+circlesButton.onclick = runCircleDetection;
+
+document.getElementById('button').onclick = function() {
+    this.href = document.getElementById("imageCanvas").toDataURL();
+    this.download = "image.png";
+};
+
+// OpenCV initialization - handle both Promise-based and callback-based versions
+function onOpenCvReady() {
+    console.log('OpenCV.js is ready!');
+    window.cvReady = true;
+    document.body.classList.remove("loading");
+    
+    // Update UI
+    circlesButton.disabled = false;
+    circlesButton.textContent = 'Circle Detection';
+    
+    // If image was already loaded, process it now
+    if (imgElement.complete && imgElement.src) {
+        let cv = window.cv;
+        mat = cv.imread(imgElement);
+        cv.imshow('imageCanvas', mat);
+    }
+}
+
+// Handle different OpenCV.js initialization patterns
+if (typeof cv !== 'undefined') {
+    if (typeof cv.then === 'function') {
+        // Promise-based (latest builds)
+        cv.then(function(realCV) {
+            window.cv = realCV;
+            onOpenCvReady();
+        }).catch(function(error) {
+            console.error('OpenCV.js failed to load:', error);
+            document.body.classList.remove("loading");
+            circlesButton.textContent = 'OpenCV Failed to Load';
+        });
+    } else if (cv.getBuildInformation) {
+        // Already loaded
+        window.cv = cv;
+        onOpenCvReady();
+    } else {
+        // Callback-based (older builds)
+        cv['onRuntimeInitialized'] = function() {
+            window.cv = cv;
+            onOpenCvReady();
+        };
+    }
+} else {
+    // cv not defined yet, wait for script to load
+    let checkInterval = setInterval(function() {
+        if (typeof cv !== 'undefined') {
+            clearInterval(checkInterval);
+            if (typeof cv.then === 'function') {
+                cv.then(function(realCV) {
+                    window.cv = realCV;
+                    onOpenCvReady();
+                });
+            } else {
+                cv['onRuntimeInitialized'] = function() {
+                    window.cv = cv;
+                    onOpenCvReady();
+                };
+            }
+        }
+    }, 100);
+}
+</script>
+<script async src="opencv.js" type="text/javascript"></script>
+</body>
+</html>

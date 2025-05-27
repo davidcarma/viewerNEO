@@ -92,10 +92,59 @@ export function createGridViewerWindow({
                     </div>
                 </div>
                 <button onclick="handleGridViewerButton3('${viewerId}')" style="margin-top:10px;">
-                    Action 3
+                    Adaptive Threshold
                 </button>
+                <div id="${viewerId}-threshold-settings" style="margin-top: 10px; border-top: 1px solid #4a4a4a; padding-top: 10px;">
+                    <p style="margin-top:0; margin-bottom: 5px; font-size: 0.9em; color: #ccc;">
+                        Adaptive Threshold Settings:
+                    </p>
+                    <div style="font-size:0.85em; margin-bottom: 5px;">
+                        <label for="${viewerId}-threshold-max-value" style="display:block; margin-bottom:2px;">
+                            Max Value (0-255):
+                        </label>
+                        <input type="number" id="${viewerId}-threshold-max-value" value="255" min="0" max="255" 
+                               style="width: 98%; margin-bottom:3px;">
+                    </div>
+                    <div style="font-size:0.85em; margin-bottom: 5px;">
+                        <label for="${viewerId}-threshold-block-size" style="display:block; margin-bottom:2px;">
+                            Block Size (odd number ≥ 3):
+                        </label>
+                        <input type="number" id="${viewerId}-threshold-block-size" value="11" min="3" step="2" 
+                               style="width: 98%; margin-bottom:3px;">
+                    </div>
+                    <div style="font-size:0.85em; margin-bottom: 5px;">
+                        <label for="${viewerId}-threshold-c-value" style="display:block; margin-bottom:2px;">
+                            C Value (-50 to 50):
+                        </label>
+                        <input type="number" id="${viewerId}-threshold-c-value" value="2" min="-50" max="50" step="0.1"
+                               style="width: 98%; margin-bottom:3px;">
+                    </div>
+                    <div style="font-size:0.85em; margin-bottom: 8px;">
+                        <label style="display:block; margin-bottom:3px;">Adaptive Method:</label>
+                        <input type="radio" id="${viewerId}-threshold-method-mean" name="${viewerId}-threshold-method" 
+                               value="mean" checked>
+                        <label for="${viewerId}-threshold-method-mean">Mean C</label><br>
+                        <input type="radio" id="${viewerId}-threshold-method-gaussian" name="${viewerId}-threshold-method" 
+                               value="gaussian">
+                        <label for="${viewerId}-threshold-method-gaussian">Gaussian C</label>
+                    </div>
+                    <div style="font-size:0.85em;">
+                        <label style="display:block; margin-bottom:3px;">Threshold Type:</label>
+                        <input type="radio" id="${viewerId}-threshold-type-binary" name="${viewerId}-threshold-type" 
+                               value="binary" checked>
+                        <label for="${viewerId}-threshold-type-binary">Binary</label><br>
+                        <input type="radio" id="${viewerId}-threshold-type-binary-inv" name="${viewerId}-threshold-type" 
+                               value="binary_inv">
+                        <label for="${viewerId}-threshold-type-binary-inv">Binary Inverted</label>
+                    </div>
+                </div>
                 <button onclick="handleGridViewerButton4('${viewerId}')">Action 4</button>
                 <button onclick="handleGridViewerButton5('${viewerId}')">Action 5</button>
+                <button onclick="handleGridViewerButton6('${viewerId}')">Action 6</button>
+                <button onclick="handleGridViewerButton7('${viewerId}')">Action 7</button>
+                <button onclick="handleGridViewerButton8('${viewerId}')">Action 8</button>
+                <button onclick="handleGridViewerButton9('${viewerId}')">Action 9</button>
+                <button onclick="handleGridViewerButton10('${viewerId}')">Action 10</button>
             </div>
         </div>
     `;
@@ -275,7 +324,96 @@ export function createGridViewerWindow({
 
 // Handler functions for grid viewer buttons
 function handleGridViewerButton3(viewerId) {
-    console.log(`Grid Viewer Button 3 clicked for viewer: ${viewerId}`);
+    console.log(`Grid Viewer Button 3 (Adaptive Threshold) clicked for viewer: ${viewerId}`);
+    const mainCanvas = window.canvas;
+    const mainCtx = window.ctx;
+
+    if (!mainCanvas || !mainCtx) {
+        alert("Error: Main display canvas not available.");
+        return;
+    }
+
+    const sourceImage = window.currentLoadedImage;
+    if (!sourceImage || sourceImage === true) {
+        alert("Please load an image first.");
+        return;
+    }
+
+    // Check if OpenCV manager is available
+    if (!window.openCVManager) {
+        alert("OpenCV manager is not available. Please ensure the library is loaded.");
+        return;
+    }
+
+    // Check if OpenCV is ready
+    if (!window.openCVManager.ready()) {
+        alert("OpenCV library is still loading. Please wait a moment and try again.");
+        return;
+    }
+
+    try {
+        // Read parameter values from the UI
+        const maxValueInput = document.getElementById(`${viewerId}-threshold-max-value`);
+        const blockSizeInput = document.getElementById(`${viewerId}-threshold-block-size`);
+        const cValueInput = document.getElementById(`${viewerId}-threshold-c-value`);
+        const methodMeanRadio = document.getElementById(`${viewerId}-threshold-method-mean`);
+        const methodGaussianRadio = document.getElementById(`${viewerId}-threshold-method-gaussian`);
+        const typeBinaryRadio = document.getElementById(`${viewerId}-threshold-type-binary`);
+        const typeBinaryInvRadio = document.getElementById(`${viewerId}-threshold-type-binary-inv`);
+
+        // Get parameter values with validation
+        let maxValue = maxValueInput ? parseInt(maxValueInput.value) : 255;
+        let blockSize = blockSizeInput ? parseInt(blockSizeInput.value) : 11;
+        let cValue = cValueInput ? parseFloat(cValueInput.value) : 2;
+
+        // Validate and correct parameters
+        maxValue = Math.max(0, Math.min(255, maxValue));
+        blockSize = Math.max(3, blockSize);
+        if (blockSize % 2 === 0) blockSize += 1; // Ensure odd number
+        cValue = Math.max(-50, Math.min(50, cValue));
+
+        // Determine adaptive method
+        let adaptiveMethod = null;
+        if (methodGaussianRadio && methodGaussianRadio.checked) {
+            adaptiveMethod = window.openCVManager.getCV().ADAPTIVE_THRESH_GAUSSIAN_C;
+        } else {
+            adaptiveMethod = window.openCVManager.getCV().ADAPTIVE_THRESH_MEAN_C;
+        }
+
+        // Determine threshold type
+        let thresholdType = null;
+        if (typeBinaryInvRadio && typeBinaryInvRadio.checked) {
+            thresholdType = window.openCVManager.getCV().THRESH_BINARY_INV;
+        } else {
+            thresholdType = window.openCVManager.getCV().THRESH_BINARY;
+        }
+
+        console.log(`Applying adaptive threshold with parameters:`, {
+            maxValue, adaptiveMethod: methodGaussianRadio?.checked ? 'GAUSSIAN_C' : 'MEAN_C',
+            thresholdType: typeBinaryInvRadio?.checked ? 'BINARY_INV' : 'BINARY',
+            blockSize, cValue
+        });
+
+        // Use the OpenCV manager's adaptive threshold function with custom parameters
+        const resultCanvas = window.openCVManager.applyAdaptiveThreshold(
+            sourceImage, maxValue, adaptiveMethod, thresholdType, blockSize, cValue
+        );
+        
+        if (resultCanvas) {
+            // Update the current loaded image
+            window.currentLoadedImage = resultCanvas;
+            
+            // Redraw the main display canvas
+            redrawCanvas(mainCanvas);
+            
+            console.log("Adaptive threshold applied successfully!");
+        } else {
+            alert("Failed to apply adaptive threshold. Please check the console for details.");
+        }
+    } catch (error) {
+        console.error("OpenCV operation failed:", error);
+        alert("An error occurred during image processing: " + error.message);
+    }
 }
 
 function handleGridViewerButton4(viewerId) {
@@ -284,6 +422,26 @@ function handleGridViewerButton4(viewerId) {
 
 function handleGridViewerButton5(viewerId) {
     console.log(`Grid Viewer Button 5 clicked for viewer: ${viewerId}`);
+}
+
+function handleGridViewerButton6(viewerId) {
+    console.log(`Grid Viewer Button 6 clicked for viewer: ${viewerId}`);
+}
+
+function handleGridViewerButton7(viewerId) {
+    console.log(`Grid Viewer Button 7 clicked for viewer: ${viewerId}`);
+}
+
+function handleGridViewerButton8(viewerId) {
+    console.log(`Grid Viewer Button 8 clicked for viewer: ${viewerId}`);
+}
+
+function handleGridViewerButton9(viewerId) {
+    console.log(`Grid Viewer Button 9 clicked for viewer: ${viewerId}`);
+}
+
+function handleGridViewerButton10(viewerId) {
+    console.log(`Grid Viewer Button 10 clicked for viewer: ${viewerId}`);
 }
 
 function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsContainerId) {
@@ -607,9 +765,9 @@ function drawGrid(gridCanvas, mainCanvas, image, isGridActuallyVisible) {
 function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
     if (!image) return;
     
-    // Handle both Image objects (naturalWidth/naturalHeight) and Canvas objects (width/height)
-    const natW = image.naturalWidth || image.width || 0;
-    const natH = image.naturalHeight || image.height || 0;
+    // Handle Image objects, Canvas objects, and cv.Mat
+    const natW = image.naturalWidth || image.width || (image.cols || 0);
+    const natH = image.naturalHeight || image.height || (image.rows || 0);
     
     if (natW === 0 || natH === 0) return; 
     if (!mainCanvas.transformState) return;
@@ -803,6 +961,11 @@ window.handleGridViewerResetView = handleGridViewerResetView;
 window.handleGridViewerButton3 = handleGridViewerButton3;
 window.handleGridViewerButton4 = handleGridViewerButton4;
 window.handleGridViewerButton5 = handleGridViewerButton5;
+window.handleGridViewerButton6 = handleGridViewerButton6;
+window.handleGridViewerButton7 = handleGridViewerButton7;
+window.handleGridViewerButton8 = handleGridViewerButton8;
+window.handleGridViewerButton9 = handleGridViewerButton9;
+window.handleGridViewerButton10 = handleGridViewerButton10;
 window.handleShowGridToggle = handleShowGridToggle; 
 
 // Function to redraw the canvas with the current transform state
@@ -844,9 +1007,9 @@ export function redrawCanvas(canvas) {
     const panX = canvas.transformState.offsetX;
     const panY = canvas.transformState.offsetY;
     
-    // Handle both Image objects (naturalWidth/naturalHeight) and Canvas objects (width/height)
-    const natW = img.naturalWidth || img.width || 0;
-    const natH = img.naturalHeight || img.height || 0;
+    // Handle Image objects, Canvas objects, and potentially cv.Mat
+    const natW = img.naturalWidth || img.width || (img.cols || 0);
+    const natH = img.naturalHeight || img.height || (img.rows || 0);
     
     if (natW === 0 || natH === 0) return;
     
