@@ -2,7 +2,7 @@
  * Manages controls for Grid Viewer windows.
  */
 
-import { createWindow } from '../WindowsManager/window-system.js';
+import { createWindow } from './WindowsManager/window-system.js';
 
 // Helper function to convert HEX to RGBA
 function hexToRGBA(hex, opacity) {
