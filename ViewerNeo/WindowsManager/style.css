@@ -1,0 +1,293 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding-top: 0; /* Height of controls-bar + some margin */
+    background-color: #2e2e2e; /* Dark background for dark mode */
+    color: #e0e0e0; /* Light text for dark mode */
+    overflow: hidden;
+}
+
+.window-frame {
+    position: absolute;
+    background-color: #3c3c3c; /* Darker window background */
+    border: 1px solid #555; /* Softer border for dark mode */
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3); /* Adjusted shadow for dark mode */
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 150px;
+    min-height: 100px;
+}
+
+.window-title-bar {
+    background-color: #4a4a4a; /* Dark title bar */
+    /* background-image: linear-gradient(to bottom, #5a5a5a, #404040); */ /* Subtle gradient for dark mode */
+    padding: 5px 10px;
+    cursor: move;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    user-select: none;
+    border-bottom: 1px solid #2a2a2a; /* Darker border */
+    height: 30px; /* Adjusted for slightly larger controls if needed */
+    box-sizing: border-box;
+}
+
+.window-controls {
+    display: flex;
+    align-items: center;
+    margin-right: auto;
+}
+
+.window-controls button {
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0 4px;
+    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    display: flex; /* Use flex to center SVG */
+    justify-content: center;
+    align-items: center;
+}
+
+.window-control-close {
+    background-color: #ff5f57;
+}
+.window-control-minimize {
+    background-color: #ffbd2e;
+}
+.window-control-maximize {
+    background-color: #28c940;
+}
+
+.window-controls button:hover {
+    filter: brightness(1.15); /* Brighter on hover for dark mode */
+}
+
+/* Make SVGs always visible and style them */
+.window-controls button svg {
+    display: inline-block; /* Always show SVG */
+    width: 8px;  /* Slightly larger for visibility */
+    height: 8px; /* Slightly larger for visibility */
+    stroke-width: 1.5; /* Ensure stroke is visible */
+}
+
+/* Specific icon colors for dark mode - to be visible on colored backgrounds */
+.window-control-close svg path {
+    stroke: #4d0000; /* Dark red for close icon symbol */
+}
+.window-control-minimize svg path {
+    stroke: #5a3b00; /* Dark yellow/brown for minimize icon symbol */
+}
+.window-control-maximize svg path, .window-control-maximize svg rect {
+    stroke: #003a00; /* Dark green for maximize/restore icon symbol */
+}
+/* For restore icon specific part */
+.window-control-maximize svg path[fill] {
+    fill: #4a4a4a; /* Match title bar background for part of restore icon */
+}
+
+.window-title {
+    margin: 0;
+    font-size: 0.85em;
+    color: #d0d0d0; /* Lighter title text */
+    font-weight: 500; /* Slightly bolder for better readability on dark bg */
+    text-align: center;
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 10px; /* More padding if controls are on left */
+}
+
+.window-content {
+    padding: 10px;
+    flex-grow: 1;
+    overflow: auto; /* This enables scrollbars when content exceeds space */
+    background-color: #333333; /* Dark content area */
+    color: #e0e0e0; /* Light text for content */
+    box-sizing: border-box;
+}
+
+/* Styling for scrollbars (WebKit browsers like Chrome/Safari/Edge) */
+.window-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.window-content::-webkit-scrollbar-track {
+    background: #424242; /* Dark track */
+    border-radius: 4px;
+}
+
+.window-content::-webkit-scrollbar-thumb {
+    background-color: #6e6e6e; /* Lighter thumb */
+    border-radius: 4px;
+    border: 2px solid #424242; /* Padding around thumb */
+}
+
+.window-content::-webkit-scrollbar-thumb:hover {
+    background-color: #888888;
+}
+
+/* Resize Handle */
+.resize-handle {
+    position: absolute;
+    width: 12px; /* Slightly larger for easier grabbing */
+    height: 12px;
+    right: 0;
+    bottom: 0;
+    cursor: nwse-resize;
+    /* background: rgba(255,255,255,0.1); */ /* Optional: make handle visible */
+}
+
+/* Minimized state */
+.window-frame.minimized {
+    height: 30px !important; /* Match title bar height */
+    min-height: 30px !important;
+    background-color: #4a4a4a; /* Match title bar color when minimized */
+}
+
+.window-frame.minimized .window-content {
+    display: none;
+}
+
+.window-frame.minimized .resize-handle {
+    display: none;
+}
+
+/* Iframe drag/resize shield */
+.iframe-shield {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(173, 216, 230, 0.15); /* Slightly reduced opacity for the base tint with blur */
+    /* More pronounced shine effect */
+    background-image: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.25) 0%,
+        rgba(255, 255, 255, 0.15) 25%,
+        transparent 40%,
+        transparent 60%,
+        rgba(255, 255, 255, 0.15) 75%,
+        rgba(255, 255, 255, 0.25) 100%
+    );
+    backdrop-filter: blur(3px); /* Enabled blur, increased slightly */ 
+    z-index: 10;
+    display: none;
+}
+
+/* Styles for the spreadsheet-like table */
+.spreadsheet-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+.spreadsheet-table th,
+.spreadsheet-table td {
+    border: 1px solid #555; /* Darker borders for table cells in dark mode */
+    padding: 6px 8px;
+    text-align: left;
+}
+
+.spreadsheet-table th {
+    background-color: #4f4f4f; /* Header background for dark mode */
+    color: #e0e0e0; /* Header text color */
+    font-weight: bold;
+}
+
+.spreadsheet-table tr:nth-child(even) td {
+    background-color: #424242; /* Alternating row color for dark mode */
+}
+
+.spreadsheet-table tr:nth-child(odd) td {
+    background-color: #3c3c3c; /* Base row color matching window content */
+}
+
+.spreadsheet-table td.number-cell {
+    text-align: right;
+}
+
+/* Spreadsheet text colorization */
+.spreadsheet-table td.number-cell {
+    color: #87ceeb; /* Sky blue for numbers */
+}
+.spreadsheet-table tbody tr td:first-child {
+    color: #98fb98; /* Pale green for first column (IDs) */
+    font-weight: 500;
+}
+.spreadsheet-table tbody tr td:nth-child(2) {
+    color: #f0e68c; /* Khaki for second column (Item names) */
+}
+
+/* Controls Bar at the top */
+.controls-bar {
+    padding: 10px;
+    background-color: #222;
+    border-bottom: 1px solid #000;
+    text-align: center;
+    position: fixed; /* Keep it at the top */
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 100000; /* Ensure it's above windows */
+    box-sizing: border-box;
+}
+
+.controls-bar button {
+    padding: 8px 15px;
+    background-color: #0078d4;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0 5px;
+    font-size: 0.9em;
+}
+
+.controls-bar button:hover {
+    background-color: #005a9e;
+}
+
+/* Notification Area */
+#notificationArea {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 200000; /* Above everything else */
+    display: flex;
+    flex-direction: column-reverse; /* New notifications appear on top */
+    align-items: flex-end;
+    pointer-events: none; /* Make the container non-interactive */
+}
+
+.notification {
+    background-color: #333;
+    color: white;
+    padding: 12px 18px;
+    margin-top: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+    border-left: 5px solid #0078d4; /* Default type: info */
+    pointer-events: auto; /* Make individual notifications interactive */
+}
+
+.notification.success {
+    border-left-color: #28c940; /* Green */
+}
+
+.notification.warn {
+    border-left-color: #ffbd2e; /* Yellow */
+}
+
+.notification.error {
+    border-left-color: #ff5f57; /* Red */
+}

@@ -567,48 +567,49 @@
         document.addEventListener('dragover', (e) => e.preventDefault());
         document.addEventListener('drop', (e) => e.preventDefault());
 
-        panel.setData([
-            {
-                id: 'batch1',
-                title: 'Batch 001 - Horizontal Machine Images',
-                expanded: true,
-                files: [
-                    { name: 'HM_0_584', type: 'image/png', data: './images/image_1_HM_0_584_1.png' },
-                    { name: 'HM_0_526', type: 'image/png', data: './images/image_1_HM_0_526_1.png' },
-                    { name: 'HM_0_513', type: 'image/png', data: './images/image_1_HM_0_513_1.png' },
-                    { name: 'HM_0_327', type: 'image/png', data: './images/image_1_HM_0_327_1.png' },
-                    { name: 'HM_0_211', type: 'image/png', data: './images/image_1_HM_0_211_1.png' },
-                    { name: 'HM_0_177', type: 'image/png', data: './images/image_1_HM_0_177_1.png' },
-                    { name: 'HM_0_163', type: 'image/png', data: './images/image_1_HM_0_163_1.png' },
-                ]
-            },
-            {
-                id: 'batch2',
-                title: 'Batch 002 - Vertical Machine Images',
-                expanded: false,
-                files: [
-                    { name: 'VM_0_52', type: 'image/png', data: './images/image_1_VM_0_52_1.png' },
-                    { name: 'VM_0_42', type: 'image/png', data: './images/image_1_VM_0_42_1.png' },
-                    { name: 'VM_0_70', type: 'image/png', data: './images/image_1_VM_0_70_1.png' },
-                    { name: 'VM_0_14', type: 'image/png', data: './images/image_1_VM_0_14_1.png' },
-                    { name: 'VM_0_66', type: 'image/png', data: './images/image_1_VM_0_66_1.png' },
-                    { name: 'VM_0_64', type: 'image/png', data: './images/image_1_VM_0_64_1.png' },
-                ]
-            },
-            {
-                id: 'batch3',
-                title: 'Batch 003 - B1 Series Images',
-                expanded: false,
-                files: [
-                    { name: 'B1_536', type: 'image/png', data: './images/image_1_B1_536_1.png' },
-                    { name: 'B1_542', type: 'image/png', data: './images/image_1_B1_542_1.png' },
-                    { name: 'B1_563', type: 'image/png', data: './images/image_1_B1_563_1.png' },
-                    { name: 'B1_746', type: 'image/png', data: './images/image_1_B1_746_1.png' },
-                    { name: 'B1_749', type: 'image/png', data: './images/image_1_B1_749_1.png' },
-                    { name: 'B1_830', type: 'image/png', data: './images/image_1_B1_830_1.png' },
-                ]
-            }
-        ]);
+        // Auto-loading of test images disabled - system starts blank
+        // panel.setData([
+        //     {
+        //         id: 'batch1',
+        //         title: 'Batch 001 - Horizontal Machine Images',
+        //         expanded: true,
+        //         files: [
+        //             { name: 'HM_0_584', type: 'image/png', data: './images/image_1_HM_0_584_1.png' },
+        //             { name: 'HM_0_526', type: 'image/png', data: './images/image_1_HM_0_526_1.png' },
+        //             { name: 'HM_0_513', type: 'image/png', data: './images/image_1_HM_0_513_1.png' },
+        //             { name: 'HM_0_327', type: 'image/png', data: './images/image_1_HM_0_327_1.png' },
+        //             { name: 'HM_0_211', type: 'image/png', data: './images/image_1_HM_0_211_1.png' },
+        //             { name: 'HM_0_177', type: 'image/png', data: './images/image_1_HM_0_177_1.png' },
+        //             { name: 'HM_0_163', type: 'image/png', data: './images/image_1_HM_0_163_1.png' },
+        //         ]
+        //     },
+        //     {
+        //         id: 'batch2',
+        //         title: 'Batch 002 - Vertical Machine Images',
+        //         expanded: false,
+        //         files: [
+        //             { name: 'VM_0_52', type: 'image/png', data: './images/image_1_VM_0_52_1.png' },
+        //             { name: 'VM_0_42', type: 'image/png', data: './images/image_1_VM_0_42_1.png' },
+        //             { name: 'VM_0_70', type: 'image/png', data: './images/image_1_VM_0_70_1.png' },
+        //             { name: 'VM_0_14', type: 'image/png', data: './images/image_1_VM_0_14_1.png' },
+        //             { name: 'VM_0_66', type: 'image/png', data: './images/image_1_VM_0_66_1.png' },
+        //             { name: 'VM_0_64', type: 'image/png', data: './images/image_1_VM_0_64_1.png' },
+        //         ]
+        //     },
+        //     {
+        //         id: 'batch3',
+        //         title: 'Batch 003 - B1 Series Images',
+        //         expanded: false,
+        //         files: [
+        //             { name: 'B1_536', type: 'image/png', data: './images/image_1_B1_536_1.png' },
+        //             { name: 'B1_542', type: 'image/png', data: './images/image_1_B1_542_1.png' },
+        //             { name: 'B1_563', type: 'image/png', data: './images/image_1_B1_563_1.png' },
+        //             { name: 'B1_746', type: 'image/png', data: './images/image_1_B1_746_1.png' },
+        //             { name: 'B1_749', type: 'image/png', data: './images/image_1_B1_749_1.png' },
+        //             { name: 'B1_830', type: 'image/png', data: './images/image_1_B1_830_1.png' },
+        //         ]
+        //     }
+        // ]);
 
     </script>
 
