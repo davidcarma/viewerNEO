@@ -121,11 +121,11 @@
             background-color: rgba(0,0,0,0.1);
         }
     </style>
-    <script type="module" src="../ThumbnailGallery/thumbnail-pane.js"></script>
-    <script async src="../lib/opencv.js"></script>
-    <script type="module" src="../lib/opencv-manager.js"></script>
-    <script src="../lib/tiff.js"></script>
-    <link rel="stylesheet" href="../WindowsManager/style.css">
+    <script type="module" src="ThumbnailGallery/thumbnail-pane.js"></script>
+    <script async src="lib/opencv.js"></script>
+    <script type="module" src="lib/opencv-manager.js"></script>
+    <script src="lib/tiff.js"></script>
+    <link rel="stylesheet" href="WindowsManager/style.css">
     <link rel="stylesheet" href="grid_viewer_style.css">
     <script type="module" src="grid_viewer_controls.js"></script>
 </head>
@@ -181,7 +181,7 @@
             const panelWidth = panel.getCurrentWidth();
             document.querySelector('.thumbnail-panel-placeholder').style.width = `${panelWidth}px`;
             toggleButton.textContent = 'Close Panel';
-            import('../WindowsManager/window-system.js').then(module => {
+            import('WindowsManager/window-system.js').then(module => {
                 module.setLeftBoundary(panelWidth);
             });
         });
@@ -190,7 +190,7 @@
             document.body.classList.remove('thumbnail-panel-active');
             document.querySelector('.thumbnail-panel-placeholder').style.width = '0';
             toggleButton.textContent = 'Open Panel';
-            import('../WindowsManager/window-system.js').then(module => {
+            import('WindowsManager/window-system.js').then(module => {
                 module.setLeftBoundary(0);
             });
         });
@@ -614,7 +614,7 @@
     </script>
 
     <script type="module">
-        import { createWindow, setTopBarOffset, setLeftBoundary } from '../WindowsManager/window-system.js';
+        import { createWindow, setTopBarOffset, setLeftBoundary } from 'WindowsManager/window-system.js';
         import { createGridViewerWindow, setupCanvasImageHandling } from './grid_viewer_controls.js';
 
         window.handleThumbnailImage = function(event) {
