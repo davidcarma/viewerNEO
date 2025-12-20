@@ -81,7 +81,8 @@ export async function promptPdfRenderOptions({ presetHeights = DEFAULT_PRESET_HE
       const opt = el('option', { value: String(h) }, [`${h}px`]);
       select.appendChild(opt);
     }
-    select.value = String(presetHeights.includes(2160) ? 2160 : presetHeights[0]);
+    // Default to 3000px for your workflow (falls back to first preset if not present).
+    select.value = String(presetHeights.includes(3000) ? 3000 : presetHeights[0]);
     row.appendChild(label);
     row.appendChild(select);
 
