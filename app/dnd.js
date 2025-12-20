@@ -1,6 +1,67 @@
 import { logger } from './logger.js';
 import { showErrorToast, showToast } from './toast.js';
 
+let __vnBusyModalStyleAdded = false;
+function ensureBusyModalStyle() {
+  if (__vnBusyModalStyleAdded) return;
+  __vnBusyModalStyleAdded = true;
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes vnSpin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+  `;
+  document.head.appendChild(style);
+}
+
+function showBusyModal(initialText) {
+  ensureBusyModalStyle();
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: rgba(0,0,0,0.55);
+    z-index: 10070;
+    padding: 20px;
+  `;
+  const card = document.createElement('div');
+  card.style.cssText = `
+    width: min(520px, 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border, rgba(255,255,255,0.14));
+    background: color-mix(in srgb, var(--surface, #111) 88%, rgba(0,0,0,0.2));
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    padding: 14px;
+    color: var(--text, #fff);
+    backdrop-filter: blur(12px);
+    font-family: var(--font-sans, ui-sans-serif, system-ui);
+  `;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex; gap:12px; align-items:center;';
+  const spinner = document.createElement('div');
+  spinner.style.cssText = `
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.22);
+    border-top: 2px solid rgba(255,255,255,0.9);
+    animation: vnSpin 0.9s linear infinite;
+    display: none;
+    flex: 0 0 auto;
+  `;
+  const text = document.createElement('div');
+  text.style.cssText = 'font-size: 12px; font-weight: 750; line-height: 1.35;';
+  text.textContent = initialText || 'Working...';
+  row.appendChild(spinner);
+  row.appendChild(text);
+  card.appendChild(row);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  return {
+    setText(next) { text.textContent = next; },
+    showSpinner() { spinner.style.display = 'block'; },
+    close() { try { overlay.remove(); } catch {} },
+  };
+}
+
 function isImageFile(file) {
   const imageTypes = [
     'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
@@ -154,17 +215,19 @@ export function initDragAndDrop({ panel, dropZone = document.body }) {
         const { promptPdfRenderOptions, renderPdfsToBatchAndLoad } = await import('../pdf-support.js');
         const opts = await promptPdfRenderOptions();
         if (!opts) return;
-        const pdfToast = showToast('Rendering PDF…', { type: 'info', timeoutMs: 0 });
+        const busyModal = showBusyModal('Rendering PDF…');
+        const spinnerTimer = window.setTimeout(() => busyModal.showSpinner(), 300);
         await renderPdfsToBatchAndLoad({
           pdfFiles,
           panel,
           targetHeight: opts.targetHeight,
           renderAllPages: opts.renderAllPages,
           onProgress: (msg) => {
-            if (msg) pdfToast.update(msg);
+            if (msg) busyModal.setText(msg);
           },
         });
-        pdfToast.close();
+        window.clearTimeout(spinnerTimer);
+        busyModal.close();
         showToast(`Rendered ${pdfFiles.length} PDF${pdfFiles.length === 1 ? '' : 's'}`, { type: 'success' });
       }
 
