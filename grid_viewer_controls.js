@@ -4,6 +4,8 @@
 
 import { createWindow } from './WindowsManager/window-system.js';
 
+const RESIZE_PRESET_HEIGHTS = [360, 480, 720, 1080, 1440, 2160, 3000, 3400];
+
 // Helper function to convert HEX to RGBA
 function hexToRGBA(hex, opacity) {
     let r = 0, g = 0, b = 0;
@@ -39,6 +41,8 @@ export function createGridViewerWindow({
     const gridSettingsContainerId = `${controlPanelId}-grid-settings`;
     const thresholdSettingsContainerId = `${viewerId}-threshold-settings`;
     const extraActionsContainerId = `${viewerId}-extra-actions`;
+    const resizeSettingsContainerId = `${viewerId}-resize-settings`;
+    const enhanceSettingsContainerId = `${viewerId}-enhance-settings`;
 
     const contentHtml = `
         <div class="grid-viewer-content">
@@ -52,15 +56,15 @@ export function createGridViewerWindow({
                 <div class="gv-controls-scroll">
                 <div class="gv-actions-grid">
                     <button id="${viewerId}-show-grid-btn" class="gv-btn gv-btn-primary"
-                            onclick="handleShowGridToggle('${viewerId}', '${canvasId}', '${gridCanvasId}', '${gridSettingsContainerId}')">
-                        Show Grid
-                    </button>
+                        onclick="handleShowGridToggle('${viewerId}', '${canvasId}', '${gridCanvasId}', '${gridSettingsContainerId}')">
+                    Show Grid
+                </button>
                     <button class="gv-btn" title="Reset View" onclick="handleGridViewerResetView('${canvasId}')">Reset View</button>
                     <button class="gv-btn gv-acc-trigger" type="button" data-acc-target="${thresholdSettingsContainerId}">
                         Adaptive Threshold
                     </button>
                     <button class="gv-btn gv-btn-warn" title="Save to Batch" onclick="handleGridViewerButton10('${viewerId}')">Save to Batch</button>
-                </div>
+                    </div>
 
                 <div class="gv-accordion" data-accordion-root="${viewerId}">
                     <div class="gv-acc-item" data-acc-item>
@@ -71,7 +75,7 @@ export function createGridViewerWindow({
                             <div class="gv-field">
                                 <label class="gv-label" for="${viewerId}-grid-color">Color</label>
                                 <input class="gv-color" type="color" id="${viewerId}-grid-color" value="#FF0000">
-                            </div>
+                    </div>
 
                             <div class="gv-field">
                                 <label class="gv-label" for="${viewerId}-grid-opacity">Opacity</label>
@@ -87,8 +91,8 @@ export function createGridViewerWindow({
                                 <label class="gv-check">
                                     <input type="checkbox" id="${viewerId}-grid-show-minor" checked>
                                     <span>Show Minor Lines (1/10th)</span>
-                                </label>
-                            </div>
+                        </label>
+                    </div>
 
                             <div class="gv-field">
                                 <div class="gv-label">Mode</div>
@@ -100,21 +104,21 @@ export function createGridViewerWindow({
                                     <label class="gv-radio">
                                         <input type="radio" id="${viewerId}-grid-mode-fixed" name="${viewerId}-grid-mode" value="fixed">
                                         <span>Fixed</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
+                        </label>
+                    </div>
+                    </div>
+                </div>
                     </div>
 
                     <div class="gv-acc-item" data-acc-item>
                         <button class="gv-btn gv-acc-trigger" type="button" data-acc-target="${thresholdSettingsContainerId}">
                             Threshold Options
-                        </button>
+                </button>
                         <div id="${thresholdSettingsContainerId}" class="gv-acc-panel" hidden>
                             <div class="gv-field">
                                 <label class="gv-label" for="${viewerId}-threshold-max-value">Max Value (0-255)</label>
                                 <input class="gv-input" type="number" id="${viewerId}-threshold-max-value" value="255" min="0" max="255">
-                            </div>
+                    </div>
 
                             <div class="gv-field">
                                 <label class="gv-label" for="${viewerId}-threshold-block-size">Block Size (odd number ≥ 3)</label>
@@ -132,12 +136,12 @@ export function createGridViewerWindow({
                                     <label class="gv-radio">
                                         <input type="radio" id="${viewerId}-threshold-method-mean" name="${viewerId}-threshold-method" value="mean" checked>
                                         <span>Mean C</span>
-                                    </label>
+                        </label>
                                     <label class="gv-radio">
                                         <input type="radio" id="${viewerId}-threshold-method-gaussian" name="${viewerId}-threshold-method" value="gaussian">
                                         <span>Gaussian C</span>
                                     </label>
-                                </div>
+                    </div>
                             </div>
 
                             <div class="gv-field">
@@ -146,17 +150,57 @@ export function createGridViewerWindow({
                                     <label class="gv-radio">
                                         <input type="radio" id="${viewerId}-threshold-type-binary" name="${viewerId}-threshold-type" value="binary" checked>
                                         <span>Binary</span>
-                                    </label>
+                        </label>
                                     <label class="gv-radio">
                                         <input type="radio" id="${viewerId}-threshold-type-binary-inv" name="${viewerId}-threshold-type" value="binary_inv">
                                         <span>Binary Inverted</span>
                                     </label>
-                                </div>
-                            </div>
+                    </div>
+                    </div>
 
                             <button class="gv-btn gv-btn-primary" onclick="handleGridViewerButton3('${viewerId}')">
                                 Apply Adaptive Threshold
                             </button>
+                    </div>
+                </div>
+
+                    <div class="gv-acc-item" data-acc-item>
+                        <button class="gv-btn gv-acc-trigger" type="button" data-acc-target="${resizeSettingsContainerId}">
+                            Resize & Save
+                        </button>
+                        <div id="${resizeSettingsContainerId}" class="gv-acc-panel" hidden>
+                            <div class="gv-field">
+                                <div class="gv-label">Preset Height (px)</div>
+                                <div class="gv-row">
+                                    <button class="gv-btn gv-btn-ghost" type="button" onclick="handleResizePresetStep('${viewerId}', -1)">−</button>
+                                    <select class="select gv-select" id="${viewerId}-resize-height">
+                                        ${RESIZE_PRESET_HEIGHTS.map(h => `<option value="${h}">${h}px</option>`).join('')}
+                                    </select>
+                                    <button class="gv-btn gv-btn-ghost" type="button" onclick="handleResizePresetStep('${viewerId}', 1)">+</button>
+                                </div>
+                                <div class="gv-help" id="${viewerId}-resize-preview">Maintains aspect ratio (height-based).</div>
+                            </div>
+                            <button class="gv-btn gv-btn-primary" type="button" onclick="handleResizeAndSave('${viewerId}')">
+                                Resize → New Batch → Load
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="gv-acc-item" data-acc-item>
+                        <button class="gv-btn gv-acc-trigger" type="button" data-acc-target="${enhanceSettingsContainerId}">
+                            Enhance
+                        </button>
+                        <div id="${enhanceSettingsContainerId}" class="gv-acc-panel" hidden>
+                            <div class="gv-field">
+                                <label class="gv-label" for="${viewerId}-enhance-strength">Strength</label>
+                                <input class="gv-range" id="${viewerId}-enhance-strength" type="range" min="0" max="100" step="1" value="25">
+                                <div class="gv-help">Soften uses blur; Sharpen uses unsharp mask.</div>
+                            </div>
+                            <div class="gv-actions-grid gv-actions-grid--dense">
+                                <button class="gv-btn" type="button" onclick="handleSoftenImage('${viewerId}')">Soften</button>
+                                <button class="gv-btn" type="button" onclick="handleSharpenImage('${viewerId}')">Sharpen</button>
+                                <button class="gv-btn" type="button" onclick="handleResetToOriginal('${viewerId}')">Reset</button>
+                            </div>
                         </div>
                     </div>
 
@@ -539,6 +583,299 @@ function handleGridViewerButton8(viewerId) {
 
 function handleGridViewerButton9(viewerId) {
     console.log(`Grid Viewer Button 9 clicked for viewer: ${viewerId}`);
+}
+
+function getCurrentSourceForProcessing({ preferOriginal = false } = {}) {
+    const original = window.originalLoadedImage;
+    const current = window.currentLoadedImage;
+
+    const normalizedOriginal = (!original || original === true) ? null : original;
+    const normalizedCurrent = (!current || current === true) ? null : current;
+
+    if (preferOriginal) return normalizedOriginal || normalizedCurrent;
+    return normalizedCurrent || normalizedOriginal;
+}
+
+function getSourceCanvasFromImageLike(imageLike) {
+    if (!imageLike) return null;
+    if (imageLike instanceof HTMLCanvasElement) return imageLike;
+    const w = imageLike.naturalWidth || imageLike.width || 0;
+    const h = imageLike.naturalHeight || imageLike.height || 0;
+    if (!w || !h) return null;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(imageLike, 0, 0);
+    return c;
+}
+
+function resizeCanvasToHeightHighQuality(srcCanvas, targetHeight) {
+    const srcW = srcCanvas.width;
+    const srcH = srcCanvas.height;
+    if (!srcW || !srcH) return null;
+    const scale = targetHeight / srcH;
+    const targetW = Math.max(1, Math.round(srcW * scale));
+    const targetH = Math.max(1, Math.round(targetHeight));
+
+    const makeCanvas = (w, h) => {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        return c;
+    };
+
+    // Progressive downscale for better quality when shrinking a lot
+    let curCanvas = srcCanvas;
+    let curW = srcW;
+    let curH = srcH;
+    while (curH / 2 > targetH * 1.25) {
+        const nextW = Math.max(1, Math.round(curW / 2));
+        const nextH = Math.max(1, Math.round(curH / 2));
+        const tmp = makeCanvas(nextW, nextH);
+        const tctx = tmp.getContext('2d');
+        tctx.imageSmoothingEnabled = true;
+        tctx.imageSmoothingQuality = 'high';
+        tctx.drawImage(curCanvas, 0, 0, nextW, nextH);
+        curCanvas = tmp;
+        curW = nextW;
+        curH = nextH;
+    }
+
+    const out = makeCanvas(targetW, targetH);
+    const octx = out.getContext('2d');
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    octx.drawImage(curCanvas, 0, 0, targetW, targetH);
+    return out;
+}
+
+function canvasToPngFile(canvas, filename) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                reject(new Error('Failed to encode PNG'));
+                return;
+            }
+            resolve(new File([blob], filename, { type: 'image/png' }));
+        }, 'image/png', 0.95);
+    });
+}
+
+function getBaseNameFromPanel() {
+    const panel = document.getElementById('my-thumbnail-panel');
+    const selected = panel && typeof panel.getSelectedThumbnail === 'function' ? panel.getSelectedThumbnail() : null;
+    const raw = (selected && selected.name) ? selected.name : 'image';
+    return raw.replace(/\.[^/.]+$/, '');
+}
+
+async function handleResizeAndSave(viewerId) {
+    try {
+        const source = getCurrentSourceForProcessing();
+        if (!source) {
+            alert('Please load an image first.');
+            return;
+        }
+
+        const selectEl = document.getElementById(`${viewerId}-resize-height`);
+        const targetH = selectEl ? parseInt(selectEl.value, 10) : 1080;
+        if (!targetH || targetH < 1) {
+            alert('Invalid target height.');
+            return;
+        }
+
+        const srcCanvas = getSourceCanvasFromImageLike(source);
+        if (!srcCanvas) {
+            alert('Could not read the current image for resizing.');
+            return;
+        }
+
+        const resizedCanvas = resizeCanvasToHeightHighQuality(srcCanvas, targetH);
+        if (!resizedCanvas) {
+            alert('Resize failed.');
+            return;
+        }
+
+        const w = resizedCanvas.width;
+        const h = resizedCanvas.height;
+
+        const baseName = getBaseNameFromPanel();
+        const filename = `${baseName}_${w}x${h}.png`;
+        const file = await canvasToPngFile(resizedCanvas, filename);
+
+        const panel = document.getElementById('my-thumbnail-panel');
+        if (panel && typeof panel.createNewBatch === 'function') {
+            const batchTitle = `Scaled ${h}px (${w}×${h})`;
+            panel.createNewBatch([file], { title: batchTitle, expanded: true });
+
+            // Load the newly created entry into the grid viewer
+            const newestEntry = panel._batches && panel._batches[0] && panel._batches[0].files && panel._batches[0].files[0]
+                ? panel._batches[0].files[0]
+                : { name: file.name, type: file.type, data: file };
+            window.handleThumbnailImage({ detail: { file: newestEntry } });
+        } else {
+            // Fallback: just load into viewer
+            window.currentLoadedImage = resizedCanvas;
+            window.originalLoadedImage = resizedCanvas;
+            if (typeof window.redrawCanvas === 'function' && window.canvas) window.redrawCanvas(window.canvas);
+        }
+    } catch (e) {
+        console.error('Resize & Save failed:', e);
+        alert(`Resize & Save failed: ${e.message}`);
+    }
+}
+
+function handleResizePresetStep(viewerId, delta) {
+    const selectEl = document.getElementById(`${viewerId}-resize-height`);
+    if (!selectEl) return;
+    const values = Array.from(selectEl.options).map(o => parseInt(o.value, 10)).filter(Boolean);
+    const current = parseInt(selectEl.value, 10);
+    let idx = values.indexOf(current);
+    if (idx === -1) idx = 0;
+    idx = Math.max(0, Math.min(values.length - 1, idx + delta));
+    selectEl.value = String(values[idx]);
+}
+
+function getEnhanceStrength(viewerId) {
+    const el = document.getElementById(`${viewerId}-enhance-strength`);
+    const v = el ? parseInt(el.value, 10) : 25;
+    return Math.max(0, Math.min(100, isNaN(v) ? 25 : v));
+}
+
+function applyOpenCvEnhance(sourceCanvas, mode, strength) {
+    if (!window.openCVManager || !window.openCVManager.ready()) return null;
+    const cv = window.openCVManager.getCV();
+    if (!cv) return null;
+
+    const src = window.openCVManager.createMatFromCanvas(sourceCanvas);
+    if (!src) return null;
+
+    const dst = new cv.Mat();
+    try {
+        if (mode === 'soften') {
+            const sigma = 0.5 + (strength / 18); // 0.5..~6
+            let k = Math.max(3, Math.round(sigma * 3) | 1); // odd
+            if (k > 51) k = 51;
+            const ksize = new cv.Size(k, k);
+            cv.GaussianBlur(src, dst, ksize, sigma, sigma, cv.BORDER_DEFAULT);
+        } else if (mode === 'sharpen') {
+            const sigma = 0.5 + (strength / 30); // small blur
+            let k = Math.max(3, Math.round(sigma * 3) | 1);
+            if (k > 31) k = 31;
+            const blurred = new cv.Mat();
+            const ksize = new cv.Size(k, k);
+            cv.GaussianBlur(src, blurred, ksize, sigma, sigma, cv.BORDER_DEFAULT);
+            const amount = strength / 50; // 0..2
+            cv.addWeighted(src, 1 + amount, blurred, -amount, 0, dst);
+            blurred.delete();
+        } else {
+            src.delete();
+            dst.delete();
+            return null;
+        }
+
+        const outCanvas = document.createElement('canvas');
+        window.openCVManager.displayMatOnCanvas(dst, outCanvas);
+        src.delete();
+        dst.delete();
+        return outCanvas;
+    } catch (e) {
+        console.error('OpenCV enhance failed:', e);
+        try { src.delete(); } catch {}
+        try { dst.delete(); } catch {}
+        return null;
+    }
+}
+
+function applyCanvasSoften(sourceCanvas, strength) {
+    const out = document.createElement('canvas');
+    out.width = sourceCanvas.width;
+    out.height = sourceCanvas.height;
+    const ctx = out.getContext('2d');
+    const px = Math.round((strength / 100) * 6); // 0..6px
+    ctx.filter = px > 0 ? `blur(${px}px)` : 'none';
+    ctx.drawImage(sourceCanvas, 0, 0);
+    ctx.filter = 'none';
+    return out;
+}
+
+function applyCanvasSharpen(sourceCanvas, strength) {
+    // Simple 3x3 sharpen kernel (fallback)
+    const w = sourceCanvas.width, h = sourceCanvas.height;
+    const srcCtx = sourceCanvas.getContext('2d');
+    const srcData = srcCtx.getImageData(0, 0, w, h);
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const outCtx = out.getContext('2d');
+    const dstData = outCtx.createImageData(w, h);
+
+    const amt = strength / 100; // 0..1
+    const kCenter = 1 + 4 * amt;
+    const kSide = -amt;
+    const data = srcData.data;
+    const dst = dstData.data;
+
+    const idx = (x, y) => (y * w + x) * 4;
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = idx(x, y);
+            for (let c = 0; c < 3; c++) {
+                const v = data[i + c] * kCenter
+                    + data[idx(Math.max(0, x - 1), y) + c] * kSide
+                    + data[idx(Math.min(w - 1, x + 1), y) + c] * kSide
+                    + data[idx(x, Math.max(0, y - 1)) + c] * kSide
+                    + data[idx(x, Math.min(h - 1, y + 1)) + c] * kSide;
+                dst[i + c] = Math.max(0, Math.min(255, v));
+            }
+            dst[i + 3] = data[i + 3];
+        }
+    }
+    outCtx.putImageData(dstData, 0, 0);
+    return out;
+}
+
+function applyEnhance(mode, viewerId) {
+    // Always start from the original image to avoid compounding artifacts.
+    const source = getCurrentSourceForProcessing({ preferOriginal: true });
+    if (!source) {
+        alert('Please load an image first.');
+        return;
+    }
+    const strength = getEnhanceStrength(viewerId);
+    const srcCanvas = getSourceCanvasFromImageLike(source);
+    if (!srcCanvas) {
+        alert('Could not read the current image.');
+        return;
+    }
+
+    let outCanvas = applyOpenCvEnhance(srcCanvas, mode, strength);
+    if (!outCanvas) {
+        outCanvas = mode === 'soften'
+            ? applyCanvasSoften(srcCanvas, strength)
+            : applyCanvasSharpen(srcCanvas, strength);
+    }
+
+    window.currentLoadedImage = outCanvas;
+    if (typeof window.redrawCanvas === 'function' && window.canvas) {
+        window.redrawCanvas(window.canvas);
+    }
+}
+
+function handleSoftenImage(viewerId) {
+    applyEnhance('soften', viewerId);
+}
+
+function handleSharpenImage(viewerId) {
+    applyEnhance('sharpen', viewerId);
+}
+
+function handleResetToOriginal(viewerId) {
+    const src = window.originalLoadedImage;
+    if (!src || src === true) return;
+    window.currentLoadedImage = src;
+    if (typeof window.redrawCanvas === 'function' && window.canvas) {
+        window.redrawCanvas(window.canvas);
+    }
 }
 
 function handleGridViewerButton10(viewerId) {
@@ -1274,6 +1611,11 @@ window.handleGridViewerButton8 = handleGridViewerButton8;
 window.handleGridViewerButton9 = handleGridViewerButton9;
 window.handleGridViewerButton10 = handleGridViewerButton10;
 window.handleShowGridToggle = handleShowGridToggle; 
+window.handleResizeAndSave = handleResizeAndSave;
+window.handleResizePresetStep = handleResizePresetStep;
+window.handleSoftenImage = handleSoftenImage;
+window.handleSharpenImage = handleSharpenImage;
+window.handleResetToOriginal = handleResetToOriginal;
 
 // Function to redraw the canvas with the current transform state
 export function redrawCanvas(canvas) {

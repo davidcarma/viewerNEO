@@ -224,6 +224,30 @@
     border-color: color-mix(in srgb, var(--warn) 70%, var(--border-strong));
 }
 
+.gv-btn-ghost {
+    background: transparent;
+}
+.gv-btn-ghost:hover {
+    background: color-mix(in srgb, var(--btn-bg-hover) 65%, transparent);
+}
+
+.gv-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.gv-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.gv-help {
+    font-size: 11px;
+    color: color-mix(in srgb, var(--muted) 92%, transparent);
+    line-height: 1.25;
+}
+
 /* Form controls inside control panel (the HTML uses inline styles, but these help modernize) */
 .grid-viewer-control-panel input[type="number"],
 .grid-viewer-control-panel input[type="range"],

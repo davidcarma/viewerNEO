@@ -23,6 +23,7 @@
     <script async src="./lib/opencv.js"></script>
     <script type="module" src="./lib/opencv-manager.js"></script>
     <script src="./lib/tiff.js"></script>
+    <!-- PDF drop support is vendored into ./lib (see pdf-support.js). -->
     <link rel="stylesheet" href="./WindowsManager/style.css">
     <link rel="stylesheet" href="grid_viewer_style.css">
     <link rel="stylesheet" href="./app.css">
@@ -152,8 +153,8 @@
         dropOverlay.innerHTML = `
             <div class="drop-overlay-content">
                 <div class="drop-icon">📁</div>
-                <div class="drop-text">Drop images or folders here</div>
-                <div class="drop-subtext">Supports: JPG, PNG, GIF, BMP, WebP, SVG, JP2, TIFF</div>
+                <div class="drop-text">Drop images or PDFs here</div>
+                <div class="drop-subtext">Supports: JPG, PNG, GIF, BMP, WebP, SVG, JP2, TIFF, PDF</div>
             </div>
         `;
         dropOverlay.style.cssText = `
@@ -211,9 +212,14 @@
                    /\.(jpe?g|png|gif|bmp|webp|svg|jp2|tiff?)$/i.test(file.name);
         }
 
+        function isPdfFile(file) {
+            return file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+        }
+
         // Helper function to process dropped items (files and directories)
         async function processDroppedItems(items) {
             const imageFiles = [];
+            const pdfFiles = [];
             
             for (const item of items) {
                 if (item.kind === 'file') {
@@ -221,29 +227,30 @@
                     if (entry) {
                         if (entry.isFile) {
                             const file = item.getAsFile();
-                            if (file && isImageFile(file)) {
-                                imageFiles.push(file);
-                            }
+                            if (file && isImageFile(file)) imageFiles.push(file);
+                            else if (file && isPdfFile(file)) pdfFiles.push(file);
                         } else if (entry.isDirectory) {
                             const dirFiles = await processDirectory(entry);
-                            imageFiles.push(...dirFiles);
+                            for (const f of dirFiles) {
+                                if (isImageFile(f)) imageFiles.push(f);
+                                else if (isPdfFile(f)) pdfFiles.push(f);
+                            }
                         }
                     } else {
                         // Fallback for browsers that don't support entry API
                         const file = item.getAsFile();
-                        if (file && isImageFile(file)) {
-                            imageFiles.push(file);
-                        }
+                        if (file && isImageFile(file)) imageFiles.push(file);
+                        else if (file && isPdfFile(file)) pdfFiles.push(file);
                     }
                 }
             }
             
-            return imageFiles;
+            return { imageFiles, pdfFiles };
         }
 
         // Recursive function to read directory contents
         async function processDirectory(directoryEntry, path = '') {
-            const imageFiles = [];
+            const files = [];
             
             return new Promise((resolve) => {
                 const directoryReader = directoryEntry.createReader();
@@ -251,7 +258,7 @@
                 function readEntries() {
                     directoryReader.readEntries(async (entries) => {
                         if (entries.length === 0) {
-                            resolve(imageFiles);
+                            resolve(files);
                             return;
                         }
                         
@@ -259,16 +266,14 @@
                             if (entry.isFile) {
                                 try {
                                     const file = await getFileFromEntry(entry);
-                                    if (isImageFile(file)) {
-                                        imageFiles.push(file);
-                                    }
+                                    if (isImageFile(file) || isPdfFile(file)) files.push(file);
                                 } catch (error) {
                                     console.warn(`Could not read file ${entry.name}:`, error);
                                 }
                             } else if (entry.isDirectory) {
                                 const subDirFiles = await processDirectory(entry, 
                                     path ? `${path}/${entry.name}` : entry.name);
-                                imageFiles.push(...subDirFiles);
+                                files.push(...subDirFiles);
                             }
                         }
                         
@@ -359,7 +364,7 @@
             document.body.appendChild(loadingToast);
 
             try {
-                const imageFiles = await processDroppedItems(items);
+                const { imageFiles, pdfFiles } = await processDroppedItems(items);
                 
                 // Remove loading toast
                 document.body.removeChild(loadingToast);
@@ -418,9 +423,46 @@
                         }
                     }, 3000);
                 } else {
-                    // Show error toast if no images found
+                    // No images in drop
+                }
+
+                if (pdfFiles.length > 0) {
+                    const { promptPdfRenderOptions, renderPdfsToBatchAndLoad } = await import('./pdf-support.js');
+                    const opts = await promptPdfRenderOptions();
+                    if (!opts) return;
+
+                    // lightweight progress toast
+                    const pdfToast = document.createElement('div');
+                    pdfToast.textContent = 'Rendering PDF...';
+                    pdfToast.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: rgba(0, 0, 0, 0.85);
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 10px;
+                        z-index: 10001;
+                        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    `;
+                    document.body.appendChild(pdfToast);
+
+                    await renderPdfsToBatchAndLoad({
+                        pdfFiles,
+                        panel,
+                        targetHeight: opts.targetHeight,
+                        renderAllPages: opts.renderAllPages,
+                        onProgress: (msg) => {
+                            if (msg) pdfToast.textContent = msg;
+                        }
+                    });
+
+                    if (document.body.contains(pdfToast)) document.body.removeChild(pdfToast);
+                }
+
+                if (imageFiles.length === 0 && pdfFiles.length === 0) {
                     const errorToast = document.createElement('div');
-                    errorToast.textContent = '⚠ No image files found in dropped items';
+                    errorToast.textContent = '⚠ No supported files found (images or PDFs)';
                     errorToast.style.cssText = `
                         position: fixed;
                         top: 20px;
@@ -428,16 +470,13 @@
                         background: #ef4444;
                         color: white;
                         padding: 12px 20px;
-                        border-radius: 8px;
+                        border-radius: 10px;
                         z-index: 10001;
                         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                     `;
                     document.body.appendChild(errorToast);
-                    
                     setTimeout(() => {
-                        if (document.body.contains(errorToast)) {
-                            document.body.removeChild(errorToast);
-                        }
+                        if (document.body.contains(errorToast)) document.body.removeChild(errorToast);
                     }, 4000);
                 }
             } catch (error) {

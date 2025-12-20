@@ -140,7 +140,68 @@ body {
     right: 0;
     bottom: 0;
     cursor: nwse-resize;
-    /* background: rgba(255,255,255,0.1); */ /* Optional: make handle visible */
+    /* background: rgba(255,255,255,0.08); */ /* Optional visibility */
+}
+
+/* 8-way resize handles (edges + corners) */
+.resize-handle--n,
+.resize-handle--s {
+    left: 10px;
+    right: 10px;
+    height: 8px;
+    width: auto;
+}
+.resize-handle--n {
+    top: 0;
+    bottom: auto;
+    cursor: ns-resize;
+}
+.resize-handle--s {
+    bottom: 0;
+    top: auto;
+    cursor: ns-resize;
+}
+
+.resize-handle--e,
+.resize-handle--w {
+    top: 10px;
+    bottom: 10px;
+    width: 8px;
+    height: auto;
+}
+.resize-handle--e {
+    right: 0;
+    left: auto;
+    cursor: ew-resize;
+}
+.resize-handle--w {
+    left: 0;
+    right: auto;
+    cursor: ew-resize;
+}
+
+.resize-handle--ne,
+.resize-handle--nw,
+.resize-handle--se,
+.resize-handle--sw {
+    width: 12px;
+    height: 12px;
+}
+.resize-handle--ne {
+    right: 0; top: 0; bottom: auto; left: auto;
+    cursor: nesw-resize;
+}
+.resize-handle--nw {
+    left: 0; top: 0; bottom: auto; right: auto;
+    cursor: nwse-resize;
+}
+.resize-handle--se {
+    right: 0; bottom: 0; top: auto; left: auto;
+    cursor: nwse-resize;
+}
+.resize-handle--sw {
+    left: 0; bottom: 0; top: auto; right: auto;
+    cursor: nesw-resize;
 }
 
 /* Minimized state */

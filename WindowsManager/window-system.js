@@ -97,6 +97,24 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
     windowFrame.appendChild(titleBar);
     windowFrame.appendChild(contentArea);
     windowFrame.appendChild(resizeHandle);
+
+    // Add full-edge/corner resize handles (8-way)
+    const resizeHandles = [
+        { dir: 'n', className: 'resize-handle resize-handle--n' },
+        { dir: 's', className: 'resize-handle resize-handle--s' },
+        { dir: 'e', className: 'resize-handle resize-handle--e' },
+        { dir: 'w', className: 'resize-handle resize-handle--w' },
+        { dir: 'ne', className: 'resize-handle resize-handle--ne' },
+        { dir: 'nw', className: 'resize-handle resize-handle--nw' },
+        { dir: 'se', className: 'resize-handle resize-handle--se' },
+        { dir: 'sw', className: 'resize-handle resize-handle--sw' },
+    ];
+    resizeHandles.forEach(({ dir, className }) => {
+        const h = document.createElement('div');
+        h.className = className;
+        h.dataset.resizeDir = dir;
+        windowFrame.appendChild(h);
+    });
     document.body.appendChild(windowFrame);
 
     const windowInstance = {
@@ -279,21 +297,33 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
 
     // Resize functionality
     let isResizing = false;
-    let resizeStartX, resizeStartY, initialWidth, initialHeight;
+    let resizeStartX, resizeStartY, initialWidth, initialHeight, initialLeft, initialTop, resizeDir = 'se';
 
-    resizeHandle.addEventListener('mousedown', (e) => {
+    const startResize = (e, dir) => {
         if (isMaximizedState || isMinimizedState) return;
         isResizing = true;
+        resizeDir = dir || 'se';
         resizeStartX = e.clientX;
         resizeStartY = e.clientY;
         initialWidth = windowFrame.offsetWidth;
         initialHeight = windowFrame.offsetHeight;
+        initialLeft = windowFrame.offsetLeft;
+        initialTop = windowFrame.offsetTop;
         originalState.width = initialWidth;
         originalState.height = initialHeight;
+        originalState.x = initialLeft;
+        originalState.y = initialTop;
         iframeShield.style.display = 'block'; // Show shield
         bringToFront();
         e.preventDefault();
         e.stopPropagation();
+    };
+
+    // Keep existing bottom-right handle working
+    resizeHandle.addEventListener('mousedown', (e) => startResize(e, 'se'));
+    // New handles
+    windowFrame.querySelectorAll('.resize-handle[data-resize-dir]').forEach(h => {
+        h.addEventListener('mousedown', (e) => startResize(e, h.dataset.resizeDir));
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -313,18 +343,97 @@ export function createWindow({ id = `window-${Date.now()}`, title = 'New Window'
         } else if (isResizing) {
             const deltaX = e.clientX - resizeStartX;
             const deltaY = e.clientY - resizeStartY;
-            let newWidth = initialWidth + deltaX;
-            let newHeight = initialHeight + deltaY;
+            let newWidth = initialWidth;
+            let newHeight = initialHeight;
+            let newLeft = initialLeft;
+            let newTop = initialTop;
             
             const minWidth = parseInt(getComputedStyle(windowFrame).minWidth) || 150;
             const minHeight = parseInt(getComputedStyle(windowFrame).minHeight) || 100;
 
-            newWidth = Math.max(minWidth, newWidth);
-            newHeight = Math.max(minHeight, newHeight);
+            // Horizontal resize
+            if (resizeDir.includes('e')) {
+                newWidth = initialWidth + deltaX;
+            }
+            if (resizeDir.includes('w')) {
+                newWidth = initialWidth - deltaX;
+                newLeft = initialLeft + deltaX;
+            }
 
+            // Vertical resize
+            if (resizeDir.includes('s')) {
+                newHeight = initialHeight + deltaY;
+            }
+            if (resizeDir.includes('n')) {
+                newHeight = initialHeight - deltaY;
+                newTop = initialTop + deltaY;
+            }
+
+            // Enforce minimums while keeping the anchored edge stable
+            if (newWidth < minWidth) {
+                if (resizeDir.includes('w')) {
+                    newLeft = newLeft - (minWidth - newWidth);
+                }
+                newWidth = minWidth;
+            }
+            if (newHeight < minHeight) {
+                if (resizeDir.includes('n')) {
+                    newTop = newTop - (minHeight - newHeight);
+                }
+                newHeight = minHeight;
+            }
+
+            // Enforce viewport bounds (and left/top boundaries) while respecting min sizes
+            // Left boundary
+            if (newLeft < leftBoundary) {
+                if (resizeDir.includes('w')) {
+                    const shift = leftBoundary - newLeft;
+                    newLeft = leftBoundary;
+                    newWidth = Math.max(minWidth, newWidth - shift);
+                } else {
+                    newLeft = leftBoundary;
+                }
+            }
+            // Top boundary
+            if (newTop < topBarOffset) {
+                if (resizeDir.includes('n')) {
+                    const shift = topBarOffset - newTop;
+                    newTop = topBarOffset;
+                    newHeight = Math.max(minHeight, newHeight - shift);
+                } else {
+                    newTop = topBarOffset;
+                }
+            }
+
+            // Right boundary
+            const maxRight = window.innerWidth;
+            if (newLeft + newWidth > maxRight) {
+                if (resizeDir.includes('e')) {
+                    newWidth = Math.max(minWidth, maxRight - newLeft);
+                } else if (resizeDir.includes('w')) {
+                    const overflow = (newLeft + newWidth) - maxRight;
+                    newLeft = Math.max(leftBoundary, newLeft - overflow);
+                }
+            }
+
+            // Bottom boundary
+            const maxBottom = window.innerHeight;
+            if (newTop + newHeight > maxBottom) {
+                if (resizeDir.includes('s')) {
+                    newHeight = Math.max(minHeight, maxBottom - newTop);
+                } else if (resizeDir.includes('n')) {
+                    const overflow = (newTop + newHeight) - maxBottom;
+                    newTop = Math.max(topBarOffset, newTop - overflow);
+                }
+            }
+
+            windowFrame.style.left = `${newLeft}px`;
+            windowFrame.style.top = `${newTop}px`;
             windowFrame.style.width = `${newWidth}px`;
             windowFrame.style.height = `${newHeight}px`;
             if (!isMaximizedState) {
+                originalState.x = newLeft;
+                originalState.y = newTop;
                 originalState.width = newWidth;
                 originalState.height = newHeight;
             }
