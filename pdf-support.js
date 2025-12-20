@@ -225,12 +225,10 @@ export async function renderPdfsToBatchAndLoad({
   const batchTitle = `Rendered PDFs (${targetHeight}px)`;
   panel.createNewBatch(outFiles, { title: batchTitle, expanded: true });
 
-  // Load the first rendered page into the viewer if available
-  if (panel._batches && panel._batches[0] && panel._batches[0].files && panel._batches[0].files[0]) {
-    const newest = panel._batches[0].files[0];
-    if (typeof window.handleThumbnailImage === 'function') {
-      window.handleThumbnailImage({ detail: { file: newest } });
-    }
+  // Load the first rendered page into the viewer if available (stable public API)
+  const newest = (panel.getNewestFile && typeof panel.getNewestFile === 'function') ? panel.getNewestFile() : null;
+  if (newest && typeof window.handleThumbnailImage === 'function') {
+    window.handleThumbnailImage({ detail: { file: newest } });
   }
 
   if (onProgress) onProgress(null);

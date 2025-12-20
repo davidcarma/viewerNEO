@@ -709,8 +709,8 @@ async function handleResizeAndSave(viewerId) {
             panel.createNewBatch([file], { title: batchTitle, expanded: true });
 
             // Load the newly created entry into the grid viewer
-            const newestEntry = panel._batches && panel._batches[0] && panel._batches[0].files && panel._batches[0].files[0]
-                ? panel._batches[0].files[0]
+            const newestEntry = (panel.getNewestFile && typeof panel.getNewestFile === 'function')
+                ? (panel.getNewestFile() || { name: file.name, type: file.type, data: file })
                 : { name: file.name, type: file.type, data: file };
             window.handleThumbnailImage({ detail: { file: newestEntry } });
         } else {
@@ -935,75 +935,18 @@ function handleGridViewerButton10(viewerId) {
             
             const processedFile = new File([blob], newFileName, { type: 'image/png' });
             
-            // Add the processed image to the same batch as the original
-            if (panel.addImageToBatch) {
-                // Find which batch the selected thumbnail belongs to
-                const batches = panel._batches || [];
-                let targetBatchIndex = -1;
-                
-                for (let i = 0; i < batches.length; i++) {
-                    const batch = batches[i];
-                    if (batch.files && batch.files.some(file => 
-                        file.name === selectedThumbnail.name && 
-                        file.data === selectedThumbnail.data
-                    )) {
-                        targetBatchIndex = i;
-                        break;
-                    }
-                }
-                
-                if (targetBatchIndex >= 0) {
-                    // Add to the found batch
-                    panel.addImageToBatch(targetBatchIndex, processedFile);
-                    console.log(`Saved processed image "${newFileName}" to batch ${targetBatchIndex}`);
-                    
-                    // Show success message
-                    const successMessage = document.createElement('div');
-                    successMessage.textContent = `✓ Saved "${newFileName}" to batch`;
-                    successMessage.style.cssText = `
-                        position: fixed;
-                        top: 20px;
-                        right: 20px;
-                        background: #ff8c00;
-                        color: white;
-                        padding: 12px 20px;
-                        border-radius: 8px;
-                        z-index: 10001;
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        animation: slideIn 0.3s ease-out;
-                    `;
-                    
-                    const successStyle = document.createElement('style');
-                    successStyle.textContent = `
-                        @keyframes slideIn {
-                            from { transform: translateX(100%); opacity: 0; }
-                            to { transform: translateX(0); opacity: 1; }
-                        }
-                    `;
-                    document.head.appendChild(successStyle);
-                    document.body.appendChild(successMessage);
-                    
-                    setTimeout(() => {
-                        if (document.body.contains(successMessage)) {
-                            document.body.removeChild(successMessage);
-                            document.head.removeChild(successStyle);
-                        }
-                    }, 3000);
-                } else {
-                    // Fallback: create a new batch for processed images
-                    panel.createNewBatch([processedFile], { 
-                        title: `Processed Images - ${new Date().toLocaleDateString()}` 
-                    });
-                    console.log(`Created new batch for processed image "${newFileName}"`);
-                    alert(`Saved "${newFileName}" to a new "Processed Images" batch.`);
-                }
-            } else {
-                // Fallback if addImageToBatch method doesn't exist
-                console.warn("addImageToBatch method not available, trying createNewBatch");
-                panel.createNewBatch([processedFile], { 
-                    title: `Processed Images - ${new Date().toLocaleDateString()}` 
-                });
-                alert(`Saved "${newFileName}" to a new "Processed Images" batch.`);
+            // Save using stable public API (avoid relying on internal batch indexing).
+            const newBatch = panel.createNewBatch([processedFile], {
+                title: `Processed - ${new Date().toLocaleDateString()}`,
+                expanded: true
+            });
+
+            // Auto-load newest entry if possible
+            const newest = (panel.getNewestFile && typeof panel.getNewestFile === 'function')
+                ? panel.getNewestFile()
+                : (newBatch && newBatch.files && newBatch.files[0] ? newBatch.files[0] : null);
+            if (newest && typeof window.handleThumbnailImage === 'function') {
+                window.handleThumbnailImage({ detail: { file: newest } });
             }
             
         }, 'image/png', 0.95); // High quality PNG
@@ -1756,6 +1699,17 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     newCanvas.mouseImagePos = null; // Initialize mouse position store
     newCanvas.mouseScreenPos = null; // Initialize screen position store
 
+    // rAF-throttled redraw to avoid re-rendering on every mouse event.
+    let redrawQueued = false;
+    const scheduleRedraw = () => {
+        if (redrawQueued) return;
+        redrawQueued = true;
+        requestAnimationFrame(() => {
+            redrawQueued = false;
+            redrawCanvas(newCanvas);
+        });
+    };
+
     // Clear canvas and display initial message
     newContext.clearRect(0, 0, newCanvas.width, newCanvas.height);
     newContext.fillStyle = 'rgba(238, 238, 238, 0.7)';
@@ -1845,7 +1799,8 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
             gridCanvas.gridSettings.fixedGridSpacing = currentOnScreenSpacing;
         }
         
-        redrawCanvas(newCanvas);
+        // Zoom should feel immediate but still benefits from rAF batching
+        scheduleRedraw();
         // The drawGrid call within redrawCanvas will now use the updated fixedGridSpacing 
         // if in fixed mode. No need for a separate drawGrid call here for the grid canvas 
         // text part as redrawCanvas handles it.
@@ -1863,7 +1818,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
             !newCanvas.transformState) {
             newCanvas.mouseImagePos = null;
             newCanvas.mouseScreenPos = null;
-            redrawCanvas(newCanvas); // Redraw to clear old mouse coords if any
+            scheduleRedraw(); // Redraw to clear old mouse coords if any
             return;
         }
 
@@ -1873,7 +1828,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         if (natW === 0 || natH === 0) {
             newCanvas.mouseImagePos = null;
             newCanvas.mouseScreenPos = null;
-            redrawCanvas(newCanvas);
+            scheduleRedraw();
             return;
         }
 
@@ -1892,7 +1847,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
 
         if (totalCurrentScale === 0) { // Avoid division by zero
             newCanvas.mouseImagePos = null;
-            redrawCanvas(newCanvas);
+            scheduleRedraw();
             return;
         }
 
@@ -1914,7 +1869,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         newCanvas.mouseImagePos = { x: imageMouseX, y: imageMouseY };
         
         // Trigger redraw of canvas (which will call drawGrid, then drawRulers)
-        redrawCanvas(newCanvas);
+        scheduleRedraw();
     });
 
     newCanvas.addEventListener('mouseleave', (e) => {
@@ -1922,7 +1877,7 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         newCanvas.mouseScreenPos = null;
         // Reset cursor when leaving canvas
         newCanvas.style.cursor = 'default';
-        redrawCanvas(newCanvas); // Redraw to clear mouse coords and ruler markers
+        scheduleRedraw(); // Redraw to clear mouse coords and ruler markers
     });
 
     // Set up mouse events for panning
@@ -1952,17 +1907,8 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
             newCanvas.transformState.offsetX += deltaX;
             newCanvas.transformState.offsetY += deltaY;
             
-            redrawCanvas(newCanvas);
-            // If grid is visible, redraw it after pan
-            if (newCanvas.gridCanvasElement && newCanvas.gridCanvasElement.isGridVisible) {
-                // console.log("Redrawing grid due to pan");
-                drawGrid(
-                    newCanvas.gridCanvasElement, 
-                    newCanvas, 
-                    window.currentLoadedImage, 
-                    newCanvas.gridCanvasElement.isGridVisible
-                );
-            }
+            // redrawCanvas already redraws the image + grid, so don't double-draw here
+            scheduleRedraw();
         }
     });
     

@@ -418,6 +418,10 @@ class ThumbnailPane extends HTMLElement {
         this._closeButton = this.shadowRoot.getElementById('close-panel-button');
         this._toggleHandle = this.shadowRoot.getElementById('toggle-handle');
         this._thumbnailListContainer = this.shadowRoot.getElementById('thumbnails-list-container');
+
+        // Public-selection state (avoid external code monkey-patching internals)
+        this._lastSelectedBatchIndex = null;
+        this._lastSelectedFileIndex = null;
     }
 
     connectedCallback() {
@@ -497,7 +501,51 @@ class ThumbnailPane extends HTMLElement {
         const batchTitle = options.title || `New Batch - ${new Date().toLocaleTimeString()}`;
         const expanded = options.expanded === undefined ? true : options.expanded;
 
-        this._addFilesAsNewBatch(filesArray, batchTitle, expanded);
+        return this._addFilesAsNewBatch(filesArray, batchTitle, expanded);
+    }
+
+    /**
+     * Returns the currently selected thumbnail file entry, if any.
+     * This is a stable public API (do not rely on _batches outside this component).
+     */
+    getSelectedThumbnail() {
+        try {
+            const selectedEl = this.shadowRoot.querySelector('.thumbnail-item.active');
+            if (selectedEl) {
+                const batchIndex = parseInt(selectedEl.dataset.batchIndex);
+                const fileIndex = parseInt(selectedEl.dataset.fileIndex);
+                if (!isNaN(batchIndex) && !isNaN(fileIndex) &&
+                    this._batches && this._batches[batchIndex] &&
+                    this._batches[batchIndex].files &&
+                    this._batches[batchIndex].files[fileIndex]) {
+                    return this._batches[batchIndex].files[fileIndex];
+                }
+            }
+
+            if (typeof this._lastSelectedBatchIndex === 'number' &&
+                typeof this._lastSelectedFileIndex === 'number' &&
+                this._batches && this._batches[this._lastSelectedBatchIndex] &&
+                this._batches[this._lastSelectedBatchIndex].files &&
+                this._batches[this._lastSelectedBatchIndex].files[this._lastSelectedFileIndex]) {
+                return this._batches[this._lastSelectedBatchIndex].files[this._lastSelectedFileIndex];
+            }
+        } catch (error) {
+            console.error("Error getting selected thumbnail:", error);
+        }
+        return null;
+    }
+
+    /**
+     * Returns the most recently added file entry (newest batch, first file), if available.
+     */
+    getNewestFile() {
+        try {
+            return this._batches && this._batches[0] && this._batches[0].files && this._batches[0].files[0]
+                ? this._batches[0].files[0]
+                : null;
+        } catch {
+            return null;
+        }
     }
 
     // --- Rendering Logic (Placeholder - will be expanded) ---
@@ -715,6 +763,8 @@ class ThumbnailPane extends HTMLElement {
     _handleSelectImage(batchIndex, fileIndex) {
         // Placeholder: update internal state and highlight, then dispatch event
         console.log(`Selected image: Batch ${batchIndex}, File ${fileIndex}`);
+        this._lastSelectedBatchIndex = batchIndex;
+        this._lastSelectedFileIndex = fileIndex;
         this._highlightSelectedThumbnail(batchIndex, fileIndex);
         this.dispatchEvent(new CustomEvent('thumbnail-selected', {
             bubbles: true, 
@@ -869,6 +919,8 @@ class ThumbnailPane extends HTMLElement {
             composed: true,
             detail: { batch: newBatch }
         }));
+
+        return newBatch;
     }
 }
 
