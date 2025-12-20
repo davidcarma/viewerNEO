@@ -3,6 +3,7 @@
  */
 
 import { createWindow } from './WindowsManager/window-system.js';
+import { showErrorToast, showToast } from './app/toast.js';
 
 const RESIZE_PRESET_HEIGHTS = [360, 480, 720, 1080, 1440, 2160, 3000, 3400];
 
@@ -1710,6 +1711,9 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
         });
     };
 
+    // Right-click: copy full-resolution image to clipboard (grid included only if enabled)
+    attachFullResCopyContextMenu(newCanvas);
+
     // Clear canvas and display initial message
     newContext.clearRect(0, 0, newCanvas.width, newCanvas.height);
     newContext.fillStyle = 'rgba(238, 238, 238, 0.7)';
@@ -1947,4 +1951,212 @@ export function setupCanvasImageHandling(newCanvas, newContext) {
     
     // Make the redrawCanvas function available globally for index.html to use
     window.redrawCanvas = redrawCanvas;
+} 
+
+function attachFullResCopyContextMenu(canvas) {
+    if (!canvas || canvas.__vnCopyMenuAttached) return;
+    canvas.__vnCopyMenuAttached = true;
+
+    let menuEl = null;
+    const removeMenu = () => {
+        if (menuEl && document.body.contains(menuEl)) {
+            document.body.removeChild(menuEl);
+        }
+        menuEl = null;
+        window.removeEventListener('mousedown', onOutsideClick, true);
+        window.removeEventListener('scroll', removeMenu, true);
+        window.removeEventListener('resize', removeMenu, true);
+    };
+
+    const onOutsideClick = (e) => {
+        if (!menuEl) return;
+        if (e.target === menuEl || menuEl.contains(e.target)) return;
+        removeMenu();
+    };
+
+    canvas.addEventListener('contextmenu', (e) => {
+        // Custom menu since native browser context menu cannot be extended.
+        e.preventDefault();
+        e.stopPropagation();
+
+        removeMenu();
+
+        const gridEnabled = !!(canvas.gridCanvasElement && canvas.gridCanvasElement.isGridVisible);
+
+        menuEl = document.createElement('div');
+        menuEl.className = 'vn-context-menu';
+        menuEl.style.cssText = `
+            position: fixed;
+            left: ${Math.min(window.innerWidth - 220, Math.max(8, e.clientX))}px;
+            top: ${Math.min(window.innerHeight - 90, Math.max(8, e.clientY))}px;
+            width: 210px;
+            border-radius: 12px;
+            border: 1px solid var(--border, rgba(255,255,255,0.14));
+            background: color-mix(in srgb, var(--surface-2, #111) 82%, rgba(0,0,0,0.32));
+            box-shadow: 0 18px 50px rgba(0,0,0,0.38);
+            backdrop-filter: blur(10px);
+            padding: 6px;
+            z-index: 10060;
+            color: var(--text, #fff);
+            font-family: var(--font-sans, ui-sans-serif, system-ui);
+        `;
+
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.textContent = gridEnabled ? 'Copy image (full res + grid)' : 'Copy image (full res)';
+        item.style.cssText = `
+            width: 100%;
+            text-align: left;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text, #fff);
+            font-size: 12px;
+            font-weight: 650;
+            cursor: pointer;
+        `;
+        item.addEventListener('mouseenter', () => {
+            item.style.background = 'color-mix(in srgb, var(--btn-bg-hover, rgba(255,255,255,0.10)) 70%, transparent)';
+            item.style.borderColor = 'var(--border, rgba(255,255,255,0.14))';
+        });
+        item.addEventListener('mouseleave', () => {
+            item.style.background = 'transparent';
+            item.style.borderColor = 'transparent';
+        });
+        item.addEventListener('click', async () => {
+            try {
+                await copyFullResolutionToClipboard(canvas, { includeGrid: gridEnabled });
+                showToast('Copied full-resolution image to clipboard.', { type: 'success' });
+            } catch (err) {
+                showErrorToast(err, 'Copy failed. Your browser may block clipboard writes.');
+            } finally {
+                removeMenu();
+            }
+        });
+
+        const hint = document.createElement('div');
+        hint.textContent = 'Uses the original image resolution.';
+        hint.style.cssText = `
+            padding: 6px 10px 8px 10px;
+            font-size: 11px;
+            color: color-mix(in srgb, var(--muted, #aaa) 92%, transparent);
+        `;
+
+        menuEl.appendChild(item);
+        menuEl.appendChild(hint);
+        document.body.appendChild(menuEl);
+
+        window.addEventListener('mousedown', onOutsideClick, true);
+        window.addEventListener('scroll', removeMenu, true);
+        window.addEventListener('resize', removeMenu, true);
+    });
+}
+
+async function copyFullResolutionToClipboard(mainCanvas, { includeGrid }) {
+    if (!navigator.clipboard || typeof navigator.clipboard.write !== 'function') {
+        throw new Error('Clipboard API not available. Serve over https/localhost and allow clipboard permissions.');
+    }
+
+    const source = window.originalLoadedImage || window.currentLoadedImage;
+    if (!source || source === true) throw new Error('No image loaded.');
+
+    // Build an export canvas at native resolution
+    const srcCanvas = (source instanceof HTMLCanvasElement)
+        ? source
+        : imageToCanvas(source);
+    if (!srcCanvas) throw new Error('Could not read source image.');
+
+    const out = document.createElement('canvas');
+    out.width = srcCanvas.width;
+    out.height = srcCanvas.height;
+    const ctx = out.getContext('2d');
+    ctx.drawImage(srcCanvas, 0, 0);
+
+    if (includeGrid && mainCanvas.gridCanvasElement && mainCanvas.gridCanvasElement.gridSettings) {
+        drawGridForExport(ctx, srcCanvas.width, srcCanvas.height, mainCanvas);
+    }
+
+    const blob = await new Promise((resolve, reject) => {
+        out.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to encode PNG'))), 'image/png', 0.95);
+    });
+
+    // ClipboardItem is required for images
+    const item = new ClipboardItem({ 'image/png': blob });
+    await navigator.clipboard.write([item]);
+}
+
+function imageToCanvas(img) {
+    const w = img.naturalWidth || img.width || 0;
+    const h = img.naturalHeight || img.height || 0;
+    if (!w || !h) return null;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    return c;
+}
+
+function drawGridForExport(ctx, width, height, mainCanvas) {
+    const gridCanvas = mainCanvas.gridCanvasElement;
+    const settings = gridCanvas.gridSettings;
+
+    // Determine major spacing in image pixels:
+    let majorSpacingImgPx = settings.syncedMajorSpacing || 50;
+    if (settings.mode === 'fixed') {
+        // Convert on-screen spacing to image pixels based on current zoom state
+        const image = window.currentLoadedImage;
+        const natW = image ? (image.naturalWidth || image.width || 0) : 0;
+        const natH = image ? (image.naturalHeight || image.height || 0) : 0;
+        if (natW && natH && mainCanvas.transformState) {
+            const baseFitScale = Math.min(mainCanvas.width / natW, mainCanvas.height / natH);
+            const totalCurrentScale = baseFitScale * mainCanvas.transformState.scale;
+            if (totalCurrentScale > 0) {
+                majorSpacingImgPx = Math.max(1, settings.fixedGridSpacing / totalCurrentScale);
+            }
+        }
+    }
+
+    const minorSpacing = settings.showMinorLines ? Math.max(1, majorSpacingImgPx / 10) : null;
+
+    // Use the same colors/opacity as overlay
+    const majorColor = hexToRGBA(settings.color, settings.opacity);
+    const minorColor = hexToRGBA(settings.color, Math.min(1, settings.opacity * 0.4));
+
+    ctx.save();
+    ctx.lineWidth = 1;
+
+    if (minorSpacing) {
+        ctx.strokeStyle = minorColor;
+        for (let x = 0; x <= width; x += minorSpacing) {
+            if (Math.round(x) % Math.round(majorSpacingImgPx) === 0) continue;
+            ctx.beginPath();
+            ctx.moveTo(Math.round(x) + 0.5, 0);
+            ctx.lineTo(Math.round(x) + 0.5, height);
+            ctx.stroke();
+        }
+        for (let y = 0; y <= height; y += minorSpacing) {
+            if (Math.round(y) % Math.round(majorSpacingImgPx) === 0) continue;
+            ctx.beginPath();
+            ctx.moveTo(0, Math.round(y) + 0.5);
+            ctx.lineTo(width, Math.round(y) + 0.5);
+            ctx.stroke();
+        }
+    }
+
+    ctx.strokeStyle = majorColor;
+    for (let x = 0; x <= width; x += majorSpacingImgPx) {
+        ctx.beginPath();
+        ctx.moveTo(Math.round(x) + 0.5, 0);
+        ctx.lineTo(Math.round(x) + 0.5, height);
+        ctx.stroke();
+    }
+    for (let y = 0; y <= height; y += majorSpacingImgPx) {
+        ctx.beginPath();
+        ctx.moveTo(0, Math.round(y) + 0.5);
+        ctx.lineTo(width, Math.round(y) + 0.5);
+        ctx.stroke();
+    }
+    ctx.restore();
 } 
