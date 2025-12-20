@@ -6,7 +6,7 @@
     overflow: hidden;
     padding: 10px;
     box-sizing: border-box;
-    background-color: #333;
+    background: transparent;
     height: 100%;
 }
 
@@ -18,8 +18,9 @@
     margin-right: 10px;
     position: relative; 
     overflow: hidden; 
-    background-color: #2c2c2c;
-    border-radius: 4px;
+    background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     min-width: 0;
     min-height: 0;
 }
@@ -28,9 +29,12 @@
     display: block; 
     max-width: 100%;
     max-height: 100%;
-    border: 2px solid #00ffff;
-    box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #0077ff;
-    border-radius: 4px; 
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+    box-shadow:
+        0 1px 0 rgba(0,0,0,0.18),
+        0 16px 30px rgba(0,0,0,0.22),
+        0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+    border-radius: 10px; 
     background-color: rgba(0,0,0,0.1);
     box-sizing: border-box;
     cursor: grab; /* Show grab cursor to indicate the canvas can be panned */
@@ -41,50 +45,284 @@
 }
 
 .grid-viewer-control-panel {
-    width: 150px;
-    min-width: 150px; 
+    width: 220px;
+    min-width: 200px; 
     display: flex;
     flex-direction: column; 
     align-items: stretch; 
-    padding: 10px;
-    background-color: #2a2a2a;
-    border-radius: 6px;
+    padding: 8px;
+    background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+    border-radius: 12px;
     box-sizing: border-box;
-    border: 1px solid #4a4a4a;
+    border: 1px solid var(--border);
     flex-shrink: 0;
+    overflow: hidden; /* scroll lives in gv-controls-scroll */
 }
 
-.grid-viewer-control-panel button {
-    padding: 10px 12px;
-    margin-bottom: 8px; 
-    background-color: #4f4f4f;
-    color: #e0e0e0;
-    border: 1px solid #5f5f5f; 
-    border-radius: 4px;
+.gv-controls-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px; /* room for scrollbar */
+}
+
+.gv-actions-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+
+.gv-actions-grid .gv-btn {
+    /* Allow readable labels in a narrow 2-col grid */
+    white-space: normal;
+    text-overflow: clip;
+    overflow: hidden;
+    text-align: center;
+    line-height: 1.15;
+    min-height: 34px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* show up to 2 lines */
+    -webkit-box-orient: vertical;
+}
+
+.gv-actions-grid--dense {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-bottom: 0;
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.gv-actions-grid--dense .gv-btn {
+    min-height: 32px;
+    -webkit-line-clamp: 2;
+}
+
+.gv-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gv-acc-item {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-3) 45%, transparent);
+    overflow: hidden;
+}
+
+.gv-acc-item > .gv-btn {
+    width: 100%;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    text-align: left;
+    position: relative;
+    padding-right: 34px;
+}
+
+.gv-acc-item > .gv-btn:hover {
+    background: color-mix(in srgb, var(--btn-bg-hover) 75%, transparent);
+}
+
+.gv-acc-item > .gv-btn::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid color-mix(in srgb, var(--text) 55%, transparent);
+    border-bottom: 2px solid color-mix(in srgb, var(--text) 55%, transparent);
+    transform: translateY(-50%) rotate(45deg);
+    transition: transform 160ms ease;
+    opacity: 0.9;
+}
+
+.gv-acc-item.is-open > .gv-btn::after {
+    transform: translateY(-50%) rotate(-135deg);
+}
+
+.gv-acc-panel {
+    padding: 9px;
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+}
+
+.gv-controls-scroll::-webkit-scrollbar {
+    width: 10px;
+}
+.gv-controls-scroll::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--surface-3) 80%, transparent);
+    border-radius: 10px;
+}
+.gv-controls-scroll::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--text) 18%, transparent);
+    border-radius: 10px;
+    border: 2px solid color-mix(in srgb, var(--surface-3) 80%, transparent);
+}
+.gv-controls-scroll::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--text) 26%, transparent);
+}
+
+.grid-viewer-control-panel button,
+.gv-btn {
+    padding: 8px 10px;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border: 1px solid var(--btn-border); 
+    border-radius: 10px;
     cursor: pointer;
     text-align: center;
-    font-size: 0.9em;
-    font-weight: 500;
-    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.1px;
+    transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.grid-viewer-control-panel button:last-child {
-    margin-bottom: 0; 
-}
-
-.grid-viewer-control-panel button:hover {
-    background-color: #5a5a5a;
-    border-color: #7a7a7a;
+.grid-viewer-control-panel button:hover,
+.gv-btn:hover {
+    background: var(--btn-bg-hover);
+    border-color: var(--border-strong);
     transform: translateY(-1px);
 }
 
-.grid-viewer-control-panel button:active {
-    background-color: #454545;
+.grid-viewer-control-panel button:active,
+.gv-btn:active {
+    background: var(--btn-bg);
     transform: translateY(0px);
     transition-duration: 0.05s;
+}
+
+.gv-btn-primary {
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-border);
+}
+.gv-btn-primary:hover {
+    background: var(--btn-primary-bg-hover);
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--border-strong));
+}
+.gv-btn-primary.is-on {
+    background: color-mix(in srgb, var(--ok) 22%, var(--btn-bg));
+    border-color: color-mix(in srgb, var(--ok) 55%, var(--btn-border));
+}
+
+.gv-btn-warn {
+    background: color-mix(in srgb, var(--warn) 22%, var(--btn-bg));
+    border-color: color-mix(in srgb, var(--warn) 55%, var(--btn-border));
+}
+.gv-btn-warn:hover {
+    background: color-mix(in srgb, var(--warn) 28%, var(--btn-bg-hover));
+    border-color: color-mix(in srgb, var(--warn) 70%, var(--border-strong));
+}
+
+/* Form controls inside control panel (the HTML uses inline styles, but these help modernize) */
+.grid-viewer-control-panel input[type="number"],
+.grid-viewer-control-panel input[type="range"],
+.grid-viewer-control-panel input[type="color"] {
+    accent-color: var(--accent);
+}
+
+.gv-section {
+    margin-top: 2px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.gv-section-title {
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: 0.2px;
+    margin: 0 0 8px 0;
+    color: color-mix(in srgb, var(--text) 88%, transparent);
+    text-transform: none;
+}
+
+.gv-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.gv-field:last-child {
+    margin-bottom: 0;
+}
+
+.gv-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 650;
+}
+
+.gv-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--field-border);
+    background: var(--field-bg);
+    color: var(--text);
+}
+
+.gv-input:focus-visible {
+    outline: 2px solid var(--field-border-focus);
+    outline-offset: 2px;
+}
+
+.gv-range {
+    width: 100%;
+}
+
+.gv-color {
+    width: 100%;
+    height: 30px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid var(--field-border);
+    background: var(--field-bg);
+    box-sizing: border-box;
+}
+
+.gv-check,
+.gv-radio {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+    color: color-mix(in srgb, var(--text) 86%, transparent);
+    font-weight: 600;
+    user-select: none;
+}
+
+.gv-check input,
+.gv-radio input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.gv-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 7px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface-3) 55%, transparent);
+}
+
+.gv-collapsible {
+    /* display toggled by JS; keep for future animations */
 }
 
 /* Styles for the dynamically added grid canvas */

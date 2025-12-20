@@ -4,145 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ViewerNeo Project</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #222;
-            color: #eee;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+    <meta name="theme-color" content="#0b0f14">
+    <script>
+      // Apply saved theme *before* first paint (prevents flash).
+      (() => {
+        try {
+          const key = 'viewerneo_theme';
+          const saved = localStorage.getItem(key);
+          if (saved === 'dark' || saved === 'light') {
+            document.documentElement.setAttribute('data-theme', saved);
+          }
+        } catch (e) {
+          // ignore
         }
-
-        html {
-            margin: 0;
-            padding: 0;
-        }
-
-        #top-function-bar {
-            background-color: #1a1a1a;
-            padding: 10px 15px;
-            border-bottom: 1px solid #333;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-shrink: 0;
-            z-index: 1000;
-            height: auto;
-            box-sizing: border-box;
-            position: relative;
-            margin-top: 0;
-        }
-
-        #top-function-bar h3 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 500;
-            color: #eee;
-        }
-
-        #top-function-bar #placeholder-buttons button {
-            background-color: #383838;
-            color: #ddd;
-            border: 1px solid #555;
-            padding: 6px 10px;
-            cursor: pointer;
-            border-radius: 4px;
-            margin-left: 8px;
-            font-size: 13px;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-        }
-        #top-function-bar #placeholder-buttons button:hover {
-            background-color: #4a4a4a;
-            border-color: #666;
-        }
-
-        #content-below-topbar {
-            display: flex;
-            flex-grow: 1;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .thumbnail-panel-placeholder {
-            flex-shrink: 0;
-            width: 0;
-            transition: width 0.25s ease;
-            overflow: visible;
-        }
-
-        body.thumbnail-panel-active .thumbnail-panel-placeholder {
-            width: 160px; /* This should ideally be dynamic, matching panel width */
-        }
-
-        #my-thumbnail-panel {
-            position: absolute;
-            z-index: 90;
-            left: 0;
-            top: 0;
-            bottom: 0;
-        }
-
-        #main-content {
-            flex-grow: 1;
-            padding: 20px;
-            background-color: #333;
-            transition: width 0.25s ease;
-            height: 100%;
-            box-sizing: border-box;
-            overflow-y: auto;
-            position: relative;
-            width: 100%;
-        }
-    
-        #toggle-panel-btn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 15px;
-            margin-bottom: 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        #toggle-panel-btn:hover {
-            background-color: #45a049;
-        }
-
-        #centered-canvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            border: 2px solid #00ffff;
-            box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff;
-            background-color: rgba(0,0,0,0.1);
-        }
-    </style>
+      })();
+    </script>
     <script type="module" src="./ThumbnailGallery/thumbnail-pane.js"></script>
     <script async src="./lib/opencv.js"></script>
     <script type="module" src="./lib/opencv-manager.js"></script>
     <script src="./lib/tiff.js"></script>
     <link rel="stylesheet" href="./WindowsManager/style.css">
     <link rel="stylesheet" href="grid_viewer_style.css">
+    <link rel="stylesheet" href="./app.css">
     <script type="module" src="grid_viewer_controls.js"></script>
 </head>
 <body>
-    <div id="top-function-bar">
-        <h3>ViewerNeo</h3>
-        <div id="placeholder-buttons">
-            <button type="button" id="grid-viewer-btn">Grid viewer</button>
-            <button type="button" onclick="placeholderFunc2()">2</button>
-            <button type="button" onclick="placeholderFunc3()">3</button>
-            <button type="button" onclick="placeholderFunc4()">4</button>
-            <button type="button" onclick="placeholderFunc5()">5</button>
-            <button type="button" onclick="placeholderFunc6()">6</button>
-            <button type="button" onclick="placeholderFunc7()">7</button>
-            <button type="button" onclick="placeholderFunc8()">8</button>
-            <button type="button" onclick="placeholderFunc9()">9</button>
-            <button type="button" onclick="placeholderFunc10()">10</button>
+    <div id="top-function-bar" class="app-topbar">
+        <div class="app-brand">
+            <div class="app-logo" aria-hidden="true">VN</div>
+            <div class="app-title">
+                <div class="app-name">ViewerNeo</div>
+                <div class="app-subtitle">Paste or drop images • Open the thumbnail panel • Launch Grid Viewer</div>
+            </div>
+        </div>
+        <div class="app-actions">
+            <button type="button" class="btn btn-ghost" id="toggle-panel-btn">Thumbnails</button>
+            <button type="button" class="btn btn-primary" id="grid-viewer-btn">Grid viewer</button>
+            <label class="sr-only" for="theme-select">Theme</label>
+            <select id="theme-select" class="select" title="Theme">
+                <option value="system">System</option>
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+            </select>
         </div>
     </div>
 
@@ -151,17 +54,24 @@
             <thumbnail-pane id="my-thumbnail-panel" opened></thumbnail-pane>
         </div>
         <div id="main-content">
-            <button type="button" id="toggle-panel-btn">Toggle Panel</button>
-            <h1>Main Content Area</h1>
+            <div class="workspace-shell">
+                <div class="workspace-empty">
+                    <div class="workspace-empty-card">
+                        <h1>Drop images to start</h1>
+                        <p>
+                            Drag & drop image files/folders anywhere, or paste from clipboard.
+                            Then click <span class="kbd">Grid viewer</span> to open the workspace window.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script type="module">
-        for (let i = 2; i <= 10; i++) {
-            window[`placeholderFunc${i}`] = () => {
-                console.log(`Placeholder Function ${i} called`);
-            };
-        }
+        import { initThemeSelect } from './theme-manager.js';
+
+        initThemeSelect(document.getElementById('theme-select'));
 
         const panel = document.getElementById('my-thumbnail-panel');
         const mainContent = document.getElementById('main-content');
@@ -171,7 +81,7 @@
             setTimeout(() => {
                 document.body.classList.add('thumbnail-panel-active');
                 const panelWidth = panel.getCurrentWidth();
-                mainContent.style.width = `calc(100% - ${panelWidth}px)`;
+                document.querySelector('.thumbnail-panel-placeholder').style.width = `${panelWidth}px`;
                 toggleButton.textContent = 'Close Panel';
             }, 10);
         }
@@ -206,12 +116,12 @@
                 toggleButton.textContent = 'Close Panel';
                 if (panel.getCurrentWidth && typeof panel.getCurrentWidth === 'function') {
                     const panelWidth = panel.getCurrentWidth();
-                    mainContent.style.width = `calc(100% - ${panelWidth}px)`;
+                    document.querySelector('.thumbnail-panel-placeholder').style.width = `${panelWidth}px`;
                 }
             } else {
                 document.body.classList.remove('thumbnail-panel-active');
                 toggleButton.textContent = 'Open Panel';
-                mainContent.style.width = '100%';
+                document.querySelector('.thumbnail-panel-placeholder').style.width = '0';
             }
         }
     
@@ -252,7 +162,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.72);
             display: none;
             z-index: 10000;
             pointer-events: none;
@@ -267,7 +177,7 @@
                 transform: translate(-50%, -50%);
                 text-align: center;
                 color: white;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
             .drop-icon {
                 font-size: 64px;
@@ -419,7 +329,7 @@
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background: rgba(0, 0, 0, 0.9);
+                background: rgba(0, 0, 0, 0.85);
                 color: white;
                 padding: 12px 20px;
                 border-radius: 8px;
@@ -427,7 +337,7 @@
                 align-items: center;
                 gap: 10px;
                 z-index: 10001;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             `;
             
             const spinnerStyle = document.createElement('style');
@@ -487,7 +397,7 @@
                         padding: 12px 20px;
                         border-radius: 8px;
                         z-index: 10001;
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                         animation: slideIn 0.3s ease-out;
                     `;
                     
@@ -520,7 +430,7 @@
                         padding: 12px 20px;
                         border-radius: 8px;
                         z-index: 10001;
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                     `;
                     document.body.appendChild(errorToast);
                     
@@ -551,7 +461,7 @@
                     padding: 12px 20px;
                     border-radius: 8px;
                     z-index: 10001;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 `;
                 document.body.appendChild(errorToast);
                 

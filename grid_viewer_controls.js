@@ -37,6 +37,8 @@ export function createGridViewerWindow({
     const viewerId = id; 
     const gridCanvasId = `${canvasId}-grid`;
     const gridSettingsContainerId = `${controlPanelId}-grid-settings`;
+    const thresholdSettingsContainerId = `${viewerId}-threshold-settings`;
+    const extraActionsContainerId = `${viewerId}-extra-actions`;
 
     const contentHtml = `
         <div class="grid-viewer-content">
@@ -47,104 +49,134 @@ export function createGridViewerWindow({
                 </canvas>
             </div>
             <div id="${controlPanelId}" class="grid-viewer-control-panel">
-                <button id="${viewerId}-show-grid-btn" 
-                        onclick="handleShowGridToggle('${viewerId}', '${canvasId}', '${gridCanvasId}', '${gridSettingsContainerId}')">
-                    Show Grid
-                </button>
-                <button onclick="handleGridViewerResetView('${canvasId}')">Reset View</button>
-                <div id="${gridSettingsContainerId}" 
-                     style="display: none; margin-top: 10px; border-top: 1px solid #4a4a4a; padding-top: 10px;">
-                    <p style="margin-top:0; margin-bottom: 5px; font-size: 0.9em; color: #ccc;">
-                        Grid Settings:
-                    </p>
-                    <div>
-                        <label for="${viewerId}-grid-color" style="font-size:0.85em;">Color:</label>
-                        <input type="color" id="${viewerId}-grid-color" value="#FF0000" 
-                               style="width: 50%; margin-bottom:5px;">
+                <div class="gv-controls-scroll">
+                <div class="gv-actions-grid">
+                    <button id="${viewerId}-show-grid-btn" class="gv-btn gv-btn-primary"
+                            onclick="handleShowGridToggle('${viewerId}', '${canvasId}', '${gridCanvasId}', '${gridSettingsContainerId}')">
+                        Show Grid
+                    </button>
+                    <button class="gv-btn" title="Reset View" onclick="handleGridViewerResetView('${canvasId}')">Reset View</button>
+                    <button class="gv-btn gv-acc-trigger" type="button" data-acc-target="${thresholdSettingsContainerId}">
+                        Adaptive Threshold
+                    </button>
+                    <button class="gv-btn gv-btn-warn" title="Save to Batch" onclick="handleGridViewerButton10('${viewerId}')">Save to Batch</button>
+                </div>
+
+                <div class="gv-accordion" data-accordion-root="${viewerId}">
+                    <div class="gv-acc-item" data-acc-item>
+                        <button class="gv-btn gv-acc-trigger" type="button" data-acc-target="${gridSettingsContainerId}">
+                            Grid Options
+                        </button>
+                        <div id="${gridSettingsContainerId}" class="gv-acc-panel" hidden>
+                            <div class="gv-field">
+                                <label class="gv-label" for="${viewerId}-grid-color">Color</label>
+                                <input class="gv-color" type="color" id="${viewerId}-grid-color" value="#FF0000">
+                            </div>
+
+                            <div class="gv-field">
+                                <label class="gv-label" for="${viewerId}-grid-opacity">Opacity</label>
+                                <input class="gv-range" type="range" id="${viewerId}-grid-opacity" min="0" max="1" step="0.05" value="0.5">
+                            </div>
+
+                            <div class="gv-field">
+                                <label class="gv-label" for="${viewerId}-grid-major-spacing">Major Spacing (img px)</label>
+                                <input class="gv-input" type="number" id="${viewerId}-grid-major-spacing" value="50" step="0.1" min="0.1">
+                            </div>
+
+                            <div class="gv-field">
+                                <label class="gv-check">
+                                    <input type="checkbox" id="${viewerId}-grid-show-minor" checked>
+                                    <span>Show Minor Lines (1/10th)</span>
+                                </label>
+                            </div>
+
+                            <div class="gv-field">
+                                <div class="gv-label">Mode</div>
+                                <div class="gv-radio-group">
+                                    <label class="gv-radio">
+                                        <input type="radio" id="${viewerId}-grid-mode-synced" name="${viewerId}-grid-mode" value="synced" checked>
+                                        <span>Synced</span>
+                                    </label>
+                                    <label class="gv-radio">
+                                        <input type="radio" id="${viewerId}-grid-mode-fixed" name="${viewerId}-grid-mode" value="fixed">
+                                        <span>Fixed</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label for="${viewerId}-grid-opacity" style="font-size:0.85em;">Opacity:</label>
-                        <input type="range" id="${viewerId}-grid-opacity" min="0" max="1" step="0.05" value="0.5" 
-                               style="width: 100%; margin-bottom:5px;">
+
+                    <div class="gv-acc-item" data-acc-item>
+                        <button class="gv-btn gv-acc-trigger" type="button" data-acc-target="${thresholdSettingsContainerId}">
+                            Threshold Options
+                        </button>
+                        <div id="${thresholdSettingsContainerId}" class="gv-acc-panel" hidden>
+                            <div class="gv-field">
+                                <label class="gv-label" for="${viewerId}-threshold-max-value">Max Value (0-255)</label>
+                                <input class="gv-input" type="number" id="${viewerId}-threshold-max-value" value="255" min="0" max="255">
+                            </div>
+
+                            <div class="gv-field">
+                                <label class="gv-label" for="${viewerId}-threshold-block-size">Block Size (odd number ≥ 3)</label>
+                                <input class="gv-input" type="number" id="${viewerId}-threshold-block-size" value="11" min="3" step="2">
+                            </div>
+
+                            <div class="gv-field">
+                                <label class="gv-label" for="${viewerId}-threshold-c-value">C Value (-50 to 50)</label>
+                                <input class="gv-input" type="number" id="${viewerId}-threshold-c-value" value="2" min="-50" max="50" step="0.1">
+                            </div>
+
+                            <div class="gv-field">
+                                <div class="gv-label">Adaptive Method</div>
+                                <div class="gv-radio-group">
+                                    <label class="gv-radio">
+                                        <input type="radio" id="${viewerId}-threshold-method-mean" name="${viewerId}-threshold-method" value="mean" checked>
+                                        <span>Mean C</span>
+                                    </label>
+                                    <label class="gv-radio">
+                                        <input type="radio" id="${viewerId}-threshold-method-gaussian" name="${viewerId}-threshold-method" value="gaussian">
+                                        <span>Gaussian C</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="gv-field">
+                                <div class="gv-label">Threshold Type</div>
+                                <div class="gv-radio-group">
+                                    <label class="gv-radio">
+                                        <input type="radio" id="${viewerId}-threshold-type-binary" name="${viewerId}-threshold-type" value="binary" checked>
+                                        <span>Binary</span>
+                                    </label>
+                                    <label class="gv-radio">
+                                        <input type="radio" id="${viewerId}-threshold-type-binary-inv" name="${viewerId}-threshold-type" value="binary_inv">
+                                        <span>Binary Inverted</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button class="gv-btn gv-btn-primary" onclick="handleGridViewerButton3('${viewerId}')">
+                                Apply Adaptive Threshold
+                            </button>
+                        </div>
                     </div>
-                    <div style="font-size:0.85em; margin-bottom: 5px;">
-                        <label for="${viewerId}-grid-major-spacing" style="display:block; margin-bottom:2px;">
-                            Major Spacing (img px):
-                        </label>
-                        <input type="number" id="${viewerId}-grid-major-spacing" value="50" step="0.1" min="0.1" 
-                               style="width: 98%; margin-bottom:3px;">
-                    </div>
-                    <div style="font-size:0.85em; margin-bottom: 8px;">
-                        <input type="checkbox" id="${viewerId}-grid-show-minor" checked 
-                               style="margin-right: 5px; vertical-align: middle;">
-                        <label for="${viewerId}-grid-show-minor" style="vertical-align: middle;">
-                            Show Minor Lines (1/10th)
-                        </label>
-                    </div>
-                    <div style="font-size:0.85em;">
-                        <label style="display:block; margin-bottom:3px;">Mode:</label>
-                        <input type="radio" id="${viewerId}-grid-mode-synced" name="${viewerId}-grid-mode" 
-                               value="synced" checked>
-                        <label for="${viewerId}-grid-mode-synced">Synced</label><br>
-                        <input type="radio" id="${viewerId}-grid-mode-fixed" name="${viewerId}-grid-mode" 
-                               value="fixed">
-                        <label for="${viewerId}-grid-mode-fixed">Fixed</label>
+
+                    <div class="gv-acc-item" data-acc-item>
+                        <button class="gv-btn gv-acc-trigger" type="button" data-acc-target="${extraActionsContainerId}">
+                            More Actions
+                        </button>
+                        <div id="${extraActionsContainerId}" class="gv-acc-panel" hidden>
+                            <div class="gv-actions-grid gv-actions-grid--dense">
+                                <button class="gv-btn" onclick="handleGridViewerButton4('${viewerId}')">Action 4</button>
+                                <button class="gv-btn" onclick="handleGridViewerButton5('${viewerId}')">Action 5</button>
+                                <button class="gv-btn" onclick="handleGridViewerButton6('${viewerId}')">Action 6</button>
+                                <button class="gv-btn" onclick="handleGridViewerButton7('${viewerId}')">Action 7</button>
+                                <button class="gv-btn" onclick="handleGridViewerButton8('${viewerId}')">Action 8</button>
+                                <button class="gv-btn" onclick="handleGridViewerButton9('${viewerId}')">Action 9</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <button onclick="handleGridViewerButton3('${viewerId}')" style="margin-top:10px;">
-                    Adaptive Threshold
-                </button>
-                <div id="${viewerId}-threshold-settings" style="margin-top: 10px; border-top: 1px solid #4a4a4a; padding-top: 10px;">
-                    <p style="margin-top:0; margin-bottom: 5px; font-size: 0.9em; color: #ccc;">
-                        Adaptive Threshold Settings:
-                    </p>
-                    <div style="font-size:0.85em; margin-bottom: 5px;">
-                        <label for="${viewerId}-threshold-max-value" style="display:block; margin-bottom:2px;">
-                            Max Value (0-255):
-                        </label>
-                        <input type="number" id="${viewerId}-threshold-max-value" value="255" min="0" max="255" 
-                               style="width: 98%; margin-bottom:3px;">
-                    </div>
-                    <div style="font-size:0.85em; margin-bottom: 5px;">
-                        <label for="${viewerId}-threshold-block-size" style="display:block; margin-bottom:2px;">
-                            Block Size (odd number ≥ 3):
-                        </label>
-                        <input type="number" id="${viewerId}-threshold-block-size" value="11" min="3" step="2" 
-                               style="width: 98%; margin-bottom:3px;">
-                    </div>
-                    <div style="font-size:0.85em; margin-bottom: 5px;">
-                        <label for="${viewerId}-threshold-c-value" style="display:block; margin-bottom:2px;">
-                            C Value (-50 to 50):
-                        </label>
-                        <input type="number" id="${viewerId}-threshold-c-value" value="2" min="-50" max="50" step="0.1"
-                               style="width: 98%; margin-bottom:3px;">
-                    </div>
-                    <div style="font-size:0.85em; margin-bottom: 8px;">
-                        <label style="display:block; margin-bottom:3px;">Adaptive Method:</label>
-                        <input type="radio" id="${viewerId}-threshold-method-mean" name="${viewerId}-threshold-method" 
-                               value="mean" checked>
-                        <label for="${viewerId}-threshold-method-mean">Mean C</label><br>
-                        <input type="radio" id="${viewerId}-threshold-method-gaussian" name="${viewerId}-threshold-method" 
-                               value="gaussian">
-                        <label for="${viewerId}-threshold-method-gaussian">Gaussian C</label>
-                    </div>
-                    <div style="font-size:0.85em;">
-                        <label style="display:block; margin-bottom:3px;">Threshold Type:</label>
-                        <input type="radio" id="${viewerId}-threshold-type-binary" name="${viewerId}-threshold-type" 
-                               value="binary" checked>
-                        <label for="${viewerId}-threshold-type-binary">Binary</label><br>
-                        <input type="radio" id="${viewerId}-threshold-type-binary-inv" name="${viewerId}-threshold-type" 
-                               value="binary_inv">
-                        <label for="${viewerId}-threshold-type-binary-inv">Binary Inverted</label>
-                    </div>
                 </div>
-                <button onclick="handleGridViewerButton4('${viewerId}')">Action 4</button>
-                <button onclick="handleGridViewerButton5('${viewerId}')">Action 5</button>
-                <button onclick="handleGridViewerButton6('${viewerId}')">Action 6</button>
-                <button onclick="handleGridViewerButton7('${viewerId}')">Action 7</button>
-                <button onclick="handleGridViewerButton8('${viewerId}')">Action 8</button>
-                <button onclick="handleGridViewerButton9('${viewerId}')">Action 9</button>
-                <button onclick="handleGridViewerButton10('${viewerId}')" style="background-color: #ff8c00; color: white;">Save to Batch</button>
             </div>
         </div>
     `;
@@ -152,6 +184,9 @@ export function createGridViewerWindow({
     const viewerCanvas = windowFrame.querySelector(`#${canvasId}`);
     const gridCanvas = windowFrame.querySelector(`#${gridCanvasId}`);
     const canvasContainer = windowFrame.querySelector(`#${canvasId}-container`);
+
+    // Accordion behavior (scoped to this window)
+    initGridViewerAccordion(windowFrame, { defaultOpenTargetId: null });
 
     if (viewerCanvas && gridCanvas && canvasContainer) {
         viewerCanvas.gridCanvasElement = gridCanvas; 
@@ -320,6 +355,71 @@ export function createGridViewerWindow({
         windowFrame.gridViewerResizeObserver = resizeObserver; 
     }
     return windowFrame;
+}
+
+function initGridViewerAccordion(windowFrame, { defaultOpenTargetId } = {}) {
+    if (!windowFrame) return;
+    const triggers = windowFrame.querySelectorAll('.gv-acc-trigger[data-acc-target]');
+    if (!triggers || triggers.length === 0) return;
+
+    const closeAll = () => {
+        windowFrame.querySelectorAll('.gv-acc-item.is-open').forEach(item => {
+            item.classList.remove('is-open');
+            const panel = item.querySelector('.gv-acc-panel');
+            if (panel) panel.hidden = true;
+        });
+        windowFrame.querySelectorAll('.gv-acc-trigger[aria-expanded="true"]').forEach(t => {
+            t.setAttribute('aria-expanded', 'false');
+        });
+    };
+
+    const openTarget = (targetId) => {
+        const panel = windowFrame.querySelector(`#${CSS.escape(targetId)}`);
+        if (!panel) return;
+        const item = panel.closest('.gv-acc-item');
+        if (!item) return;
+        closeAll();
+        item.classList.add('is-open');
+        panel.hidden = false;
+        const trigger = windowFrame.querySelector(`.gv-acc-trigger[data-acc-target="${CSS.escape(targetId)}"]`);
+        if (trigger) trigger.setAttribute('aria-expanded', 'true');
+        // ensure visibility
+        try { item.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch {}
+    };
+
+    const toggleTarget = (targetId) => {
+        const panel = windowFrame.querySelector(`#${CSS.escape(targetId)}`);
+        if (!panel) return;
+        const item = panel.closest('.gv-acc-item');
+        if (!item) return;
+        const isOpen = item.classList.contains('is-open') && panel.hidden === false;
+        if (isOpen) {
+            item.classList.remove('is-open');
+            panel.hidden = true;
+            const trigger = windowFrame.querySelector(`.gv-acc-trigger[data-acc-target="${CSS.escape(targetId)}"]`);
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        } else {
+            openTarget(targetId);
+        }
+    };
+
+    triggers.forEach(trigger => {
+        const targetId = trigger.getAttribute('data-acc-target');
+        if (!targetId) return;
+        trigger.setAttribute('aria-controls', targetId);
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.addEventListener('click', (e) => {
+            // Avoid interfering with buttons that also have onclick handlers
+            if (trigger.id && trigger.id.endsWith('-show-grid-btn')) return;
+            e.preventDefault();
+            toggleTarget(targetId);
+        });
+    });
+
+    if (defaultOpenTargetId) openTarget(defaultOpenTargetId);
+
+    // Expose helper for global handlers (grid toggle opens its options)
+    windowFrame.__gvAccordion = { openTarget, toggleTarget, closeAll };
 }
 
 // Handler functions for grid viewer buttons
@@ -587,9 +687,21 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
         gridCanvas.isGridVisible = !gridCanvas.isGridVisible;
         if (gridCanvas.isGridVisible) {
             gridCanvas.style.display = 'block';
-            settingsContainer.style.display = 'block';
             button.textContent = 'Hide Grid';
-            button.style.backgroundColor = '#5cb85c';
+            button.classList.add('is-on');
+
+            // Auto-open the options accordion for this action
+            try {
+                const windowFrame = button.closest('.window-frame');
+                if (windowFrame && windowFrame.__gvAccordion) {
+                    windowFrame.__gvAccordion.openTarget(settingsContainerId);
+                } else {
+                    // fallback: show panel if accordion not available
+                    settingsContainer.hidden = false;
+                }
+            } catch {
+                settingsContainer.hidden = false;
+            }
 
             const colorInput = document.getElementById(`${viewerId}-grid-color`);
             const opacityInput = document.getElementById(`${viewerId}-grid-opacity`);
@@ -612,9 +724,19 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
             // No direct drawGrid call here; redrawCanvas will handle it.
         } else {
             gridCanvas.style.display = 'none';
-            settingsContainer.style.display = 'none';
             button.textContent = 'Show Grid';
-            button.style.backgroundColor = ''; 
+            button.classList.remove('is-on');
+            // Close the options accordion for this action
+            try {
+                const windowFrame = button.closest('.window-frame');
+                if (windowFrame && windowFrame.__gvAccordion) {
+                    windowFrame.__gvAccordion.closeAll();
+                } else {
+                    settingsContainer.hidden = true;
+                }
+            } catch {
+                settingsContainer.hidden = true;
+            }
             // When hiding, ensure the grid canvas is cleared explicitly if redrawCanvas doesn't run 
             // immediately or if drawGrid(..., false) doesn't clear everything (it should, but belt-and-suspenders)
             const gridCtx = gridCanvas.getContext('2d');
@@ -638,9 +760,40 @@ function handleShowGridToggle(viewerId, mainCanvasId, gridCanvasId, settingsCont
 }
 
 const RULER_SIZE = 40; // px for ruler thickness - increased to accommodate 4-digit numbers
-const RULER_BG_COLOR = '#444444';
-const RULER_TEXT_COLOR = '#E0E0E0';
-const RULER_LINE_COLOR = '#AAAAAA';
+
+let __viewerneoUiPalette = null;
+function readCssVar(name, fallback) {
+    try {
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name);
+        const trimmed = (v || '').trim();
+        return trimmed || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+function getUiPalette() {
+    if (__viewerneoUiPalette) return __viewerneoUiPalette;
+    __viewerneoUiPalette = {
+        rulerBg: readCssVar('--ruler-bg', '#444444'),
+        rulerText: readCssVar('--ruler-text', '#E0E0E0'),
+        rulerLine: readCssVar('--ruler-line', '#AAAAAA'),
+    };
+    return __viewerneoUiPalette;
+}
+
+// Update cached palette on theme changes
+try {
+    window.addEventListener('viewerneo-theme-changed', () => {
+        __viewerneoUiPalette = null;
+        // Redraw the active canvas, if present
+        if (window.canvas && typeof window.redrawCanvas === 'function') {
+            window.redrawCanvas(window.canvas);
+        }
+    });
+} catch {
+    // ignore
+}
 
 // Define drawGrid globally or ensure it's accessible where needed
 function drawGrid(gridCanvas, mainCanvas, image, isGridActuallyVisible) {
@@ -657,7 +810,8 @@ function drawGrid(gridCanvas, mainCanvas, image, isGridActuallyVisible) {
 
     // Draw ruler backgrounds if grid (any part of it) is visible
     if (isGridActuallyVisible || gridCanvas.gridSettings.rulersAlwaysVisible) { 
-        gridCtx.fillStyle = RULER_BG_COLOR;
+        const palette = getUiPalette();
+        gridCtx.fillStyle = palette.rulerBg;
         gridCtx.fillRect(0, 0, gridCanvas.width, RULER_SIZE); // Top ruler bg
         gridCtx.fillRect(0, RULER_SIZE, RULER_SIZE, gridCanvas.height - RULER_SIZE); // Left ruler bg (avoid double draw at corner)
     }
@@ -907,8 +1061,9 @@ function drawRulers(gridCtx, mainCanvas, image, gridSettings) {
 
     gridCtx.save();
     gridCtx.font = '10px sans-serif';
-    gridCtx.fillStyle = RULER_TEXT_COLOR;
-    gridCtx.strokeStyle = RULER_LINE_COLOR;
+    const palette = getUiPalette();
+    gridCtx.fillStyle = palette.rulerText;
+    gridCtx.strokeStyle = palette.rulerLine;
 
     const transform = mainCanvas.transformState;
     const userScale = transform.scale;

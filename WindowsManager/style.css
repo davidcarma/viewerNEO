@@ -1,18 +1,18 @@
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
     margin: 0;
     padding-top: 0; /* Height of controls-bar + some margin */
-    background-color: #2e2e2e; /* Dark background for dark mode */
-    color: #e0e0e0; /* Light text for dark mode */
+    background-color: var(--bg, #2e2e2e);
+    color: var(--text, #e0e0e0);
     overflow: hidden;
 }
 
 .window-frame {
     position: absolute;
-    background-color: #3c3c3c; /* Darker window background */
-    border: 1px solid #555; /* Softer border for dark mode */
-    box-shadow: 0 5px 20px rgba(0,0,0,0.3); /* Adjusted shadow for dark mode */
-    border-radius: 8px;
+    background-color: var(--surface, #3c3c3c);
+    border: 1px solid var(--border, #555);
+    box-shadow: var(--shadow-md, 0 5px 20px rgba(0,0,0,0.3));
+    border-radius: 16px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -20,17 +20,16 @@ body {
     min-height: 100px;
 }
 
-.window-title-bar {
-    background-color: #4a4a4a; /* Dark title bar */
-    /* background-image: linear-gradient(to bottom, #5a5a5a, #404040); */ /* Subtle gradient for dark mode */
-    padding: 5px 10px;
+.window-title-bar, .window-header {
+    background-color: var(--surface-2, #4a4a4a);
+    padding: 6px 10px;
     cursor: move;
     display: flex;
     justify-content: flex-start;
     align-items: center;
     user-select: none;
-    border-bottom: 1px solid #2a2a2a; /* Darker border */
-    height: 30px; /* Adjusted for slightly larger controls if needed */
+    border-bottom: 1px solid var(--border, #2a2a2a);
+    height: 32px;
     box-sizing: border-box;
 }
 
@@ -92,9 +91,9 @@ body {
 
 .window-title {
     margin: 0;
-    font-size: 0.85em;
-    color: #d0d0d0; /* Lighter title text */
-    font-weight: 500; /* Slightly bolder for better readability on dark bg */
+    font-size: 0.82em;
+    color: color-mix(in srgb, var(--text, #d0d0d0) 86%, transparent);
+    font-weight: 650;
     text-align: center;
     flex-grow: 1;
     white-space: nowrap;
@@ -104,11 +103,11 @@ body {
 }
 
 .window-content {
-    padding: 10px;
+    padding: 9px;
     flex-grow: 1;
     overflow: auto; /* This enables scrollbars when content exceeds space */
-    background-color: #333333; /* Dark content area */
-    color: #e0e0e0; /* Light text for content */
+    background-color: color-mix(in srgb, var(--surface-2, #333333) 92%, transparent);
+    color: var(--text, #e0e0e0);
     box-sizing: border-box;
 }
 
@@ -119,25 +118,25 @@ body {
 }
 
 .window-content::-webkit-scrollbar-track {
-    background: #424242; /* Dark track */
+    background: color-mix(in srgb, var(--surface-3, #424242) 92%, transparent);
     border-radius: 4px;
 }
 
 .window-content::-webkit-scrollbar-thumb {
-    background-color: #6e6e6e; /* Lighter thumb */
+    background-color: color-mix(in srgb, var(--text, #6e6e6e) 18%, transparent);
     border-radius: 4px;
-    border: 2px solid #424242; /* Padding around thumb */
+    border: 2px solid color-mix(in srgb, var(--surface-3, #424242) 92%, transparent);
 }
 
 .window-content::-webkit-scrollbar-thumb:hover {
-    background-color: #888888;
+    background-color: color-mix(in srgb, var(--text, #888888) 26%, transparent);
 }
 
 /* Resize Handle */
 .resize-handle {
     position: absolute;
-    width: 12px; /* Slightly larger for easier grabbing */
-    height: 12px;
+    width: 11px;
+    height: 11px;
     right: 0;
     bottom: 0;
     cursor: nwse-resize;
@@ -148,7 +147,7 @@ body {
 .window-frame.minimized {
     height: 30px !important; /* Match title bar height */
     min-height: 30px !important;
-    background-color: #4a4a4a; /* Match title bar color when minimized */
+    background-color: var(--surface-2, #4a4a4a);
 }
 
 .window-frame.minimized .window-content {
@@ -191,23 +190,23 @@ body {
 
 .spreadsheet-table th,
 .spreadsheet-table td {
-    border: 1px solid #555; /* Darker borders for table cells in dark mode */
+    border: 1px solid var(--border, #555);
     padding: 6px 8px;
     text-align: left;
 }
 
 .spreadsheet-table th {
-    background-color: #4f4f4f; /* Header background for dark mode */
-    color: #e0e0e0; /* Header text color */
+    background-color: color-mix(in srgb, var(--surface-3, #4f4f4f) 92%, transparent);
+    color: var(--text, #e0e0e0);
     font-weight: bold;
 }
 
 .spreadsheet-table tr:nth-child(even) td {
-    background-color: #424242; /* Alternating row color for dark mode */
+    background-color: color-mix(in srgb, var(--surface-3, #424242) 88%, transparent);
 }
 
 .spreadsheet-table tr:nth-child(odd) td {
-    background-color: #3c3c3c; /* Base row color matching window content */
+    background-color: color-mix(in srgb, var(--surface-2, #3c3c3c) 92%, transparent);
 }
 
 .spreadsheet-table td.number-cell {
@@ -229,8 +228,8 @@ body {
 /* Controls Bar at the top */
 .controls-bar {
     padding: 10px;
-    background-color: #222;
-    border-bottom: 1px solid #000;
+    background-color: var(--surface-2, #222);
+    border-bottom: 1px solid var(--border, #000);
     text-align: center;
     position: fixed; /* Keep it at the top */
     top: 0;
