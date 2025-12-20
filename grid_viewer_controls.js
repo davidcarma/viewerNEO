@@ -90,7 +90,7 @@ export function createGridViewerWindow({
 
                             <div class="gv-field">
                                 <label class="gv-check">
-                                    <input type="checkbox" id="${viewerId}-grid-show-minor" checked>
+                                    <input type="checkbox" id="${viewerId}-grid-show-minor">
                                     <span>Show Minor Lines (1/10th)</span>
                         </label>
                     </div>
@@ -244,7 +244,7 @@ export function createGridViewerWindow({
             mode: 'synced',
             fixedGridSpacing: 50,      // Screen pixels for fixed mode
             syncedMajorSpacing: 50.0,  // Image pixels for synced mode
-            showMinorLines: true,       // New setting for toggling minor lines
+            showMinorLines: false,      // Default: off
             rulersAlwaysVisible: false // Future setting placeholder (not yet used for logic)
         };
 
