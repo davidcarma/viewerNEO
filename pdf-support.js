@@ -1,7 +1,7 @@
 // PDF drop/render support for ViewerNeo.
 // Uses vendored PDF.js module + worker under ./lib (no CDN at runtime).
 
-const DEFAULT_PRESET_HEIGHTS = [720, 1080, 1440, 2160, 3000, 3400];
+const DEFAULT_PRESET_HEIGHTS = [720, 1080, 1440, 2160, 3000, 3400, 4000, 5000, 6000, 7000, 8000, 9000];
 
 let __pdfjsPromise = null;
 async function ensurePdfJs() {
