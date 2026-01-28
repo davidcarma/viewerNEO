@@ -27,7 +27,11 @@ function el(tag, attrs = {}, children = []) {
   return node;
 }
 
-export async function promptPdfRenderOptions({ presetHeights = DEFAULT_PRESET_HEIGHTS } = {}) {
+export async function promptPdfRenderOptions({ 
+  presetHeights = DEFAULT_PRESET_HEIGHTS,
+  isMultipage = false,
+  totalPages = null 
+} = {}) {
   return new Promise((resolve) => {
     const overlay = el('div', {
       class: 'vn-modal-overlay',
@@ -54,11 +58,15 @@ export async function promptPdfRenderOptions({ presetHeights = DEFAULT_PRESET_HE
       `
     });
 
+    const titleText = isMultipage && totalPages ? `Render PDF (${totalPages} pages)` : 'Render dropped PDF';
     const title = el('div', { style: 'font-weight: 750; font-size: 14px; margin-bottom: 6px;' }, [
-      'Render dropped PDF'
+      titleText
     ]);
+    const subtitleText = isMultipage 
+      ? 'Each page will be rendered as a separate image in a batch.'
+      : 'Choose a target render height (px). Aspect ratio is preserved per page.';
     const subtitle = el('div', { style: 'color: var(--muted, #aaa); font-size: 12px; line-height: 1.35; margin-bottom: 10px;' }, [
-      'Choose a target render height (px). Aspect ratio is preserved per page.'
+      subtitleText
     ]);
 
     const row = el('div', { style: 'display:flex; gap:10px; align-items:center; margin-bottom:10px;' });
@@ -88,7 +96,9 @@ export async function promptPdfRenderOptions({ presetHeights = DEFAULT_PRESET_HE
 
     const modeRow = el('div', { style: 'display:flex; gap:14px; align-items:center; margin: 10px 0 12px 0; flex-wrap: wrap;' });
     const allPagesLabel = el('label', { style: 'display:flex; gap:10px; align-items:center; font-size: 12px; font-weight: 650;' });
-    const allPages = el('input', { type: 'checkbox', checked: '' });
+    // Default to checked if multipage PDF detected
+    const allPages = el('input', { type: 'checkbox' });
+    if (isMultipage) allPages.checked = true;
     allPagesLabel.appendChild(allPages);
     allPagesLabel.appendChild(el('span', {}, ['Render all pages']));
     const limitLabel = el('div', { style: 'color: var(--muted, #aaa); font-size: 12px;' }, [
@@ -155,6 +165,19 @@ export async function promptPdfRenderOptions({ presetHeights = DEFAULT_PRESET_HE
     document.body.appendChild(overlay);
     okBtn.focus();
   });
+}
+
+// Check if PDF has multiple pages
+export async function getPdfPageCount(pdfFile) {
+  try {
+    const pdfjsLib = await ensurePdfJs();
+    const buf = await pdfFile.arrayBuffer();
+    const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+    return doc.numPages;
+  } catch (err) {
+    console.error('Error getting PDF page count:', err);
+    return 1;
+  }
 }
 
 async function renderPdfFileToCanvases(pdfFile, { targetHeight, renderAllPages }) {

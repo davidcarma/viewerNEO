@@ -212,9 +212,26 @@ export function initDragAndDrop({ panel, dropZone = document.body }) {
       }
 
       if (pdfFiles.length > 0) {
-        const { promptPdfRenderOptions, renderPdfsToBatchAndLoad } = await import('../pdf-support.js');
-        const opts = await promptPdfRenderOptions();
+        const { promptPdfRenderOptions, renderPdfsToBatchAndLoad, getPdfPageCount } = await import('../pdf-support.js');
+        
+        // Check if any PDF is multipage
+        let totalPages = 0;
+        let isMultipage = false;
+        const checkingToast = showToast('Checking PDF pages...', { type: 'info', timeoutMs: 0 });
+        
+        for (const pdf of pdfFiles) {
+          const pageCount = await getPdfPageCount(pdf);
+          totalPages += pageCount;
+          if (pageCount > 1) isMultipage = true;
+        }
+        checkingToast.close();
+        
+        const opts = await promptPdfRenderOptions({ 
+          isMultipage, 
+          totalPages: pdfFiles.length === 1 ? totalPages : null 
+        });
         if (!opts) return;
+        
         const busyModal = showBusyModal('Rendering PDF…');
         const spinnerTimer = window.setTimeout(() => busyModal.showSpinner(), 300);
         await renderPdfsToBatchAndLoad({
@@ -228,7 +245,8 @@ export function initDragAndDrop({ panel, dropZone = document.body }) {
         });
         window.clearTimeout(spinnerTimer);
         busyModal.close();
-        showToast(`Rendered ${pdfFiles.length} PDF${pdfFiles.length === 1 ? '' : 's'}`, { type: 'success' });
+        const pageText = opts.renderAllPages && totalPages > 1 ? ` (${totalPages} pages)` : '';
+        showToast(`Rendered ${pdfFiles.length} PDF${pdfFiles.length === 1 ? '' : 's'}${pageText}`, { type: 'success' });
       }
 
       if (imageFiles.length === 0 && pdfFiles.length === 0) {
